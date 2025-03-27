@@ -11,7 +11,7 @@ const options = {
     },
     servers: [
       {
-        url: process.env.SWAGGER_SERVER_URL || 'http://localhost:5001', // 🌐 Use ENV in Render
+        url: process.env.BASE_URL || 'http://localhost:5001', // ✅ fallback for local
       },
     ],
     components: {
@@ -29,7 +29,7 @@ const options = {
       },
     ],
   },
-  apis: ['./routes/*.js'], // 👈 adjust if you use `ts` or nested folders
+  apis: ['./routes/*.js'], // ✅ Path to your route files
 };
 
 const swaggerSpec = swaggerJSDoc(options);
