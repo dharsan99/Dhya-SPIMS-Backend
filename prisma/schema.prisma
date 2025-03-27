@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model blends {
+  id            String          @id @default(uuid()) @db.Uuid
+  blend_code    String?
+  description   String?
+  shades        shades[]
+  yarn_mappings yarn_mappings[]
+  yarns         yarns[]
+}
+
+model brands {
+ id String @id @default(uuid()) @db.Uuid
+  name          String
+  type          String?
+  description   String?
+  shades        shades[]
+  yarn_mappings yarn_mappings[]
+}
+
+model files {
+ id String @id @default(uuid()) @db.Uuid
+  tenant_id      String?   @db.Uuid
+  file_url       String?
+  file_type      String?
+  linked_yarn_id String?   @db.Uuid
+  uploaded_by    String?   @db.Uuid
+  uploaded_at    DateTime? @default(now()) @db.Timestamp(6)
+  yarns          yarns?    @relation(fields: [linked_yarn_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants        tenants?  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          users?    @relation(fields: [uploaded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model machines {
+  id String @id @default(uuid()) @db.Uuid
+  tenant_id    String?   @db.Uuid
+  section      String?
+  machine_code String?
+  description  String?
+  is_active    Boolean?  @default(true)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  tenants      tenants?  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model orders {
+  id            String       @id @default(uuid()) @db.Uuid 
+  tenant_id     String?      @db.Uuid
+  order_number  String?      @unique
+  buyer_name    String?
+  yarn_id       String?      @db.Uuid
+  quantity_kg   Int?
+  delivery_date DateTime?    @db.Date
+  status        String?
+  created_by    String?      @db.Uuid
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  users         users?       @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants       tenants?     @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  yarns         yarns?       @relation(fields: [yarn_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  production    production[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model production {
+  id String @id @default(uuid()) @db.Uuid
+  tenant_id       String?   @db.Uuid
+  date            DateTime  @db.Date
+  section         String?
+  shift           String?
+  value           Decimal?  @db.Decimal(10, 2)
+  linked_order_id String?   @db.Uuid
+  entered_by      String?   @db.Uuid
+  created_at      DateTime? @default(now()) @db.Timestamp(6)
+  users           users?    @relation(fields: [entered_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  orders          orders?   @relation(fields: [linked_order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants         tenants?  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model shades {
+  id String @id @default(uuid()) @db.Uuid
+  shade_code         String?
+  brand_id           String?         @db.Uuid
+  blend_id           String?         @db.Uuid
+  shade_name         String?
+  percentage         String?
+  available_stock_kg Decimal?        @db.Decimal(10, 2)
+  blends             blends?         @relation(fields: [blend_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  brands             brands?         @relation(fields: [brand_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  yarn_mappings      yarn_mappings[]
+}
+
+model subscriptions {
+  id String @id @default(uuid()) @db.Uuid
+  tenant_id  String?   @db.Uuid
+  plan_type  String?
+  start_date DateTime? @db.Date
+  end_date   DateTime? @db.Date
+  is_active  Boolean?  @default(true)
+  tenants    tenants?  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model suppliers {
+  id String @id @default(uuid()) @db.Uuid
+  name    String
+  contact String?
+  email   String?
+  address String?
+}
+
+model tenants {
+ id String @id @default(uuid()) @db.Uuid
+  name          String
+  domain        String?
+  plan          String?         @default("free")
+  is_active     Boolean?        @default(true)
+  created_at    DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?       @default(now()) @db.Timestamp(6)
+  files         files[]
+  machines      machines[]
+  orders        orders[]
+  production    production[]
+  subscriptions subscriptions[]
+  users         users[]
+  yarns         yarns[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+ id String @id @default(uuid()) @db.Uuid
+  tenant_id     String?      @db.Uuid
+  name          String?
+  email         String       @unique
+  password_hash String
+  role          String?
+  is_active     Boolean?     @default(true)
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at    DateTime?    @default(now()) @db.Timestamp(6)
+  files         files[]
+  orders        orders[]
+  production    production[]
+  tenants       tenants?     @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model yarn_mappings {
+  id String @id @default(uuid()) @db.Uuid
+  count        String?
+  brand_id     String?     @db.Uuid
+  blend_id     String?     @db.Uuid
+  shade_id     String?     @db.Uuid
+  yarn_type_id String?     @db.Uuid
+  created_at   DateTime?   @default(now()) @db.Timestamp(6)
+  blends       blends?     @relation(fields: [blend_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  brands       brands?     @relation(fields: [brand_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  shades       shades?     @relation(fields: [shade_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  yarn_types   yarn_types? @relation(fields: [yarn_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model yarn_types {
+ id String @id @default(uuid()) @db.Uuid
+  name          String
+  category      String?
+  created_at    DateTime?       @default(now()) @db.Timestamp(6)
+  yarn_mappings yarn_mappings[]
+  yarns         yarns[]
+}
+
+model yarns {
+ id String @id @default(uuid()) @db.Uuid
+  tenant_id      String?     @db.Uuid
+  yarn_type_id   String?     @db.Uuid
+  blend_id       String?     @db.Uuid
+  count_range    String?
+  base_shade     String?
+  special_effect String?
+  status         String?     @default("active")
+  created_at     DateTime?   @default(now()) @db.Timestamp(6)
+  files          files[]
+  orders         orders[]
+  blends         blends?     @relation(fields: [blend_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  tenants        tenants?    @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  yarn_types     yarn_types? @relation(fields: [yarn_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
