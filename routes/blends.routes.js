@@ -1,55 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getAllBlends,
-  getBlendById,
-  createBlend,
-  updateBlend,
-  deleteBlend
-} = require('../controllers/blends.controller');
-
-const { verifyToken } = require('../middlewares/auth.middleware');
-const { requireRole } = require('../middlewares/role.middleware');
+const blendController = require('../controllers/blends.controller');
 
 /**
  * @swagger
  * tags:
  *   name: Blends
- *   description: Yarn blend codes and descriptions
+ *   description: Manage blends and their fibre compositions
  */
-
-/**
- * @swagger
- * /blends:
- *   get:
- *     summary: Get all blends
- *     tags: [Blends]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of blends
- */
-router.get('/', verifyToken, getAllBlends);
-
-/**
- * @swagger
- * /blends/{id}:
- *   get:
- *     summary: Get blend by ID
- *     tags: [Blends]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: id
- *         in: path
- *         required: true
- *         schema: { type: string }
- *     responses:
- *       200:
- *         description: Blend found
- */
-router.get('/:id', verifyToken, getBlendById);
 
 /**
  * @swagger
@@ -57,52 +15,107 @@ router.get('/:id', verifyToken, getBlendById);
  *   post:
  *     summary: Create a new blend
  *     tags: [Blends]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             required: [blend_code, description]
+ *             type: object
  *             properties:
  *               blend_code:
  *                 type: string
- *                 example: 52C/48P
  *               description:
  *                 type: string
- *                 example: Cotton/Polyester 52/48
  *     responses:
  *       201:
  *         description: Blend created
  */
-router.post('/', verifyToken, requireRole('admin', 'supervisor'), createBlend);
+router.post('/', blendController.createBlend);
+
+/**
+ * @swagger
+ * /blends:
+ *   get:
+ *     summary: Get all blends
+ *     tags: [Blends]
+ *     responses:
+ *       200:
+ *         description: List of blends
+ */
+router.get('/', blendController.getAllBlends);
+
+/**
+ * @swagger
+ * /blends/summary:
+ *   get:
+ *     summary: Get blend + fibre + percentage summary
+ *     tags: [Blends]
+ *     responses:
+ *       200:
+ *         description: Blend summary with limiting stock
+ */
+router.get('/summary', blendController.getBlendSummary);
+
+/**
+ * @swagger
+ * /blends/fibre-usage:
+ *   get:
+ *     summary: Get total fibre usage summary across all blends
+ *     tags: [Blends]
+ *     responses:
+ *       200:
+ *         description: Summary of fibre usage (grouped by fibre)
+ */
+router.get('/fibre-usage', blendController.getFibreUsageSummary);
+
+/**
+ * @swagger
+ * /blends/{id}:
+ *   get:
+ *     summary: Get blend by ID
+ *     tags: [Blends]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Blend ID
+ *     responses:
+ *       200:
+ *         description: Blend details
+ */
+router.get('/:id', blendController.getBlendById);
 
 /**
  * @swagger
  * /blends/{id}:
  *   put:
- *     summary: Update a blend
+ *     summary: Update blend
  *     tags: [Blends]
- *     security:
- *       - bearerAuth: []
  *     parameters:
- *       - name: id
- *         in: path
+ *       - in: path
+ *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema:
+ *           type: string
+ *         description: Blend ID
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
+ *             type: object
  *             properties:
- *               blend_code: { type: string }
- *               description: { type: string }
+ *               blend_code:
+ *                 type: string
+ *               description:
+ *                 type: string
  *     responses:
  *       200:
  *         description: Blend updated
  */
-router.put('/:id', verifyToken, requireRole('admin', 'supervisor'), updateBlend);
+router.put('/:id', blendController.updateBlend);
 
 /**
  * @swagger
@@ -110,17 +123,17 @@ router.put('/:id', verifyToken, requireRole('admin', 'supervisor'), updateBlend)
  *   delete:
  *     summary: Delete a blend
  *     tags: [Blends]
- *     security:
- *       - bearerAuth: []
  *     parameters:
- *       - name: id
- *         in: path
+ *       - in: path
+ *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema:
+ *           type: string
+ *         description: Blend ID
  *     responses:
- *       200:
+ *       204:
  *         description: Blend deleted
  */
-router.delete('/:id', verifyToken, requireRole('admin'), deleteBlend);
+router.delete('/:id', blendController.deleteBlend);
 
 module.exports = router;

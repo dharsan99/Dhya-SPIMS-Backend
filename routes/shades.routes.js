@@ -1,128 +1,173 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getAllShades,
-  getShadeById,
-  createShade,
-  updateShade,
-  deleteShade
-} = require('../controllers/shades.controller');
-
-const { verifyToken } = require('../middlewares/auth.middleware');
-const { requireRole } = require('../middlewares/role.middleware');
+const controller = require('../controllers/shades.controller');
 
 /**
  * @swagger
  * tags:
  *   name: Shades
- *   description: Shade card management
+ *   description: Manage shade codes, colors, and fibre compositions
  */
 
 /**
  * @swagger
  * /shades:
  *   get:
- *     summary: Get all shade cards
+ *     summary: Get all shades (optionally filter by fibre_id)
  *     tags: [Shades]
- *     security:
- *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: fibre_id
+ *         schema:
+ *           type: string
+ *         description: Filter shades by fibre ID
  *     responses:
  *       200:
  *         description: List of shades
  */
-router.get('/', verifyToken, getAllShades);
+router.get('/', controller.getAllShades);
+
+/**
+ * @swagger
+ * /shades/stock-summary:
+ *   get:
+ *     summary: Get total available stock for each shade (grouped)
+ *     tags: [Shades]
+ *     responses:
+ *       200:
+ *         description: Aggregated stock summary
+ */
+router.get('/stock-summary', controller.getStockSummary);
 
 /**
  * @swagger
  * /shades/{id}:
  *   get:
- *     summary: Get shade by ID
+ *     summary: Get a shade by ID (with fibre composition)
  *     tags: [Shades]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema:
+ *           type: string
+ *         description: Shade ID
  *     responses:
  *       200:
  *         description: Shade details
+ *       404:
+ *         description: Shade not found
  */
-router.get('/:id', verifyToken, getShadeById);
+router.get('/:id', controller.getShadeById);
 
 /**
  * @swagger
  * /shades:
  *   post:
- *     summary: Create new shade card
+ *     summary: Create a new shade with multiple fibres
  *     tags: [Shades]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             required: [shade_code, brand_id, blend_id, shade_name, percentage]
+ *             type: object
+ *             required:
+ *               - shade_code
+ *               - shade_name
+ *               - fibre_composition
  *             properties:
- *               shade_code: { type: string }
- *               brand_id: { type: string }
- *               blend_id: { type: string }
- *               shade_name: { type: string }
- *               percentage: { type: string, example: "98C/2P" }
- *               available_stock_kg: { type: number, example: 500 }
+ *               shade_code:
+ *                 type: string
+ *                 example: SHD12345
+ *               shade_name:
+ *                 type: string
+ *                 example: Light Grey
+ *               percentage:
+ *                 type: string
+ *                 example: 100%
+ *               fibre_composition:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - fibre_id
+ *                     - percentage
+ *                   properties:
+ *                     fibre_id:
+ *                       type: string
+ *                       example: 3cd43b5c-1aa7-4a05-809f-28c4c428528d
+ *                     percentage:
+ *                       type: integer
+ *                       example: 70
  *     responses:
  *       201:
- *         description: Shade created
+ *         description: Shade created successfully
  */
-router.post('/', verifyToken, requireRole('admin', 'supervisor'), createShade);
+router.post('/', controller.createShade);
 
 /**
  * @swagger
  * /shades/{id}:
  *   put:
- *     summary: Update shade card
+ *     summary: Update an existing shade and its fibre composition
  *     tags: [Shades]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema:
+ *           type: string
+ *         description: Shade ID
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
+ *             type: object
  *             properties:
- *               shade_code: { type: string }
- *               shade_name: { type: string }
- *               percentage: { type: string }
- *               available_stock_kg: { type: number }
+ *               shade_code:
+ *                 type: string
+ *               shade_name:
+ *                 type: string
+ *               percentage:
+ *                 type: string
+ *               fibre_composition:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     fibre_id:
+ *                       type: string
+ *                     percentage:
+ *                       type: integer
  *     responses:
  *       200:
- *         description: Shade updated
+ *         description: Shade updated successfully
+ *       404:
+ *         description: Shade not found
  */
-router.put('/:id', verifyToken, requireRole('admin', 'supervisor'), updateShade);
+router.put('/:id', controller.updateShade);
 
 /**
  * @swagger
  * /shades/{id}:
  *   delete:
- *     summary: Delete shade card
+ *     summary: Delete a shade
  *     tags: [Shades]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema:
+ *           type: string
+ *         description: Shade ID
  *     responses:
- *       200:
- *         description: Shade deleted
+ *       204:
+ *         description: Shade deleted successfully
+ *       404:
+ *         description: Shade not found
  */
-router.delete('/:id', verifyToken, requireRole('admin'), deleteShade);
+router.delete('/:id', controller.deleteShade);
 
 module.exports = router;

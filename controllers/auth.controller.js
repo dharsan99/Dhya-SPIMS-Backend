@@ -13,8 +13,11 @@ const login = async (req, res) => {
   const isValid = await bcrypt.compare(password, user.password_hash);
   if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
 
-  const token = generateToken({ id: user.id, role: user.role });
-
+  const token = generateToken({
+    id: user.id,
+    role: user.role,
+    tenant_id: user.tenant_id // ✅ Include this
+  });
   const { password_hash, ...userData } = user;
   res.json({ user: userData, token });
 };
