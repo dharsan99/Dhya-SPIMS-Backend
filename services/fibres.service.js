@@ -32,8 +32,6 @@ exports.getAllFibres = async () => {
   });
 };
 
-
-
 /**
  * ✅ Get a single fibre by ID (with category) with UUID validation
  */
@@ -119,6 +117,9 @@ exports.deleteFibreCategory = async (id) => {
   });
 };
 
+/**
+ * ✅ Get low stock fibres (< 200kg)
+ */
 exports.getLowStockFibres = async () => {
   try {
     return await prisma.fibres.findMany({
@@ -138,4 +139,22 @@ exports.getLowStockFibres = async () => {
     console.error('🔥 Error in getLowStockFibres:', error);
     throw new Error('Failed to fetch fibre');
   }
+};
+
+/**
+ * ✅ Get fibre usage trend data grouped by day
+ */
+exports.getFiberUsageTrend = async (fibreId) => {
+  if (!isUUID(fibreId)) throw new Error(`Invalid UUID for fibre ID: ${fibreId}`);
+
+  return await prisma.fibre_usage_logs.groupBy({
+    by: ['used_on'],
+    where: { fibre_id: fibreId },
+    _sum: {
+      used_kg: true,
+    },
+    orderBy: {
+      used_on: 'desc',
+    },
+  });
 };

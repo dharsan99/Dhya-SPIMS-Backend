@@ -1,78 +1,111 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-
-const getAllProduction = async (req, res) => {
+const productionService = require('../services/production.service');
+// 🔁 GET /productions
+exports.getAllProductions = async (req, res) => {
   try {
-    const records = await prisma.production.findMany({
-      include: {
-        orders: true
-      },
-      orderBy: { date: 'desc' }
-    });
-    res.json(records);
+    const tenant_id = req.user.tenant_id;
+    const data = await productionService.getAllProductions(tenant_id);
+    res.json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch production data' });
+    console.error('❌ Error fetching productions:', err);
+    res.status(500).json({ error: 'Failed to fetch productions' });
   }
 };
 
-const getProductionById = async (req, res) => {
+exports.getOrderProgress = async (req, res) => {
+  const { orderId } = req.params;
   try {
-    const record = await prisma.production.findUnique({
-      where: { id: req.params.id }
-    });
-    if (!record) return res.status(404).json({ error: 'Not found' });
-    res.json(record);
+    const data = await productionService.getCumulativeProgressByOrder(orderId);
+    return res.json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Error retrieving production record' });
+    console.error('❌ Failed to fetch progress:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch progress' });
   }
 };
 
-const addProductionEntry = async (req, res) => {
-  const {
-    tenant_id,
-    date,
-    section,
-    shift,
-    value,
-    linked_order_id,
-    entered_by
-  } = req.body;
-
+// 🔁 GET /productions/:id
+exports.getProductionById = async (req, res) => {
   try {
-    const entry = await prisma.production.create({
-      data: {
-        tenant_id,
-        date: new Date(date),
-        section,
-        shift,
-        value,
-        linked_order_id,
-        entered_by
-      }
-    });
-
-    res.status(201).json(entry);
+    const data = await productionService.getProductionById(req.params.id);
+    if (!data) return res.status(404).json({ error: 'Production not found' });
+    res.json(data);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create production entry' });
+    console.error('❌ Error fetching production by ID:', err);
+    res.status(500).json({ error: 'Failed to fetch production' });
   }
 };
 
-const updateProductionEntry = async (req, res) => {
+// 📅 GET /productions/logs
+exports.getProductionLogs = async (req, res) => {
   try {
-    const updated = await prisma.production.update({
-      where: { id: req.params.id },
-      data: req.body
-    });
-
-    res.json(updated);
+    const tenant_id = req.user.tenant_id;
+    const logs = await productionService.getProductionLogs(tenant_id);
+    res.json(logs);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update production entry' });
+    console.error('❌ Error fetching production logs:', err);
+    res.status(500).json({ error: 'Failed to fetch production logs' });
+  }
+};
+// 📈 GET /productions/analytics
+exports.getProductionAnalytics = async (req, res) => {
+  try {
+    const tenant_id = req.user.tenant_id;
+    const data = await productionService.getProductionAnalytics(tenant_id);
+    res.json(data);
+  } catch (err) {
+    console.error('❌ Error fetching analytics:', err);
+    res.status(500).json({ error: 'Failed to compute analytics' });
   }
 };
 
-module.exports = {
-  getAllProduction,
-  getProductionById,
-  addProductionEntry,
-  updateProductionEntry
+exports.getDailyEfficiency = async (req, res) => {
+  try {
+    const data = await productionService.getDailyEfficiency(req.user.tenant_id);
+    res.json(data);
+  } catch (err) {
+    console.error('Efficiency Error:', err);
+    res.status(500).json({ error: 'Failed to calculate efficiency' });
+  }
+};
+
+exports.getMachineEfficiency = async (req, res) => {
+  try {
+    const data = await productionService.getMachineEfficiency(req.user.tenant_id);
+    res.json(data);
+  } catch (err) {
+    console.error('Machine Efficiency Error:', err);
+    res.status(500).json({ error: 'Failed to calculate machine efficiency' });
+  }
+};
+
+// ➕ POST /productions
+exports.createProduction = async (req, res) => {
+  try {
+    const data = await productionService.createProduction(req.body);
+    res.status(201).json(data);
+  } catch (err) {
+    console.error('❌ Error creating production:', err);
+    res.status(500).json({ error: 'Failed to create production' });
+  }
+};
+
+// ✏️ PUT /productions/:id
+exports.updateProduction = async (req, res) => {
+  try {
+    const data = await productionService.updateProduction(req.params.id, req.body);
+    res.json(data);
+  } catch (err) {
+    console.error('❌ Error updating production:', err);
+    res.status(500).json({ error: 'Failed to update production' });
+  }
+};
+
+// ❌ DELETE /productions/:id
+exports.deleteProduction = async (req, res) => {
+  try {
+    await productionService.deleteProduction(req.params.id);
+    res.status(204).end();
+  } catch (err) {
+    console.error('❌ Error deleting production:', err);
+    res.status(500).json({ error: 'Failed to delete production' });
+  }
 };

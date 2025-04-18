@@ -7,7 +7,6 @@ const prisma = new PrismaClient();
 const isUUID = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
-// ✅ POST /orders/bulk-upload
 const bulkImportOrders = async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
@@ -34,15 +33,7 @@ const bulkImportOrders = async (req, res) => {
         realisation
       } = row;
 
-      // Validation
-      if (
-        !order_number ||
-        !buyer_id ||
-        !shade_id ||
-        !tenant_id ||
-        !quantity_kg ||
-        !delivery_date
-      ) {
+      if (!order_number || !buyer_id || !shade_id || !tenant_id || !quantity_kg || !delivery_date) {
         errors.push({ row: rowIndex, reason: 'Missing required fields' });
         continue;
       }
@@ -116,13 +107,9 @@ const bulkImportOrders = async (req, res) => {
   }
 };
 
-// ✅ GET /orders?tenant_id=...
 const getAllOrders = async (req, res) => {
   const tenant_id = req.user?.tenant_id;
-
-  if (!tenant_id) {
-    return res.status(401).json({ error: 'Unauthorized: tenant_id not found in token' });
-  }
+  if (!tenant_id) return res.status(401).json({ error: 'Unauthorized: tenant_id not found in token' });
 
   try {
     const orders = await orderService.getAllOrders(tenant_id);
@@ -133,7 +120,6 @@ const getAllOrders = async (req, res) => {
   }
 };
 
-// ✅ GET /orders/:id
 const getOrderById = async (req, res) => {
   try {
     const order = await orderService.getOrderById(req.params.id);
@@ -145,7 +131,6 @@ const getOrderById = async (req, res) => {
   }
 };
 
-// ✅ POST /orders
 const createOrder = async (req, res) => {
   try {
     const order = await orderService.createOrder(req.body);
@@ -157,7 +142,6 @@ const createOrder = async (req, res) => {
   }
 };
 
-// ✅ PUT /orders/:id
 const updateOrder = async (req, res) => {
   try {
     const updated = await orderService.updateOrder(req.params.id, req.body);
@@ -168,7 +152,6 @@ const updateOrder = async (req, res) => {
   }
 };
 
-// ✅ PUT /orders/:id/status
 const updateOrderStatus = async (req, res) => {
   const { status } = req.body;
   const allowed = ['pending', 'in_progress', 'dispatched', 'completed'];
@@ -186,7 +169,6 @@ const updateOrderStatus = async (req, res) => {
   }
 };
 
-// ✅ DELETE /orders/:id
 const deleteOrder = async (req, res) => {
   try {
     await orderService.deleteOrder(req.params.id);
@@ -197,6 +179,16 @@ const deleteOrder = async (req, res) => {
   }
 };
 
+const getOrderProgressDetails = async (req, res) => {
+  try {
+    const result = await orderService.getOrderProgressDetails(req.params.id);
+    res.json(result);
+  } catch (err) {
+    console.error('Error getting progress details:', err);
+    res.status(500).json({ error: 'Failed to fetch order progress' });
+  }
+};
+
 module.exports = {
   getAllOrders,
   getOrderById,
@@ -204,5 +196,6 @@ module.exports = {
   updateOrder,
   updateOrderStatus,
   deleteOrder,
-  bulkImportOrders
+  bulkImportOrders,
+  getOrderProgressDetails
 };

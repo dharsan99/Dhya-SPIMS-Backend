@@ -40,7 +40,7 @@ const shadeRoutes = require('./routes/shades.routes');
 const orderRoutes = require('./routes/orders.routes');
 const buyerRoutes = require('./routes/buyers.routes');
 // const machineRoutes = require('./routes/machines.routes');
-// const productionRoutes = require('./routes/production.routes');
+const productionRoutes = require('./routes/production.routes');
 // const supplierRoutes = require('./routes/suppliers.routes');
 
 // ✅ Route Registration
@@ -63,7 +63,7 @@ app.use('/shades', shadeRoutes);
 app.use('/orders', orderRoutes);
 app.use('/buyers', buyerRoutes);
 // app.use('/machines', machineRoutes);
-// app.use('/production', productionRoutes);
+app.use('/productions', productionRoutes);
 // app.use('/suppliers', supplierRoutes);
 
 // ✅ Start Server

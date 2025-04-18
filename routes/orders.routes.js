@@ -242,5 +242,56 @@ router.delete('/:id', controller.deleteOrder);
  *         description: Failed to process Excel file
  */
 router.post('/bulk-upload', upload.single('file'), controller.bulkImportOrders);
-
+/**
+ * @swagger
+ * /orders/{id}/progress-details:
+ *   get:
+ *     summary: Get full progress details for an order
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: Order ID
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Progress metrics for the selected order
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 requiredQty:
+ *                   type: number
+ *                   example: 1200
+ *                 producedQty:
+ *                   type: number
+ *                   example: 843.5
+ *                 averageEfficiency:
+ *                   type: number
+ *                   example: 72.3
+ *                 topProductionDay:
+ *                   type: object
+ *                   properties:
+ *                     date:
+ *                       type: string
+ *                       example: 2025-04-12
+ *                     production:
+ *                       type: number
+ *                       example: 500
+ *                 noProductionDays:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "2025-04-14"
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Failed to fetch progress details
+ */
+router.get('/:id/progress-details', controller.getOrderProgressDetails);
 module.exports = router;

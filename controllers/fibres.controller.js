@@ -118,11 +118,33 @@ exports.deleteFibreCategory = async (req, res) => {
   }
 };
 
+/**
+ * ✅ Get low stock fibres (< 200kg)
+ */
 exports.getLowStockFibres = async (req, res) => {
   try {
     const fibres = await fibreService.getLowStockFibres();
     res.json(fibres);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+};
+
+/**
+ * ✅ Get fibre usage trend data grouped by day
+ */
+exports.getFiberUsageTrend = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const trend = await fibreService.getFiberUsageTrend(id);
+    res.json(
+      trend.map((entry) => ({
+        date: entry.used_on,
+        usedKg: parseFloat(entry._sum.used_kg),
+      })).reverse()
+    );
+  } catch (error) {
+    console.error('Error loading trend:', error);
+    res.status(500).json({ error: 'Failed to load trend' });
   }
 };

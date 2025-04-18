@@ -154,6 +154,41 @@ router.get('/', fibreController.getAllFibres);
  *         description: List of fibres with low stock
  */
 router.get('/low-stock', fibreController.getLowStockFibres);
+/**
+ * @swagger
+ * /fibres/{id}/usage:
+ *   get:
+ *     summary: Get fibre usage trend
+ *     tags: [Fibres]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of the fibre
+ *     responses:
+ *       200:
+ *         description: List of usage history
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   date:
+ *                     type: string
+ *                     format: date
+ *                   usedKg:
+ *                     type: number
+ *                     format: float
+ *                     example: 23.5
+ *       404:
+ *         description: Fibre not found or no usage data
+ */
+
+router.get('/:id/usage', fibreController.getFiberUsageTrend);
 
 /**
  * @swagger
@@ -227,5 +262,7 @@ router.put('/:id', fibreController.updateFibre);
  *         description: Fibre deleted successfully
  */
 router.delete('/:id', fibreController.deleteFibre);
+
+
 
 module.exports = router;
