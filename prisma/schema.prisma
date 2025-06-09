@@ -406,14 +406,25 @@ model Campaign {
 model Attendance {
   id             String    @id @default(uuid())
   date           DateTime
-  shift          String
+  shift          String  
+  in_time        DateTime
+  out_time       DateTime      
   overtime_hours Float
   total_hours    Float
-  status         String
+  status         AttendanceStatus
   employee_id    String    @db.Uuid
   employee       employees @relation(fields: [employee_id], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@unique([date, employee_id])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
 }
 
 model PotentialBuyer {

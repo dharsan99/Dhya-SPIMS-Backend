@@ -1,11 +1,595 @@
 const express = require('express');
 const router = express.Router();
 const attendanceController = require('../controllers/attendance.controller');
+const validateAttendance = require('../middlewares/attendance.validation');
+
+const { verifyToken } = require('../middlewares/auth.middleware');
+const { requireRole } = require('../middlewares/role.middleware');
+
+// 🔐 Apply middleware for all routes in this file
+router.use(verifyToken);
+router.use(requireRole('admin', 'hr'));
+
+console.log('✅ Attendance routes loaded');
+
+/**
+ * @swagger
+ * tags:
+ *   name: Attendance
+ *   description: Attendance management APIs
+ */
+
+
+/**
+ * @swagger
+ * /attendance/mark-bulk:
+ *   post:
+ *     summary: Mark bulk attendance records for a specific date
+ *     tags:
+ *       - Attendance
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - date
+ *               - records
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 example: '2025-04-09'
+ *               records:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - employee_id
+ *                     - shift
+ *                     - status
+ *                   properties:
+ *                     employee_id:
+ *                       type: string
+ *                       format: uuid
+ *                       example: 4487d2cb-966d-4cd4-b770-6e17d2036aa9
+ *                     shift:
+ *                       type: string
+ *                       example: morning
+ *                     status:
+ *                       type: string
+ *                       example: PRESENT
+ *                     in_time:
+ *                       type: string
+ *                       format: date-time
+ *                       example: '2025-06-09T07:48:44.481Z'
+ *                     out_time:
+ *                       type: string
+ *                       format: date-time
+ *                       example: '2025-06-09T17:48:44.481Z'
+ *                     overtime_hours:
+ *                       type: number
+ *                       format: float
+ *                       example: 2
+ *     responses:
+ *       200:
+ *         description: Bulk attendance marked successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 markedCount:
+ *                   type: integer
+ *                   example: 3
+ *       500:
+ *         description: Failed to mark attendance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Failed to mark attendance
+ */
 
 router.post('/mark', attendanceController.markAttendance);
-console.log('✅ Attendance routes loaded');
+
+
+/**
+ * @swagger
+ * /attendance/by-date:
+ *   get:
+ *     summary: Get attendance records for a specific date
+ *     description: |
+ *       Returns all attendance records for a given date (format: YYYY-MM-DD).
+ *       Optionally filter by employee_id, shift, or status.
+ *     tags: [Attendance]
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         required: true
+ *         description: "Date to filter attendance (format: YYYY-MM-DD)"
+ *         schema:
+ *           type: string
+ *           format: date
+ *           example: 2025-06-01
+ *       - in: query
+ *         name: employee_id
+ *         required: false
+ *         description: Filter by employee ID
+ *         schema:
+ *           type: string
+ *           example: 4487d2cb-966d-4cd4-b770-6e17d2036aa9
+ *       - in: query
+ *         name: shift
+ *         required: false
+ *         description: Filter by shift (e.g., morning, evening, night)
+ *         schema:
+ *           type: string
+ *           example: morning
+ *       - in: query
+ *         name: status
+ *         required: false
+ *         description: Filter by attendance status (e.g., PRESENT, ABSENT, HALF_DAY)
+ *         schema:
+ *           type: string
+ *           example: PRESENT
+ *     responses:
+ *       200:
+ *         description: A list of attendance records
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   employee_id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   date:
+ *                     type: string
+ *                     format: date-time
+ *                   shift:
+ *                     type: string
+ *                   status:
+ *                     type: string
+ *                   overtime_hours:
+ *                     type: number
+ *       400:
+ *         description: Missing or invalid date parameter
+ *       500:
+ *         description: Failed to fetch attendance
+ */
+
 router.get('/by-date', attendanceController.getAttendanceByDate);
+
+
+
+/**
+ * @swagger
+ * /attendance/range:
+ *   get:
+ *     summary: Get attendance records between start and end dates
+ *     tags:
+ *       - Attendance
+ *     parameters:
+ *       - in: query
+ *         name: start
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date (YYYY-MM-DD)
+ *         example: '2025-06-01'
+ *       - in: query
+ *         name: end
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date (YYYY-MM-DD)
+ *         example: '2025-06-09'
+ *     responses:
+ *       200:
+ *         description: Attendance records between given dates
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   employee_id:
+ *                     type: string
+ *                     format: uuid
+ *                     example: ca21fb9d-1bb5-4d7d-b3a5-e24c52caf93a
+ *                   date:
+ *                     type: string
+ *                     format: date
+ *                     example: '2025-06-09'
+ *                   status:
+ *                     type: string
+ *                     example: PRESENT
+ *                   shift:
+ *                     type: string
+ *                     example: morning
+ *                   in_time:
+ *                     type: string
+ *                     format: date-time
+ *                     example: '2025-06-09T09:00:00Z'
+ *                   out_time:
+ *                     type: string
+ *                     format: date-time
+ *                     example: '2025-06-09T17:00:00Z'
+ *                   overtime_hours:
+ *                     type: number
+ *                     format: float
+ *                     example: 1.5
+ *       400:
+ *         description: Missing start or end date parameter
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Start and end dates are required
+ *       500:
+ *         description: Failed to fetch attendance range
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Failed to fetch attendance range
+ */
+
 router.get('/range', attendanceController.getAttendanceRange);
+
+
+
+
+/**
+ * @swagger
+ * /attendance:
+ *   get:
+ *     summary: Get all attendance records
+ *     tags: [Attendance]
+ *     responses:
+ *       200:
+ *         description: List of attendance records
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   employee_id:
+ *                     type: string
+ *                   name:
+ *                     type: string
+ *                   date:
+ *                     type: string
+ *                     format: date
+ *                   status:
+ *                     type: string
+ *                   overtime_hours:
+ *                     type: number
+ */
+router.get('/', attendanceController.getAllAttendance);
+
+/**
+ * @swagger
+ * /attendance:
+ *   post:
+ *     summary: Create a new attendance record
+ *     tags: [Attendance]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               employee_id:
+ *                 type: string
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               shift:
+ *                 type: string
+ *               in_time:
+ *                 type: string
+ *                 format: date-time
+ *               out_time:
+ *                 type: string
+ *                 format: date-time
+ *               overtime_hours:
+ *                 type: number
+ *               total_hours:
+ *                 type: number
+ *               status:
+ *                 type: string
+ *                 enum: [PRESENT, ABSENT, HALF_DAY, LEAVE]
+ *     responses:
+ *       201:
+ *         description: Attendance record created
+ *       400:
+ *         description: Invalid input
+ */
+router.post('/',validateAttendance, attendanceController.createAttendance);
+
+/**
+ * @swagger
+ * /attendance/{employee_id}:
+ *   put:
+ *     summary: Update attendance records by employee ID
+ *     tags: [Attendance]
+ *     parameters:
+ *       - in: path
+ *         name: employee_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               shift:
+ *                 type: string
+ *               in_time:
+ *                 type: string
+ *                 format: date-time
+ *               out_time:
+ *                 type: string
+ *                 format: date-time
+ *               overtime_hours:
+ *                 type: number
+ *               total_hours:
+ *                 type: number
+ *               status:
+ *                 type: string
+ *                 enum: [PRESENT, ABSENT, HALF_DAY, LEAVE]
+ *     responses:
+ *       200:
+ *         description: Attendance updated
+ *       404:
+ *         description: Attendance not found
+ */
+router.put('/:employee_id', attendanceController.updateAttendance);
+
+/**
+ * @swagger
+ * /attendance/{employee_id}:
+ *   delete:
+ *     summary: Delete attendance records by employee ID
+ *     tags: [Attendance]
+ *     parameters:
+ *       - in: path
+ *         name: employee_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Attendance deleted
+ *       404:
+ *         description: Attendance not found
+ */
+router.delete('/:employee_id', attendanceController.deleteAttendance);
+
+
+/**
+ * @swagger
+ * /attendance/summary:
+ *   get:
+ *     summary: Get attendance summary for a given month and year
+ *     tags:
+ *       - Attendance
+ *     parameters:
+ *       - in: query
+ *         name: month
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: "^(0[1-9]|1[0-2])$"
+ *           example: "05"
+ *         description: Month to get the summary for (MM format, e.g., 05 for May)
+ *       - in: query
+ *         name: year
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: "^[0-9]{4}$"
+ *           example: "2025"
+ *         description: Year to get the summary for (YYYY format)
+ *     responses:
+  *       200:
+ *         description: Attendance summary for the specified month and year
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 month:
+ *                   type: string
+ *                   example: "05"
+ *                 year:
+ *                   type: string
+ *                   example: "2025"
+ *                 attendanceSummary:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       employee_id:
+ *                         type: string
+ *                         format: uuid
+ *                         example: "4487d2cb-966d-4cd4-b770-6e17d2036aa9"
+ *                       workingDays:
+ *                         type: number
+ *                         format: float
+ *                         example: 20.5
+ *                       overtimeHours:
+ *                         type: number
+ *                         format: float
+ *                         example: 12.5
+ *                       absents:
+ *                         type: integer
+ *                         example: 5
+*/
+router.get('/summary', attendanceController.getAttendanceSummary);
+
+
+/**
+ * @swagger
+ * /attendance/filter:
+ *   get:
+ *     summary: Get attendance records with optional filters
+ *     description: Returns attendance records optionally filtered by employee ID, department, and shift.
+ *     tags: [Attendance]
+ *     parameters:
+ *       - in: query
+ *         name: employee_id
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter by employee ID
+ *         example: 4487d2cb-966d-4cd4-b770-6e17d2036aa9
+ *       - in: query
+ *         name: department
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter by department
+ *         example: Tamil
+ *       - in: query
+ *         name: shift
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Filter by shift (e.g., morning, evening, night)
+ *         example: morning
+ *     responses:
+ *       200:
+ *         description: A list of attendance records
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   employee_id:
+ *                     type: string
+ *                   date:
+ *                     type: string
+ *                     format: date-time
+ *                   shift:
+ *                     type: string
+ *                   status:
+ *                     type: string
+ *                   in_time:
+ *                     type: string
+ *                     format: date-time
+ *                   out_time:
+ *                     type: string
+ *                     format: date-time
+ *                   overtime_hours:
+ *                     type: number
+ *                   employee:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       department:
+ *                         type: string
+ *       500:
+ *         description: Failed to fetch attendance
+ */
+router.get('/filter', attendanceController.getFilteredAttendance);
+
+
+
+/**
+ * @swagger
+ * /attendance/export:
+ *   get:
+ *     summary: Export attendance for a specific month
+ *     description: Returns downloadable JSON data for PDF/XLSX generation (handled in frontend).
+ *     tags: [Attendance]
+ *     parameters:
+ *       - in: query
+ *         name: month
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Month number (1-12)
+ *         example: 5
+ *       - in: query
+ *         name: year
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Year of the attendance
+ *         example: 2025
+ *     responses:
+ *       200:
+ *         description: JSON file for attendance records
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   employee_id:
+ *                     type: string
+ *                   date:
+ *                     type: string
+ *                     format: date-time
+ *                   shift:
+ *                     type: string
+ *                   status:
+ *                     type: string
+ *                   in_time:
+ *                     type: string
+ *                     format: date-time
+ *                   out_time:
+ *                     type: string
+ *                     format: date-time
+ *                   overtime_hours:
+ *                     type: number
+ *                   employee:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       department:
+ *                         type: string
+ *       400:
+ *         description: Month or year missing
+ *       500:
+ *         description: Failed to export attendance
+ */
+
+router.get('/export', attendanceController.exportMonthlyAttendance);
+
 
 
 module.exports = router;

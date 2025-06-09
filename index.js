@@ -7,7 +7,7 @@ dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 
-// ✅ Middlewares
+// ✅ Middleware
 app.use(
   cors({
     origin: [
@@ -100,4 +100,5 @@ app.use('/parse-purchase-order', parseRoutes);
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`🚀 SPIMS API server running at: http://localhost:${PORT}`);
+  console.log(`SPIMS SWAGGER API running at: http://localhost:5001/docs/`);
 });
