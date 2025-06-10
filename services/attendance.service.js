@@ -244,3 +244,9 @@ exports.getAttendanceByMonthYear = async (month, year) => {
   });
 };
 
+exports.updateAttendanceWithAudit = async (employeeId, data) => {
+  return await prisma.attendance.updateMany({
+    where: { employee_id: employeeId },
+    data,
+  });
+};

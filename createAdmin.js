@@ -2,8 +2,6 @@
 
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-
 
 const prisma = new PrismaClient();
 
@@ -42,21 +40,7 @@ async function createAdmin() {
   });
 
   console.log('🎉 New admin user created:', newUser);
-
-
-const token = jwt.sign(
-    {
-      id: newUser.id,
-      email: newUser.email,
-      role: newUser.role,
-    },
-    JWT_SECRET,
-    { expiresIn: '1d' }
-  );
-
-  console.log('🔑 JWT Token for admin login:', token);
 }
-
 
 createAdmin()
   .catch((err) => {

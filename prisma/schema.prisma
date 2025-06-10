@@ -412,10 +412,11 @@ model Attendance {
   overtime_hours Float
   total_hours    Float
   status         AttendanceStatus
-  employee_id    String    @db.Uuid
-  employee       employees @relation(fields: [employee_id], references: [id])
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  employee_id    String     @db.Uuid
+  employee       employees  @relation(fields: [employee_id], references: [id])
+  createdAt      DateTime   @default(now())
+  last_updated_by String?   @db.Uuid
+  updatedAt      DateTime   @default(now()) @updatedAt
 
   @@unique([date, employee_id])
 }

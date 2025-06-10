@@ -180,3 +180,20 @@ exports.exportMonthlyAttendance = async (req, res) => {
     res.status(500).json({ error: 'Failed to export attendance' });
   }
 };
+
+
+exports.updateAttendanceWithAudit = async (req, res) => {
+  try {
+    const employeeId = req.params.employee_id;
+
+    const updated = await attendanceService.updateAttendanceWithAudit(employeeId, {
+      ...req.body,
+      last_updated_by: req.user.id, // ✅ Who made the change
+      updatedAt: new Date(),        // ✅ When it was changed
+    });
+
+    res.json({ message: 'Attendance updated with audit fields', count: updated.count });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update attendance with audit' });
+  }
+};

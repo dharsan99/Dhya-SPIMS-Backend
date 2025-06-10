@@ -592,4 +592,48 @@ router.get('/export', attendanceController.exportMonthlyAttendance);
 
 
 
+/**
+ * @swagger
+ * /attendance/audit/{employee_id}:
+ *   put:
+ *     summary: Update attendance with audit fields
+ *     tags: [Attendance]
+ *     parameters:
+ *       - in: path
+ *         name: employee_id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               shift:
+ *                 type: string
+ *               in_time:
+ *                 type: string
+ *                 format: date-time
+ *               out_time:
+ *                 type: string
+ *                 format: date-time
+ *               overtime_hours:
+ *                 type: number
+ *               total_hours:
+ *                 type: number
+ *               status:
+ *                 type: string
+ *                 enum: [PRESENT, ABSENT, HALF_DAY, LEAVE]
+ *     responses:
+ *       200:
+ *         description: Attendance updated with audit
+ *       500:
+ *         description: Failed to update attendance
+ */
+router.put('/audit/:employee_id', verifyToken, attendanceController.updateAttendanceWithAudit);
+
+
+
 module.exports = router;
