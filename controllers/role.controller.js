@@ -1,5 +1,39 @@
 const roleService = require('../services/role.service');
 
+
+
+exports.getRoles = async (req, res) => {
+  const { tenantId } = req.query;
+
+  if (!tenantId) {
+    return res.status(400).json({ error: 'tenantId is required' });
+  }
+
+  try {
+    const roles = await roleService.getRolesByTenant(tenantId);
+    res.status(200).json(roles);
+  } catch (error) {
+    console.error('Get Roles Error:', error);
+    res.status(500).json({ error: 'Failed to fetch roles' });
+  }
+};
+
+exports.createRole = async (req, res) => {
+  const { tenant_id, name, description, permissions } = req.body;
+
+  if (!tenant_id || !name || !permissions) {
+    return res.status(400).json({ error: 'Missing required fields: tenant_id, name, permissions' });
+  }
+
+  try {
+    const newRole = await roleService.createRole({ tenant_id, name, description, permissions });
+    res.status(201).json({ message: 'Role created successfully', data: newRole });
+  } catch (error) {
+    console.error('Create Role Error:', error);
+    res.status(500).json({ error: 'Failed to create role' });
+  }
+};
+
 exports.updateRole = async (req, res) => {
   const { id, name, description, permissions } = req.body;
 
