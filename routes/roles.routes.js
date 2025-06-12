@@ -9,6 +9,82 @@ const roleController = require('../controllers/role.controller');
  *   description: Manage roles for tenants
  */
 
+
+/**
+ * @swagger
+ * /roles:
+ *   get:
+ *     summary: Get all roles for a tenant
+ *     tags: [Roles]
+ *     parameters:
+ *       - in: query
+ *         name: tenantId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: Tenant ID to filter roles
+ *     responses:
+ *       200:
+ *         description: List of roles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Role'
+ *       400:
+ *         description: Missing tenantId
+ *       500:
+ *         description: Server error
+ */
+router.get('/', roleController.getRoles);
+
+/**
+ * @swagger
+ * /roles:
+ *   post:
+ *     summary: Create a new role
+ *     tags: [Roles]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tenant_id
+ *               - name
+ *               - permissions
+ *             properties:
+ *               tenant_id:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 2f53e62e-8ff8-4e0e-8c0e-f03dc8a2d8e2
+ *               name:
+ *                 type: string
+ *                 example: manager
+ *               description:
+ *                 type: string
+ *                 example: Manager role with permissions
+ *               permissions:
+ *                 type: object
+ *                 example:
+ *                   Orders:
+ *                     - Add Order
+ *                     - Update Order
+ *                   Shades:
+ *                     - Add Shade
+ *     responses:
+ *       201:
+ *         description: Role created successfully
+ *       400:
+ *         description: Missing or invalid fields
+ *       500:
+ *         description: Server error
+ */
+router.post('/', roleController.createRole);
+
 /**
  * @swagger
  * /roles:
