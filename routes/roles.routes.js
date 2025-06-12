@@ -1,27 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { createRole, getRolesByTenant } = require('../controllers/userRoles.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
+const roleController = require('../controllers/role.controller');
 
 /**
  * @swagger
- * /roles:
- *   get:
- *     summary: Get roles for tenant
- *     tags: [Roles]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of roles
+ * tags:
+ *   name: Roles
+ *   description: Manage roles for tenants
  */
-router.get('/', verifyToken, getRolesByTenant);
 
 /**
  * @swagger
  * /roles:
- *   post:
- *     summary: Create a new role
+ *   put:
+ *     summary: Update an existing role
  *     tags: [Roles]
  *     security:
  *       - bearerAuth: []
@@ -31,16 +23,73 @@ router.get('/', verifyToken, getRolesByTenant);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, permissions]
+ *             required:
+ *               - id
+ *               - name
+ *               - permissions
  *             properties:
- *               name: { type: string }
- *               permissions: 
- *                 type: array
- *                 items: { type: string }
+ *               id:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 1af24cd0-faf4-4a58-9905-9ef90fc92bd1
+ *               name:
+ *                 type: string
+ *                 example: manager
+ *               description:
+ *                 type: string
+ *                 example: manager
+ *               permissions:
+ *                 type: object
+ *                 example:
+ *                   Orders:
+ *                     - Add Order
+ *                     - Update Order
+ *                   Shades:
+ *                     - Add Shade
  *     responses:
- *       201:
- *         description: Role created
+ *       200:
+ *         description: Role updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Role'
+ *       400:
+ *         description: Missing or invalid fields
+ *       500:
+ *         description: Server error
  */
-router.post('/', verifyToken, createRole);
+
+router.put('/', roleController.updateRole);
+
+
+/**
+ * @swagger
+ * /roles:
+ *   delete:
+ *     summary: Delete a role by ID
+ *     tags: [Roles]
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: The ID of the role to delete
+ *     responses:
+ *       200:
+ *         description: Role deleted successfully
+ *       400:
+ *         description: Missing or invalid role ID
+ *       500:
+ *         description: Server error
+ */
+router.delete('/', roleController.deleteRole);
+
 
 module.exports = router;
