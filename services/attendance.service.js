@@ -130,6 +130,8 @@ class AttendanceService {
             select: {
               name: true,
               department: true,
+              token_no: true,
+              shift_rate: true,
             },
           },
         },
@@ -169,6 +171,8 @@ class AttendanceService {
             select: {
               name: true,
               department: true,
+              token_no: true,
+              shift_rate: true,
             },
           },
         },
@@ -199,6 +203,8 @@ class AttendanceService {
               select: { 
                 name: true,
                 department: true,
+                token_no: true,
+                shift_rate: true,
               },
             },
           },
@@ -213,9 +219,13 @@ class AttendanceService {
         employee_id: record.employee_id,
         name: record.employee?.name || '',
         department: record.employee?.department || '',
+        token_no: record.employee?.token_no || '',
+        shift_rate: record.employee?.shift_rate || 0,
         date: record.date,
         shift: record.shift,
         status: record.status,
+        in_time: record.in_time,
+        out_time: record.out_time,
         total_hours: record.total_hours,
         overtime_hours: record.overtime_hours,
       }));
@@ -416,6 +426,8 @@ class AttendanceService {
             select: {
               name: true,
               department: true,
+              token_no: true,
+              shift_rate: true,
             },
           },
         },
@@ -450,6 +462,8 @@ class AttendanceService {
             select: {
               name: true,
               department: true,
+              token_no: true,
+              shift_rate: true,
             },
           },
         },
@@ -497,6 +511,311 @@ class AttendanceService {
       throw error;
     }
   }
+
+  async getDailySummary(dateString) {
+  try {
+    const date = this.validateDate(dateString);
+
+    // Start and end of the day
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Get attendance records for the day
+    const records = await prisma.attendance.findMany({
+      where: {
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+    });
+
+    // Total employees (from employee table)
+    const totalEmployees = await prisma.employees.count();
+
+    // Count status
+    const presentCount = records.filter(r => r.status === 'PRESENT').length;
+    const absentCount = records.filter(r => r.status === 'ABSENT').length;
+    const totalMarked = records.length;
+
+    // Total overtime
+    const totalOvertime = records.reduce((sum, rec) => sum + (rec.overtime_hours || 0), 0);
+
+    // Average shift hours
+    const totalShiftHours = records.reduce((sum, rec) => sum + (rec.total_hours || 0), 0);
+    const averageShiftHours = totalMarked > 0
+      ? parseFloat((totalShiftHours / totalMarked).toFixed(2))
+      : 0;
+
+    return {
+      date: startOfDay.toISOString().split('T')[0],
+      total_employees: totalEmployees,
+      present: presentCount,
+      absent: absentCount,
+      total_overtime: parseFloat(totalOvertime.toFixed(2)),
+      average_shift_hours: averageShiftHours,
+    };
+  } catch (error) {
+    console.error('Error in getDailySummary:', error);
+    throw new Error('Failed to get attendance summary');
+  }
+}
+
+  // Get attendance summary based on type (daily, weekly, monthly)
+  async getAttendanceSummary({ type = 'monthly', date, start, end, month, year }) {
+    try {
+      switch (type) {
+        case 'daily':
+          return await this.getDailyAttendanceSummary(date);
+        case 'weekly':
+          return await this.getWeeklyAttendanceSummary(start, end);
+        case 'monthly':
+          return await this.getMonthlyAttendanceSummary(month, year);
+        default:
+          throw new Error('Invalid summary type. Must be daily, weekly, or monthly');
+      }
+    } catch (error) {
+      console.error('Get attendance summary service error:', error);
+      throw error;
+    }
+  }
+
+  // Get daily attendance summary
+  async getDailyAttendanceSummary(date) {
+    try {
+      if (!date) {
+        throw new Error('Date is required for daily summary');
+      }
+
+      const targetDate = this.validateDate(date);
+      const startOfDay = new Date(targetDate.setUTCHours(0, 0, 0, 0));
+      const endOfDay = new Date(targetDate.setUTCHours(23, 59, 59, 999));
+
+      const records = await prisma.attendance.findMany({
+        where: {
+          date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+        include: {
+          employee: {
+            select: {
+              name: true,
+              department: true,
+              token_no: true,
+              shift_rate: true,
+            },
+          },
+        },
+      });
+
+      // Process summary data
+      const summaryMap = new Map();
+
+      records.forEach(record => {
+        const employeeId = record.employee_id;
+        
+        if (!summaryMap.has(employeeId)) {
+          summaryMap.set(employeeId, {
+            employee_id: employeeId,
+            employee_name: record.employee?.name || '',
+            department: record.employee?.department || '',
+            token_no: record.employee?.token_no || '',
+            shift_rate: record.employee?.shift_rate || 0,
+            workingHours: 0,
+            overtimeHours: 0,
+            status: record.status,
+            in_time: record.in_time,
+            out_time: record.out_time,
+          });
+        }
+
+        const summary = summaryMap.get(employeeId);
+        summary.workingHours = record.total_hours || 0;
+        summary.overtimeHours = record.overtime_hours || 0;
+      });
+
+      return {
+        date: startOfDay.toISOString().split('T')[0],
+        type: 'daily',
+        attendanceSummary: Array.from(summaryMap.values()),
+      };
+    } catch (error) {
+      console.error('Get daily attendance summary service error:', error);
+      throw error;
+    }
+  }
+
+  // Get weekly attendance summary
+  async getWeeklyAttendanceSummary(start, end) {
+    try {
+      if (!start || !end) {
+        throw new Error('Start and end dates are required for weekly summary');
+      }
+
+      const startDate = this.validateDate(start);
+      const endDate = this.validateDate(end);
+
+      if (startDate > endDate) {
+        throw new Error('Start date cannot be after end date');
+      }
+
+      const records = await prisma.attendance.findMany({
+        where: {
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        include: {
+          employee: {
+            select: {
+              name: true,
+              department: true,
+              token_no: true,
+              shift_rate: true,
+            },
+          },
+        },
+      });
+
+      // Process summary data
+      const summaryMap = new Map();
+
+      records.forEach(record => {
+        const employeeId = record.employee_id;
+        
+        if (!summaryMap.has(employeeId)) {
+          summaryMap.set(employeeId, {
+            employee_id: employeeId,
+            employee_name: record.employee?.name || '',
+            department: record.employee?.department || '',
+            token_no: record.employee?.token_no || '',
+            shift_rate: record.employee?.shift_rate || 0,
+            workingDays: 0,
+            overtimeHours: 0,
+            totalHours: 0,
+            absents: 0,
+            halfDays: 0,
+          });
+        }
+
+        const summary = summaryMap.get(employeeId);
+        
+        switch (record.status) {
+          case 'PRESENT':
+            summary.workingDays += 1;
+            break;
+          case 'HALF_DAY':
+            summary.workingDays += 0.5;
+            summary.halfDays += 1;
+            break;
+          case 'ABSENT':
+            summary.absents += 1;
+            break;
+        }
+
+        summary.overtimeHours += record.overtime_hours || 0;
+        summary.totalHours += record.total_hours || 0;
+      });
+
+      return {
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0],
+        type: 'weekly',
+        attendanceSummary: Array.from(summaryMap.values()),
+      };
+    } catch (error) {
+      console.error('Get weekly attendance summary service error:', error);
+      throw error;
+    }
+  }
+
+  // Get monthly attendance summary (renamed from getAttendanceSummary)
+  async getMonthlyAttendanceSummary(month, year) {
+    try {
+      const { month: validMonth, year: validYear } = this.validateMonthYear(month, year);
+
+      const startDate = new Date(`${validYear}-${validMonth}-01T00:00:00.000Z`);
+      const nextMonth = validMonth === '12' ? '01' : String(Number(validMonth) + 1).padStart(2, '0');
+      const nextYear = validMonth === '12' ? String(Number(validYear) + 1) : validYear;
+      const endDate = new Date(`${nextYear}-${nextMonth}-01T00:00:00.000Z`);
+
+      const records = await prisma.attendance.findMany({
+        where: {
+          date: {
+            gte: startDate,
+            lt: endDate,
+          },
+        },
+        include: {
+          employee: {
+            select: {
+              name: true,
+              department: true,
+              token_no: true,
+              shift_rate: true,
+            },
+          },
+        },
+      });
+
+      // Process summary data
+      const summaryMap = new Map();
+
+      records.forEach(record => {
+        const employeeId = record.employee_id;
+        
+        if (!summaryMap.has(employeeId)) {
+          summaryMap.set(employeeId, {
+            employee_id: employeeId,
+            employee_name: record.employee?.name || '',
+            department: record.employee?.department || '',
+            token_no: record.employee?.token_no || '',
+            shift_rate: record.employee?.shift_rate || 0,
+            workingDays: 0,
+            overtimeHours: 0,
+            absents: 0,
+            halfDays: 0,
+            totalHours: 0,
+          });
+        }
+
+        const summary = summaryMap.get(employeeId);
+        
+        switch (record.status) {
+          case 'PRESENT':
+            summary.workingDays += 1;
+            break;
+          case 'HALF_DAY':
+            summary.workingDays += 0.5;
+            summary.halfDays += 1;
+            break;
+          case 'ABSENT':
+            summary.absents += 1;
+            break;
+        }
+
+        summary.overtimeHours += record.overtime_hours || 0;
+        summary.totalHours += record.total_hours || 0;
+      });
+
+      return {
+        month: validMonth,
+        year: validYear,
+        type: 'monthly',
+        attendanceSummary: Array.from(summaryMap.values()),
+      };
+    } catch (error) {
+      console.error('Get monthly attendance summary service error:', error);
+      throw error;
+    }
+  }
+
 }
 
 // Export service instance

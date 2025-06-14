@@ -50,6 +50,7 @@ exports.updateRole = async (req, res) => {
   }
 };
 
+
 exports.deleteRole = async (req, res) => {
   try {
     const roleId = req.query.id;
@@ -63,5 +64,15 @@ exports.deleteRole = async (req, res) => {
   } catch (error) {
     console.error('Delete Role Error:', error);
     res.status(500).json({ error: 'Failed to delete role' });
+  }
+};
+
+exports.getPermissions = async (req, res) => {
+  try {
+    const permissions = await roleService.getPermissions();
+    res.status(200).json(permissions);
+  } catch (error) {
+    console.error('Get Permissions Error:', error);
+    res.status(500).json({ error: 'Failed to fetch permissions' });
   }
 };
