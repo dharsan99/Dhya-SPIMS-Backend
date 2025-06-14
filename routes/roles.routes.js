@@ -4,11 +4,39 @@ const roleController = require('../controllers/role.controller');
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Role:
+ *       type: object
+ *       required:
+ *         - tenant_id
+ *         - name
+ *         - permissions
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         tenant_id:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *         description:
+ *           type: string
+ *         permissions:
+ *           type: object
+ *           additionalProperties:
+ *             type: array
+ *             items:
+ *               type: string
+ */
+
+/**
+ * @swagger
  * tags:
  *   name: Roles
  *   description: Manage roles for tenants
  */
-
 
 /**
  * @swagger
@@ -51,30 +79,7 @@ router.get('/', roleController.getRoles);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - tenant_id
- *               - name
- *               - permissions
- *             properties:
- *               tenant_id:
- *                 type: string
- *                 format: uuid
- *                 example: 2f53e62e-8ff8-4e0e-8c0e-f03dc8a2d8e2
- *               name:
- *                 type: string
- *                 example: manager
- *               description:
- *                 type: string
- *                 example: Manager role with permissions
- *               permissions:
- *                 type: object
- *                 example:
- *                   Orders:
- *                     - Add Order
- *                     - Update Order
- *                   Shades:
- *                     - Add Shade
+ *             $ref: '#/components/schemas/Role'
  *     responses:
  *       201:
  *         description: Role created successfully
@@ -89,39 +94,22 @@ router.post('/', roleController.createRole);
  * @swagger
  * /roles:
  *   put:
- *     summary: Update an existing role
+ *     summary: Admin updates an existing role
  *     tags: [Roles]
- *     security:
- *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: adminId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Admin role ID performing the update
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - id
- *               - name
- *               - permissions
- *             properties:
- *               id:
- *                 type: string
- *                 format: uuid
- *                 example: 1af24cd0-faf4-4a58-9905-9ef90fc92bd1
- *               name:
- *                 type: string
- *                 example: manager
- *               description:
- *                 type: string
- *                 example: manager
- *               permissions:
- *                 type: object
- *                 example:
- *                   Orders:
- *                     - Add Order
- *                     - Update Order
- *                   Shades:
- *                     - Add Shade
+ *             $ref: '#/components/schemas/Role'
  *     responses:
  *       200:
  *         description: Role updated successfully
@@ -134,14 +122,14 @@ router.post('/', roleController.createRole);
  *                   type: string
  *                 data:
  *                   $ref: '#/components/schemas/Role'
+ *       403:
+ *         description: Only admin role can update roles
  *       400:
- *         description: Missing or invalid fields
+ *         description: Missing required fields
  *       500:
  *         description: Server error
  */
-
 router.put('/', roleController.updateRole);
-
 
 /**
  * @swagger
@@ -167,5 +155,35 @@ router.put('/', roleController.updateRole);
  */
 router.delete('/', roleController.deleteRole);
 
+/**
+ * @swagger
+ * /roles/permissions:
+ *   get:
+ *     summary: Get list of all modules with permissions
+ *     tags: [Roles]
+ *     responses:
+ *       200:
+ *         description: Permission list by module
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               additionalProperties:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *             example:
+ *               Orders:
+ *                 - Add Order
+ *                 - Update Order
+ *                 - Delete Order
+ *                 - View Order
+ *                 - Export Order
+ */
+//router.get('/permissions', roleController.getRolePermissions);
+router.get('/permissions', roleController.getPermissions);
 
 module.exports = router;
+
+
+

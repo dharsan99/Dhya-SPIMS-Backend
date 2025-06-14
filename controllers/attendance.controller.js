@@ -125,3 +125,18 @@ exports.updateAttendanceWithAudit = async (req, res) => {
     res.status(500).json({ error: 'Failed to update attendance with audit' });
   }
 };
+
+exports.getDailySummary = async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ error: 'Date query is required' });
+    }
+
+    const summary = await attendanceService.getDailySummary(date);
+    res.json(summary);
+  } catch (error) {
+    console.error('Daily Summary error:', error);
+    res.status(500).json({ error: error.message || 'Failed to get summary' });
+  }
+};

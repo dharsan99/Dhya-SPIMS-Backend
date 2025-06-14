@@ -171,6 +171,30 @@ model roles {
   @@unique([tenant_id, name])
 }
 
+enum PermissionModule {
+  Orders
+  Shades
+  Fibres
+  Production
+  Buyers
+  Employees
+  Attendance
+  Suppliers
+  Settings
+  Roles
+  Marketing
+  Users
+  Stocks
+}
+
+enum PermissionAction {
+  Add
+  Update
+  Delete
+  View
+  Export
+}
+
 model user_roles {
   id      String @id @default(uuid()) @db.Uuid
   user_id String @db.Uuid
@@ -406,7 +430,8 @@ model Campaign {
 model Attendance {
   id             String    @id @default(uuid())
   date           DateTime
-  shift          String  
+  shift          String
+  shift_rate     Float  
   in_time        DateTime
   out_time       DateTime      
   overtime_hours Float
