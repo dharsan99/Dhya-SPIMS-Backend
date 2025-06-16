@@ -1,14 +1,18 @@
-// controllers/employees.controller.js
-
 const employeeService = require('../services/employees.service');
 
 exports.createEmployee = async (req, res) => {
   try {
+    const { name, aadhar_no, bank_acc_1, shift_rate } = req.body;
+
+    if (!name || !aadhar_no || !bank_acc_1 || shift_rate == null) {
+      return res.status(400).json({ error: 'Missing required fields (name, aadhar_no, bank_acc_1, shift_rate)' });
+    }
+
     const employee = await employeeService.createEmployee(req.body);
     res.status(201).json(employee);
   } catch (err) {
     console.error('❌ Error creating employee:', err);
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: err.message || 'Internal Server Error' });
   }
 };
 
