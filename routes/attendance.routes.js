@@ -119,24 +119,38 @@ router.get('/export', attendanceController.exportMonthlyAttendance);
  *       - in: query
  *         name: employee_id
  *         required: false
- *         description: Filter by employee ID
+ *         description: "Filter by employee ID"
  *         schema:
  *           type: string
  *           example: 4487d2cb-966d-4cd4-b770-6e17d2036aa9
  *       - in: query
  *         name: shift
  *         required: false
- *         description: Filter by shift (e.g., morning, evening, night)
+ *         description: "Filter by shift (e.g., morning, evening, night)"
  *         schema:
  *           type: string
  *           example: morning
  *       - in: query
  *         name: status
  *         required: false
- *         description: Filter by attendance status (e.g., PRESENT, ABSENT, HALF_DAY)
+ *         description: "Filter by attendance status (e.g., PRESENT, ABSENT, HALF_DAY)"
  *         schema:
  *           type: string
  *           example: PRESENT
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         description: "Page number (default: 1)"
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         description: "Number of records per page (default: 10)"
+ *         schema:
+ *           type: integer
+ *           example: 10
  *     responses:
  *       200:
  *         description: A list of attendance records
@@ -165,6 +179,7 @@ router.get('/export', attendanceController.exportMonthlyAttendance);
  *       500:
  *         description: Failed to fetch attendance
  */
+
 router.get('/by-date', attendanceController.getAttendanceByDate);
 
 /**
@@ -181,7 +196,7 @@ router.get('/by-date', attendanceController.getAttendanceByDate);
  *         schema:
  *           type: string
  *           format: date
- *         description: Start date (YYYY-MM-DD)
+ *         description: "Start date (YYYY-MM-DD)"
  *         example: '2025-06-01'
  *       - in: query
  *         name: end
@@ -189,8 +204,22 @@ router.get('/by-date', attendanceController.getAttendanceByDate);
  *         schema:
  *           type: string
  *           format: date
- *         description: End date (YYYY-MM-DD)
+ *         description: "End date (YYYY-MM-DD)"
  *         example: '2025-06-09'
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         description: "Page number (default: 1)"
+ *         schema:
+ *           type: integer
+ *           example: 1
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         description: "Number of records per page (default: 10)"
+ *         schema:
+ *           type: integer
+ *           example: 10
  *     responses:
  *       200:
  *         description: Attendance records between given dates
@@ -248,6 +277,7 @@ router.get('/by-date', attendanceController.getAttendanceByDate);
  *                   type: string
  *                   example: Failed to fetch attendance range
  */
+
 router.get('/range', attendanceController.getAttendanceRange);
 
 /**
@@ -403,40 +433,91 @@ router.get('/summary', attendanceController.getAttendanceSummary);
 
 /**
  * @swagger
- * /attendance/daily-summary:
+ * /attendance/summary-range:
  *   get:
- *     summary: Get daily attendance summary
+ *     summary: Get attendance summary (daily, monthly, or custom range)
  *     tags: [Attendance]
  *     parameters:
  *       - in: query
  *         name: date
- *         required: true
+ *         required: false
  *         schema:
  *           type: string
  *           format: date
- *         description: Date for the attendance summary (YYYY-MM-DD)
+ *         description: Single date (YYYY-MM-DD) for daily summary
+ *       - in: query
+ *         name: startDate
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date (YYYY-MM-DD) for custom range summary
+ *       - in: query
+ *         name: endDate
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date (YYYY-MM-DD) for custom range summary
+ *       - in: query
+ *         name: month
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 12
+ *         description: Month (1-12) for monthly summary
+ *       - in: query
+ *         name: year
+ *         required: false
+ *         schema:
+ *           type: integer
+ *         description: Year (e.g., 2025) for monthly summary
  *     responses:
  *       200:
- *         description: Summary of the attendance
+ *         description: Summary of the attendance for the given date, range, or month/year
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 date:
+ *                 summary_type:
  *                   type: string
+ *                   example: "daily"
+ *                 range:
+ *                   type: object
+ *                   properties:
+ *                     start:
+ *                       type: string
+ *                       format: date
+ *                       example: "2025-06-01"
+ *                     end:
+ *                       type: string
+ *                       format: date
+ *                       example: "2025-06-15"
  *                 total_employees:
  *                   type: integer
+ *                   example: 10
  *                 present:
  *                   type: integer
+ *                   example: 8
  *                 absent:
  *                   type: integer
+ *                   example: 2
  *                 total_overtime:
  *                   type: number
+ *                   format: float
+ *                   example: 12.5
  *                 average_shift_hours:
  *                   type: number
+ *                   format: float
+ *                   example: 7.75
+ *       400:
+ *         description: Missing or invalid parameters
+ *       500:
+ *         description: Internal server error
  */
-router.get('/daily-summary', attendanceController.getDailySummary);
+router.get('/summary-range', attendanceController.getAttendanceRangeSummary);
 
 /**
  * @swagger

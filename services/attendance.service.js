@@ -100,29 +100,31 @@ class AttendanceService {
   }
 
   // Get attendance by date with filters
-  async getAttendanceByDate({ date, employee_id, shift, status }) {
-    if (!date) {
-      throw new Error('Date is required');
-    }
+ async getAttendanceByDate({ date, employee_id, shift, status, page = 1, limit = 10 }) {
+  if (!date) {
+    throw new Error('Date is required');
+  }
 
-    try {
-      const targetDate = this.validateDate(date);
-      const startOfDay = new Date(targetDate.setUTCHours(0, 0, 0, 0));
-      const endOfDay = new Date(targetDate.setUTCHours(23, 59, 59, 999));
+  try {
+    // ✅ Parse to integer
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const skip = (page - 1) * limit;
 
-      const whereClause = {
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
-        },
-      };
+    const targetDate = this.validateDate(date);
+    const startOfDay = new Date(targetDate.setUTCHours(0, 0, 0, 0));
+    const endOfDay = new Date(targetDate.setUTCHours(23, 59, 59, 999));
 
-      // Apply optional filters
-      if (employee_id) whereClause.employee_id = employee_id;
-      if (shift) whereClause.shift = shift;
-      if (status) whereClause.status = status;
+    const whereClause = {
+      date: { gte: startOfDay, lte: endOfDay },
+    };
 
-      return await prisma.attendance.findMany({
+    if (employee_id) whereClause.employee_id = employee_id;
+    if (shift) whereClause.shift = shift;
+    if (status) whereClause.status = status;
+
+    const [data, total] = await Promise.all([
+      prisma.attendance.findMany({
         where: whereClause,
         include: {
           employee: {
@@ -130,35 +132,44 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true, // This comes from employees table
+              shift_rate: true,
             },
           },
         },
-        orderBy: {
-          employee_id: 'asc',
-        },
-      });
-    } catch (error) {
-      console.error('Get attendance by date service error:', error);
-      throw error;
-    }
+        orderBy: { employee_id: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.attendance.count({ where: whereClause }),
+    ]);
+
+    return { data, total, page, limit };
+  } catch (error) {
+    console.error('Get attendance by date service error:', error);
+    throw error;
+  }
+}
+
+async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
+  if (!start || !end) {
+    throw new Error('Start and end dates are required');
   }
 
-  // Get attendance within date range
-  async getAttendanceRange({ start, end }) {
-    if (!start || !end) {
-      throw new Error('Start and end dates are required');
+  try {
+    // ✅ Parse to integer
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const skip = (page - 1) * limit;
+
+    const startDate = this.validateDate(start);
+    const endDate = this.validateDate(end);
+
+    if (startDate > endDate) {
+      throw new Error('Start date cannot be after end date');
     }
 
-    try {
-      const startDate = this.validateDate(start);
-      const endDate = this.validateDate(end);
-
-      if (startDate > endDate) {
-        throw new Error('Start date cannot be after end date');
-      }
-
-      return await prisma.attendance.findMany({
+    const [data, total] = await Promise.all([
+      prisma.attendance.findMany({
         where: {
           date: {
             gte: startDate,
@@ -171,19 +182,30 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true, // This comes from employees table
+              shift_rate: true,
             },
           },
         },
-        orderBy: {
-          date: 'asc',
+        orderBy: { date: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.attendance.count({
+        where: {
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
         },
-      });
-    } catch (error) {
-      console.error('Get attendance range service error:', error);
-      throw error;
-    }
+      }),
+    ]);
+
+    return { data, total, page, limit };
+  } catch (error) {
+    console.error('Get attendance range service error:', error);
+    throw error;
   }
+}
 
   // Get all attendance with pagination
   async getAllAttendance({ page = '1', limit = '10' } = {}) {
@@ -436,58 +458,71 @@ class AttendanceService {
     }
   }
 
-  async getDailySummary(dateString) {
-    try {
-      const date = this.validateDate(dateString);
+  async getAttendanceRangeSummary({ date, startDate, endDate, month, year }) {
+  try {
+    let start, end;
+    let summaryType = 'daily';
 
-      // Start and end of the day
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
+    if (startDate && endDate) {
+      const s = this.validateDate(startDate);
+      const e = this.validateDate(endDate);
+      if (s > e) throw new Error('startDate cannot be after endDate');
 
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
+      start = new Date(s.setHours(0, 0, 0, 0));
+      end = new Date(e.setHours(23, 59, 59, 999));
+      summaryType = 'custom_range';
+    } else if (month && year) {
+      const m = parseInt(month) - 1;
+      const y = parseInt(year);
 
-      // Get attendance records for the day
-      const records = await prisma.attendance.findMany({
-        where: {
-          date: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-        },
-      });
-
-      // Total employees (from employee table)
-      const totalEmployees = await prisma.employees.count();
-
-      // Count status
-      const presentCount = records.filter(r => r.status === 'PRESENT').length;
-      const absentCount = records.filter(r => r.status === 'ABSENT').length;
-      const totalMarked = records.length;
-
-      // Total overtime
-      const totalOvertime = records.reduce((sum, rec) => sum + (rec.overtime_hours || 0), 0);
-
-      // Average shift hours
-      const totalShiftHours = records.reduce((sum, rec) => sum + (rec.total_hours || 0), 0);
-      const averageShiftHours = totalMarked > 0
-        ? parseFloat((totalShiftHours / totalMarked).toFixed(2))
-        : 0;
-
-      return {
-        date: startOfDay.toISOString().split('T')[0],
-        total_employees: totalEmployees,
-        present: presentCount,
-        absent: absentCount,
-        total_overtime: parseFloat(totalOvertime.toFixed(2)),
-        average_shift_hours: averageShiftHours,
-      };
-    } catch (error) {
-      console.error('Error in getDailySummary:', error);
-      throw new Error('Failed to get attendance summary');
+      start = new Date(Date.UTC(y, m, 1));
+      end = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+      summaryType = 'monthly';
+    } else if (date) {
+      const d = this.validateDate(date);
+      start = new Date(d.setHours(0, 0, 0, 0));
+      end = new Date(d.setHours(23, 59, 59, 999));
+      summaryType = 'daily';
+    } else {
+      throw new Error('Provide date or startDate & endDate or month & year');
     }
-  }
 
+    const records = await prisma.attendance.findMany({
+      where: {
+        date: {
+          gte: start,
+          lte: end,
+        },
+      },
+    });
+
+    const totalEmployees = await prisma.employees.count();
+
+    const present = records.filter(r => r.status === 'PRESENT').length;
+    const absent = records.filter(r => r.status === 'ABSENT').length;
+    const totalMarked = records.length;
+
+    const totalOvertime = records.reduce((sum, r) => sum + (r.overtime_hours || 0), 0);
+    const totalHours = records.reduce((sum, r) => sum + (r.total_hours || 0), 0);
+    const avgHours = totalMarked > 0 ? parseFloat((totalHours / totalMarked).toFixed(2)) : 0;
+
+    return {
+      summary_type: summaryType,
+      range: {
+        start: start.toISOString().split('T')[0],
+        end: end.toISOString().split('T')[0],
+      },
+      total_employees: totalEmployees,
+      present,
+      absent,
+      total_overtime: parseFloat(totalOvertime.toFixed(2)),
+      average_shift_hours: avgHours,
+    };
+  } catch (error) {
+    console.error('Error in getAttendanceRangeSummary service:', error);
+    throw new Error('Failed to get attendance summary');
+  }
+}
   // Get attendance summary based on type (daily, weekly, monthly)
   async getAttendanceSummary({ type = 'monthly', date, start, end, month, year }) {
     try {
