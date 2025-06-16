@@ -111,117 +111,81 @@ const bulkImportOrders = async (req, res) => {
       errors
     });
   } catch (err) {
-    console.error('Bulk upload error:', err);
     res.status(500).json({ error: 'Failed to process Excel file' });
   }
 };
 
 const getAllOrders = async (req, res) => {
-  const tenant_id = req.user?.tenantId;
-  if (!tenant_id) return res.status(401).json({ error: 'Unauthorized: tenant_id not found in token' });
-
   try {
-    const orders = await orderService.getAllOrders(tenant_id);
+    const orders = await orderService.getAllOrders();
     res.json(orders);
-  } catch (err) {
-    console.error('Error fetching orders:', err);
-    res.status(500).json({ error: 'Failed to fetch orders' });
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 const getOrderById = async (req, res) => {
   try {
     const order = await orderService.getOrderById(req.params.id);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
     res.json(order);
-  } catch (err) {
-    console.error('Error fetching order by ID:', err);
-    res.status(500).json({ error: 'Failed to fetch order' });
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 const createOrder = async (req, res) => {
   try {
     const order = await orderService.createOrder(req.body);
-
-    // 🔁 Fetch buyer and shade info for email
-    const [buyer, shade] = await Promise.all([
-      prisma.buyers.findUnique({ where: { id: order.buyer_id } }),
-      prisma.shades.findUnique({
-        where: { id: order.shade_id },
-        include: { raw_cotton_composition: true },
-      }),
-    ]);
-
-    // ✉️ Trigger email
-    if (buyer?.email) {
-      await sendOrderConfirmationEmail({
-        to: buyer.email,
-        buyerName: buyer.name,
-        orderNumber: order.order_number,
-        count: order.count,
-        quantity: order.quantity_kg,
-        tenant_id: order.tenant_id,
-        shadeCode: shade?.shade_code ?? '-',
-        orderDate: order.created_at,
-        deliveryDate: order.delivery_date,
-        cc: ['dharsan@dhya.in'],
-        reply_to: ['support@dhya.in'],
-      });
-    }
-
     res.status(201).json(order);
-  } catch (err) {
-    console.error('Error creating order:', err);
-    const code = err.message === 'Order number already exists' ? 409 : 500;
-    res.status(code).json({ error: err.message });
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 const updateOrder = async (req, res) => {
   try {
-    const updated = await orderService.updateOrder(req.params.id, req.body);
-    res.json(updated);
-  } catch (err) {
-    console.error('Error updating order:', err);
-    res.status(500).json({ error: 'Failed to update order' });
+    const order = await orderService.updateOrder(req.params.id, req.body);
+    res.json(order);
+  } catch (error) {
+    console.error('Error updating order:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 const updateOrderStatus = async (req, res) => {
-  const { status } = req.body;
-  const allowed = ['pending', 'in_progress', 'dispatched', 'completed'];
-
-  if (!allowed.includes(status)) {
-    return res.status(400).json({ error: 'Invalid status' });
-  }
-
   try {
-    const updated = await orderService.updateOrderStatus(req.params.id, status);
-    res.json(updated);
-  } catch (err) {
-    console.error('Error updating order status:', err);
-    res.status(500).json({ error: 'Failed to update status' });
+    const { status } = req.body;
+    const order = await orderService.updateOrderStatus(req.params.id, status);
+    res.json(order);
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 const deleteOrder = async (req, res) => {
   try {
     await orderService.deleteOrder(req.params.id);
-    res.status(204).end();
-  } catch (err) {
-    console.error('Error deleting order:', err);
-    res.status(500).json({ error: 'Failed to delete order' });
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting order:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 const getOrderProgressDetails = async (req, res) => {
   try {
-    const result = await orderService.getOrderProgressDetails(req.params.id);
-    res.json(result);
-  } catch (err) {
-    console.error('Error getting progress details:', err);
-    res.status(500).json({ error: 'Failed to fetch order progress' });
+    const { id } = req.params;
+    const progress = await orderService.getProgressDetails(id);
+    res.json(progress);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch progress details' });
   }
 };
 
