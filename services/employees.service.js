@@ -1,10 +1,7 @@
-// services/employees.service.js
-
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-
-// Get next token number like EMP001, EMP002...
+// Generate next token like EMP001, EMP002...
 async function generateTokenNumber() {
   const count = await prisma.employees.count();
   const nextNum = count + 1;
@@ -12,7 +9,6 @@ async function generateTokenNumber() {
 }
 
 exports.createEmployee = async (data) => {
-  // Check if Aadhar number already exists
   const existingEmployee = await prisma.employees.findUnique({
     where: { aadhar_no: data.aadhar_no },
   });
@@ -22,14 +18,17 @@ exports.createEmployee = async (data) => {
   }
 
   const token_no = await generateTokenNumber();
-  const shift_rate = 200.00;
 
   const newEmployee = await prisma.employees.create({
     data: {
-      ...data,
-      join_date: new Date(data.join_date),
+      name: data.name,
       token_no,
-      shift_rate,
+      shift_rate: parseFloat(data.shift_rate), // ✅ use from input
+      aadhar_no: data.aadhar_no,
+      bank_acc_1: data.bank_acc_1,
+      bank_acc_2: data.bank_acc_2,
+      department: data.department,
+      join_date: data.join_date ? new Date(data.join_date) : undefined,
     },
   });
 
@@ -37,19 +36,47 @@ exports.createEmployee = async (data) => {
     id: newEmployee.id,
     token_no: newEmployee.token_no,
     name: newEmployee.name,
+    shift_rate: newEmployee.shift_rate,
     join_date: newEmployee.join_date,
     created_at: newEmployee.created_at,
     updated_at: newEmployee.updated_at,
   };
 };
 
-
 exports.getAllEmployees = async () => {
-  return await prisma.employees.findMany();
+  const employees = await prisma.employees.findMany();
+  return employees.map((emp) => ({
+    id: emp.id,
+    token_no: emp.token_no,
+    name: emp.name,
+    shift_rate: emp.shift_rate,
+    aadhar_no: emp.aadhar_no,
+    bank_acc_1: emp.bank_acc_1,
+    bank_acc_2: emp.bank_acc_2,
+    department: emp.department,
+    join_date: emp.join_date,
+    created_at: emp.created_at,
+    updated_at: emp.updated_at,
+  }));
 };
 
 exports.getEmployeeById = async (id) => {
-  return await prisma.employees.findUnique({ where: { id } });
+  const emp = await prisma.employees.findUnique({ where: { id } });
+  if (!emp) return null;
+
+  return {
+    id: emp.id,
+    token_no: emp.token_no,
+    name: emp.name,
+    shift_rate: emp.shift_rate,
+    aadhar_no: emp.aadhar_no,
+    bank_acc_1: emp.bank_acc_1,
+    bank_acc_2: emp.bank_acc_2,
+    department: emp.department,
+    join_date: emp.join_date,
+    created_at: emp.created_at,
+    updated_at: emp.updated_at,
+  };
 };
 
 exports.updateEmployee = async (id, data) => {
