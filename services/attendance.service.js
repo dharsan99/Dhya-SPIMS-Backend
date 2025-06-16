@@ -99,7 +99,6 @@ class AttendanceService {
     }
   }
 
-
   // Get attendance by date with filters
   async getAttendanceByDate({ date, employee_id, shift, status }) {
     if (!date) {
@@ -131,7 +130,7 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true,
+              shift_rate: true, // This comes from employees table
             },
           },
         },
@@ -172,7 +171,7 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true,
+              shift_rate: true, // This comes from employees table
             },
           },
         },
@@ -204,7 +203,7 @@ class AttendanceService {
                 name: true,
                 department: true,
                 token_no: true,
-                shift_rate: true,
+                shift_rate: true, // This comes from employees table
               },
             },
           },
@@ -279,6 +278,7 @@ class AttendanceService {
             select: {
               name: true,
               department: true,
+              shift_rate: true, // This comes from employees table
             },
           },
         },
@@ -330,82 +330,6 @@ class AttendanceService {
     }
   }
 
-  // Get attendance summary for a month
-  async getAttendanceSummary({ month, year }) {
-    try {
-      const { month: validMonth, year: validYear } = this.validateMonthYear(month, year);
-
-      const startDate = new Date(`${validYear}-${validMonth}-01T00:00:00.000Z`);
-      const nextMonth = validMonth === '12' ? '01' : String(Number(validMonth) + 1).padStart(2, '0');
-      const nextYear = validMonth === '12' ? String(Number(validYear) + 1) : validYear;
-      const endDate = new Date(`${nextYear}-${nextMonth}-01T00:00:00.000Z`);
-
-      const records = await prisma.attendance.findMany({
-        where: {
-          date: {
-            gte: startDate,
-            lt: endDate,
-          },
-        },
-        include: {
-          employee: {
-            select: {
-              name: true,
-              department: true,
-            },
-          },
-        },
-      });
-
-      // Process summary data
-      const summaryMap = new Map();
-
-      records.forEach(record => {
-        const employeeId = record.employee_id;
-        
-        if (!summaryMap.has(employeeId)) {
-          summaryMap.set(employeeId, {
-            employee_id: employeeId,
-            employee_name: record.employee?.name || '',
-            department: record.employee?.department || '',
-            workingDays: 0,
-            overtimeHours: 0,
-            absents: 0,
-            halfDays: 0,
-            totalHours: 0,
-          });
-        }
-
-        const summary = summaryMap.get(employeeId);
-        
-        switch (record.status) {
-          case 'PRESENT':
-            summary.workingDays += 1;
-            break;
-          case 'HALF_DAY':
-            summary.workingDays += 0.5;
-            summary.halfDays += 1;
-            break;
-          case 'ABSENT':
-            summary.absents += 1;
-            break;
-        }
-
-        summary.overtimeHours += record.overtime_hours || 0;
-        summary.totalHours += record.total_hours || 0;
-      });
-
-      return {
-        month: validMonth,
-        year: validYear,
-        attendanceSummary: Array.from(summaryMap.values()),
-      };
-    } catch (error) {
-      console.error('Get attendance summary service error:', error);
-      throw error;
-    }
-  }
-
   // Get filtered attendance
   async getFilteredAttendance({ employee_id, department, shift }) {
     try {
@@ -427,7 +351,7 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true,
+              shift_rate: true, // This comes from employees table
             },
           },
         },
@@ -463,7 +387,7 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true,
+              shift_rate: true, // This comes from employees table
             },
           },
         },
@@ -513,56 +437,56 @@ class AttendanceService {
   }
 
   async getDailySummary(dateString) {
-  try {
-    const date = this.validateDate(dateString);
+    try {
+      const date = this.validateDate(dateString);
 
-    // Start and end of the day
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
+      // Start and end of the day
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
 
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
 
-    // Get attendance records for the day
-    const records = await prisma.attendance.findMany({
-      where: {
-        date: {
-          gte: startOfDay,
-          lte: endOfDay,
+      // Get attendance records for the day
+      const records = await prisma.attendance.findMany({
+        where: {
+          date: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
         },
-      },
-    });
+      });
 
-    // Total employees (from employee table)
-    const totalEmployees = await prisma.employees.count();
+      // Total employees (from employee table)
+      const totalEmployees = await prisma.employees.count();
 
-    // Count status
-    const presentCount = records.filter(r => r.status === 'PRESENT').length;
-    const absentCount = records.filter(r => r.status === 'ABSENT').length;
-    const totalMarked = records.length;
+      // Count status
+      const presentCount = records.filter(r => r.status === 'PRESENT').length;
+      const absentCount = records.filter(r => r.status === 'ABSENT').length;
+      const totalMarked = records.length;
 
-    // Total overtime
-    const totalOvertime = records.reduce((sum, rec) => sum + (rec.overtime_hours || 0), 0);
+      // Total overtime
+      const totalOvertime = records.reduce((sum, rec) => sum + (rec.overtime_hours || 0), 0);
 
-    // Average shift hours
-    const totalShiftHours = records.reduce((sum, rec) => sum + (rec.total_hours || 0), 0);
-    const averageShiftHours = totalMarked > 0
-      ? parseFloat((totalShiftHours / totalMarked).toFixed(2))
-      : 0;
+      // Average shift hours
+      const totalShiftHours = records.reduce((sum, rec) => sum + (rec.total_hours || 0), 0);
+      const averageShiftHours = totalMarked > 0
+        ? parseFloat((totalShiftHours / totalMarked).toFixed(2))
+        : 0;
 
-    return {
-      date: startOfDay.toISOString().split('T')[0],
-      total_employees: totalEmployees,
-      present: presentCount,
-      absent: absentCount,
-      total_overtime: parseFloat(totalOvertime.toFixed(2)),
-      average_shift_hours: averageShiftHours,
-    };
-  } catch (error) {
-    console.error('Error in getDailySummary:', error);
-    throw new Error('Failed to get attendance summary');
+      return {
+        date: startOfDay.toISOString().split('T')[0],
+        total_employees: totalEmployees,
+        present: presentCount,
+        absent: absentCount,
+        total_overtime: parseFloat(totalOvertime.toFixed(2)),
+        average_shift_hours: averageShiftHours,
+      };
+    } catch (error) {
+      console.error('Error in getDailySummary:', error);
+      throw new Error('Failed to get attendance summary');
+    }
   }
-}
 
   // Get attendance summary based on type (daily, weekly, monthly)
   async getAttendanceSummary({ type = 'monthly', date, start, end, month, year }) {
@@ -607,7 +531,7 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true,
+              shift_rate: true, // This comes from employees table
             },
           },
         },
@@ -677,7 +601,7 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true,
+              shift_rate: true, // This comes from employees table
             },
           },
         },
@@ -735,7 +659,7 @@ class AttendanceService {
     }
   }
 
-  // Get monthly attendance summary (renamed from getAttendanceSummary)
+  // Get monthly attendance summary
   async getMonthlyAttendanceSummary(month, year) {
     try {
       const { month: validMonth, year: validYear } = this.validateMonthYear(month, year);
@@ -758,7 +682,7 @@ class AttendanceService {
               name: true,
               department: true,
               token_no: true,
-              shift_rate: true,
+              shift_rate: true, // This comes from employees table
             },
           },
         },
@@ -815,7 +739,6 @@ class AttendanceService {
       throw error;
     }
   }
-
 }
 
 // Export service instance
