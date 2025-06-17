@@ -53,31 +53,61 @@ exports.markAttendance = async ({ date, records }) => {
 // services/attendance.service.js
 
 exports.getAttendanceByDate = async (date) => {
-    return await prisma.attendance.findMany({
-      where: {
-        date: new Date(date),
-      },
-      include: {
-        employee: true,
-      },
-    });
-  };
+  try {
+    // Parse and validate date
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      throw new Error('Invalid date format');
+    }
 
+    // Set time to start of day for consistent comparison
+    parsedDate.setHours(0, 0, 0, 0);
 
-  
-  exports.getAttendanceRange = async (startDate, endDate) => {
     return await prisma.attendance.findMany({
       where: {
         date: {
-          gte: new Date(startDate),
-          lte: new Date(endDate),
-        },
+          gte: parsedDate,
+          lt: new Date(parsedDate.getTime() + 24 * 60 * 60 * 1000)
+        }
       },
       include: {
-        employee: true,
+        employee: {
+          select: {
+            id: true,
+            name: true,
+            department: true,
+            token_no: true,
+            shift_rate: true
+          }
+        }
       },
       orderBy: {
-        date: 'asc',
-      },
+        employee: {
+          name: 'asc'
+        }
+      }
     });
-  };
+  } catch (error) {
+    console.error('Error in getAttendanceByDate:', error);
+    throw error;
+  }
+};
+
+
+  
+exports.getAttendanceRange = async (startDate, endDate) => {
+  return await prisma.attendance.findMany({
+    where: {
+      date: {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      },
+    },
+    include: {
+      employee: true,
+    },
+    orderBy: {
+      date: 'asc',
+    },
+  });
+};
