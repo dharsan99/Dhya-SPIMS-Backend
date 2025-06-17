@@ -20,13 +20,35 @@ const { login } = require('../controllers/auth.controller');
  *             properties:
  *               email:
  *                 type: string
- *                 example: admin@nscspinning.com
  *               password:
  *                 type: string
- *                 example: admin@123
  *     responses:
  *       200:
  *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     role:
+ *                       type: string
+ *                     tenant_id:
+ *                       type: string
+ *                     permissions:
+ *                       type: object
+ *                       additionalProperties:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                 token:
+ *                   type: string
  *       401:
  *         description: Invalid credentials
  */

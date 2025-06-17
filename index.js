@@ -7,7 +7,7 @@ dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
 
-// ✅ Middlewares
+// ✅ Middleware
 app.use(
   cors({
     origin: [
@@ -47,7 +47,7 @@ const productionRoutes = require('./routes/production.routes');
 
 const settingsRoutes = require('./routes/settings.routes');
 const userSettingsRoutes = require('./routes/userSettings.routes');
-const roleRoutes = require('./routes/userRoles.routes');
+const roleRoutes = require('./routes/roles.routes'); 
 const mailingListRoutes = require('./routes/mailingLists.routes.js');
 
 
@@ -100,4 +100,5 @@ app.use('/parse-purchase-order', parseRoutes);
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
   console.log(`🚀 SPIMS API server running at: http://localhost:${PORT}`);
+  console.log(`SPIMS SWAGGER API running at: http://localhost:5001/docs/`);
 });
