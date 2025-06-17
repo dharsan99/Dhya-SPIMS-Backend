@@ -43,7 +43,7 @@ exports.deleteRole = async (id) => {
 exports.getPermissions = async () => {
   return {
     Orders: ["Add Order", "Update Order", "Delete Order", "View Order", "Export Order"],
-    Shades: ["Add Shades", "Update Shades", "Delete Shades", "View Shades", "Export Shades"],
+    Shades: ["Add Shade", "Update Shade", "Delete Shade", "View Shade", "Export Shade"],
     Fibres: ["Add Fibre", "Update Fibre", "Delete Fibre", "View Fibre", "Export Fibre"],
     Production: ["Add Production", "Update Production", "Delete Production", "View Production", "Export Production"],
     Buyers: ["Add Buyer", "Update Buyer", "Delete Buyer", "View Buyer", "Export Buyer"],

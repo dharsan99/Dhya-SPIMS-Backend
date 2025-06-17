@@ -6,7 +6,7 @@ const controller = require('../controllers/register.controller');
  * @swagger
  * /register:
  *   post:
- *     summary: Register a new tenant and admin user (with optional roles)
+ *     summary: Register a new tenant and admin user
  *     tags: [Register]
  *     requestBody:
  *       required: true
@@ -30,24 +30,9 @@ const controller = require('../controllers/register.controller');
  *                 type: string
  *               password:
  *                 type: string
- *               roles:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     name:
- *                       type: string
- *                     description:
- *                       type: string
- *                     permissions:
- *                       type: object
- *                       additionalProperties:
- *                         type: array
- *                         items:
- *                           type: string
  *     responses:
  *       201:
- *         description: Tenant, admin user, and roles created
+ *         description: Tenant and admin user created
  *       400:
  *         description: Missing required fields
  *       500:

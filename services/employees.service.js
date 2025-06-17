@@ -86,6 +86,13 @@ exports.updateEmployee = async (id, data) => {
   });
 };
 
-exports.deleteEmployee = async (id) => {
-  return await prisma.employees.delete({ where: { id } });
-};
+  exports.deleteEmployee = async (id) => {
+    return await prisma.$transaction([
+      prisma.attendance.deleteMany({
+        where: { employee_id: id },
+      }),
+      prisma.employees.delete({
+        where: { id },
+      }),
+    ]);
+  };
