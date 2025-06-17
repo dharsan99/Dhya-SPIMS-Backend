@@ -42,31 +42,15 @@ const roleController = require('../controllers/role.controller');
  * @swagger
  * /roles:
  *   get:
- *     summary: Get all roles for a tenant
+ *     summary: Get roles for tenant
  *     tags: [Roles]
- *     parameters:
- *       - in: query
- *         name: tenantId
- *         schema:
- *           type: string
- *           format: uuid
- *         required: true
- *         description: Tenant ID to filter roles
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of roles
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Role'
- *       400:
- *         description: Missing tenantId
- *       500:
- *         description: Server error
  */
-router.get('/', roleController.getRoles);
+router.get('/', verifyToken, getRolesByTenant);
 
 /**
  * @swagger
