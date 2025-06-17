@@ -1,47 +1,96 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-function calculateTotalHours(shift, overtimeHours) {
-  return 8 + (overtimeHours || 0); // Each shift = 8 hours
-}
+class AttendanceService {
+  
+  // Utility method to calculate total working hours
+  calculateWorkingHours(inTime, outTime, overtimeHours = 0) {
+    const workingHours = (new Date(outTime) - new Date(inTime)) / (1000 * 60 * 60);
+    return parseFloat((workingHours + overtimeHours).toFixed(2));
+  }
 
-exports.markAttendance = async ({ date, records }) => {
-  try {
-    // Validate records before processing
-    for (const rec of records) {
-      if (!rec.shift) {
-        throw new Error(`Missing shift for employee ${rec.employee_id}`);
-      }
+  // Validate date format
+  validateDate(date) {
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      throw new Error('Invalid date format');
     }
+    return parsedDate;
+  }
 
-    const txns = records.map((record) => {
-      const shift = record.shift;
-      const overtime = record.overtime_hours || 0;
-      const total = calculateTotalHours(shift, overtime);
+  // Validate month and year
+  validateMonthYear(month, year) {
+    if (!month || !year) {
+      throw new Error('Month and Year are required');
+    }
+    if (!/^(0[1-9]|1[0-2])$/.test(month)) {
+      throw new Error('Month must be between 01-12');
+    }
+    if (!/^\d{4}$/.test(year)) {
+      throw new Error('Year must be a 4-digit number');
+    }
+    return { month, year };
+  }
 
-      return prisma.attendance.upsert({
-        where: {
-          date_employee_id: {
+  // Mark attendance with bulk operations
+  async markAttendance({ date, records }) {
+    try {
+      // Validate input like old code
+      if (!date || !records || !Array.isArray(records)) {
+        throw new Error('Date and records array are required');
+      }
+
+      // Validate each record like old code
+      for (const rec of records) {
+        if (!rec.employee_id) {
+          throw new Error('Employee ID is required for all records');
+        }
+        if (!rec.shift) {
+          throw new Error(`Missing shift for employee ${rec.employee_id}`);
+        }
+        if (!rec.in_time || !rec.out_time) {
+          throw new Error(`Missing time data for employee ${rec.employee_id}`);
+        }
+      }
+
+      // Process each record exactly like old code
+      const txns = records.map((record) => {
+        const shift = record.shift;
+        const overtime = record.overtime_hours || 0;
+        const inTime = new Date(record.in_time);
+        const outTime = new Date(record.out_time);
+
+        // Calculate working hours like old code
+        const workingHours = (outTime - inTime) / (1000 * 60 * 60);
+        const total = parseFloat((workingHours + overtime).toFixed(2));
+
+        return prisma.attendance.upsert({
+          where: {
+            date_employee_id: {
+              date: new Date(date),
+              employee_id: record.employee_id,
+            },
+          },
+          update: {
+            shift,
+            in_time: inTime,
+            out_time: outTime,
+            overtime_hours: overtime,
+            total_hours: total,
+            status: record.status,
+          },
+          create: {
             date: new Date(date),
             employee_id: record.employee_id,
+            shift,
+            in_time: inTime,
+            out_time: outTime,
+            overtime_hours: overtime,
+            total_hours: total,
+            status: record.status,
           },
-        },
-        update: {
-          shift,
-          overtime_hours: overtime,
-          total_hours: total,
-          status: record.status,
-        },
-        create: {
-          date: new Date(date),
-          employee_id: record.employee_id,
-          shift,
-          overtime_hours: overtime,
-          total_hours: total,
-          status: record.status,
-        },
+        });
       });
-    });
 
       return await prisma.$transaction(txns);
     } catch (error) {
