@@ -3,8 +3,120 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const FormData = require('form-data');
 const { sendPOAuthorizationEmail } = require('../utils/email');
+const fs = require('fs');
+const path = require('path');
+const readline = require('readline');
 
 const prisma = new PrismaClient();
+
+class PurchaseOrdersService {
+  constructor() {
+    this.purchaseOrders = [];
+    this.loadPurchaseOrders();
+  }
+
+  async loadPurchaseOrders() {
+    try {
+      const filePath = path.join(__dirname, '../purchase_order_dataset.jsonl');
+      const fileStream = fs.createReadStream(filePath);
+      const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity
+      });
+
+      for await (const line of rl) {
+        const { completion } = JSON.parse(line);
+        this.purchaseOrders.push(completion);
+      }
+    } catch (error) {
+      console.error('Error loading purchase orders:', error);
+      throw new Error('Failed to load purchase orders');
+    }
+  }
+
+  async getAllPurchaseOrders({ page = 1, limit = 10 }) {
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedOrders = this.purchaseOrders.slice(startIndex, endIndex);
+
+    return {
+      data: paginatedOrders,
+      pagination: {
+        total: this.purchaseOrders.length,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(this.purchaseOrders.length / limit)
+      }
+    };
+  }
+
+  async getPurchaseOrderById(id) {
+    return this.purchaseOrders.find(po => po.poNumber === id);
+  }
+
+  async createPurchaseOrder(data) {
+    const newPurchaseOrder = {
+      ...data,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    this.purchaseOrders.push(newPurchaseOrder);
+    return newPurchaseOrder;
+  }
+
+  async updatePurchaseOrder(id, updateData) {
+    const index = this.purchaseOrders.findIndex(po => po.poNumber === id);
+    
+    if (index === -1) {
+      return null;
+    }
+
+    const updatedPurchaseOrder = {
+      ...this.purchaseOrders[index],
+      ...updateData,
+      updatedAt: new Date().toISOString()
+    };
+
+    this.purchaseOrders[index] = updatedPurchaseOrder;
+    return updatedPurchaseOrder;
+  }
+
+  async deletePurchaseOrder(id) {
+    const index = this.purchaseOrders.findIndex(po => po.poNumber === id);
+    
+    if (index === -1) {
+      return false;
+    }
+
+    this.purchaseOrders.splice(index, 1);
+    return true;
+  }
+
+  async parseAndCreatePurchaseOrder(file) {
+    try {
+      const fileContent = await fs.promises.readFile(file.path, 'utf8');
+      const purchaseOrder = JSON.parse(fileContent);
+      
+      // Validate required fields
+      const requiredFields = ['poNumber', 'poDate', 'buyerName', 'items'];
+      const missingFields = requiredFields.filter(field => !purchaseOrder[field]);
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
+      return this.createPurchaseOrder(purchaseOrder);
+    } catch (error) {
+      throw new Error(`Failed to parse purchase order: ${error.message}`);
+    } finally {
+      // Clean up uploaded file
+      await fs.promises.unlink(file.path);
+    }
+  }
+}
+
+module.exports = new PurchaseOrdersService();
 
 exports.parseFileAndCreate = async (file, user) => {
   const PYTHON_AI_SERVICE_URL = process.env.PYTHON_AI_SERVICE_URL || 'https://dharsan99--dhya-po-parser-fastapi-app.modal.run/parse-pdf/';

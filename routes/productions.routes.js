@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middlewares/auth.middleware');
 const { requireRole } = require('../middlewares/role.middleware');
-const fibreTransfersController = require('../controllers/fibreTransfers.controller');
+const productionsController = require('../controllers/productions.controller');
 
 // Apply authentication middleware to all routes
 router.use(verifyToken);
@@ -11,23 +11,17 @@ router.use(requireRole('admin', 'hr', 'manager'));
 /**
  * @swagger
  * tags:
- *   name: Fibre Transfers
- *   description: Fibre transfer management APIs
+ *   name: Productions
+ *   description: Production management APIs
  */
 
 /**
  * @swagger
- * /fibre-transfers:
+ * /productions:
  *   get:
- *     summary: Get all fibre transfers
- *     tags: [Fibre Transfers]
+ *     summary: Get all productions
+ *     tags: [Productions]
  *     parameters:
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *           enum: [pending, approved, rejected]
- *         description: Filter by status
  *       - in: query
  *         name: page
  *         schema:
@@ -42,20 +36,20 @@ router.use(requireRole('admin', 'hr', 'manager'));
  *         description: Number of records per page
  *     responses:
  *       200:
- *         description: List of fibre transfers
+ *         description: List of productions
  *       401:
  *         description: Unauthorized
  *       403:
  *         description: Forbidden
  */
-router.get('/', fibreTransfersController.getAllFibreTransfers);
+router.get('/', productionsController.getAllProductions);
 
 /**
  * @swagger
- * /fibre-transfers/{id}:
+ * /productions/{id}:
  *   get:
- *     summary: Get fibre transfer by ID
- *     tags: [Fibre Transfers]
+ *     summary: Get production by ID
+ *     tags: [Productions]
  *     parameters:
  *       - in: path
  *         name: id
@@ -64,18 +58,18 @@ router.get('/', fibreTransfersController.getAllFibreTransfers);
  *           type: string
  *     responses:
  *       200:
- *         description: Fibre transfer details
+ *         description: Production details
  *       404:
- *         description: Fibre transfer not found
+ *         description: Production not found
  */
-router.get('/:id', fibreTransfersController.getFibreTransferById);
+router.get('/:id', productionsController.getProductionById);
 
 /**
  * @swagger
- * /fibre-transfers:
+ * /productions:
  *   post:
- *     summary: Create new fibre transfer
- *     tags: [Fibre Transfers]
+ *     summary: Create new production
+ *     tags: [Productions]
  *     requestBody:
  *       required: true
  *       content:
@@ -83,23 +77,23 @@ router.get('/:id', fibreTransfersController.getFibreTransferById);
  *           schema:
  *             type: object
  *             required:
- *               - fromLocation
- *               - toLocation
- *               - quantity
+ *               - name
+ *               - startDate
+ *               - endDate
  *     responses:
  *       201:
- *         description: Fibre transfer created
+ *         description: Production created
  *       400:
  *         description: Invalid input
  */
-router.post('/', fibreTransfersController.createFibreTransfer);
+router.post('/', productionsController.createProduction);
 
 /**
  * @swagger
- * /fibre-transfers/{id}:
+ * /productions/{id}:
  *   put:
- *     summary: Update fibre transfer
- *     tags: [Fibre Transfers]
+ *     summary: Update production
+ *     tags: [Productions]
  *     parameters:
  *       - in: path
  *         name: id
@@ -114,18 +108,18 @@ router.post('/', fibreTransfersController.createFibreTransfer);
  *             type: object
  *     responses:
  *       200:
- *         description: Fibre transfer updated
+ *         description: Production updated
  *       404:
- *         description: Fibre transfer not found
+ *         description: Production not found
  */
-router.put('/:id', fibreTransfersController.updateFibreTransfer);
+router.put('/:id', productionsController.updateProduction);
 
 /**
  * @swagger
- * /fibre-transfers/{id}:
+ * /productions/{id}:
  *   delete:
- *     summary: Delete fibre transfer
- *     tags: [Fibre Transfers]
+ *     summary: Delete production
+ *     tags: [Productions]
  *     parameters:
  *       - in: path
  *         name: id
@@ -134,10 +128,10 @@ router.put('/:id', fibreTransfersController.updateFibreTransfer);
  *           type: string
  *     responses:
  *       200:
- *         description: Fibre transfer deleted
+ *         description: Production deleted
  *       404:
- *         description: Fibre transfer not found
+ *         description: Production not found
  */
-router.delete('/:id', fibreTransfersController.deleteFibreTransfer);
+router.delete('/:id', productionsController.deleteProduction);
 
-module.exports = router;
+module.exports = router; 
