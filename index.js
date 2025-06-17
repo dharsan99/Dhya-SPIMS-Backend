@@ -35,7 +35,7 @@ const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/users.routes');
 const tenantRoutes = require('./routes/tenants.routes');
 const registerRoutes = require('./routes/register.routes');
-
+const subscriptionRoutes = require('./routes/subscriptions.routes');
 const blendRoutes = require('./routes/blends.routes');
 const blendFibreRoutes = require('./routes/blendFibres.routes');
 const fibreRoutes = require('./routes/fibres.routes');
@@ -72,30 +72,41 @@ app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/tenants', tenantRoutes);
 app.use('/register', registerRoutes);
-// app.use('/subscriptions', subscriptionRoutes);
+app.use('/subscriptions', subscriptionRoutes);
 
+// Core Routes
 app.use('/blends', blendRoutes);
 app.use('/blend-fibres', blendFibreRoutes);
 app.use('/fibres', fibreRoutes);
 app.use('/shades', shadeRoutes);
-
 app.use('/orders', orderRoutes);
 app.use('/buyers', buyerRoutes);
 app.use('/productions', productionRoutes);
 
-app.use('/settings', settingsRoutes);         // ✅ Tenant-level settings
-app.use('/user-settings', userSettingsRoutes); // ✅ User-specific settings
+// Settings & Configuration
+app.use('/settings', settingsRoutes);
+app.use('/user-settings', userSettingsRoutes);
 app.use('/roles', roleRoutes);
 app.use('/suppliers', supplierRoutes);
-app.use('/fibreTransfers', fibreTransferRoutes);
+app.use('/fibre-transfers', fibreTransferRoutes);
 app.use('/employees', employeeRoutes);
-app.use('/api/mailing-lists', mailingListRoutes);
+
+// Marketing & Communication
+app.use('/mailing-lists', mailingListRoutes);
 app.use('/email-templates', emailTemplates);
 app.use('/marketing', marketingRoutes);
+
+// Attendance & HR
 app.use('/attendance', attendanceRoutes);
 app.use('/potential-buyers', potentialBuyersRoutes);
+
+// Dashboard & Other Routes
+app.use('/dashboard', require('./routes/dashboard.routes'));
 app.use('/purchase-orders', require('./routes/purchaseOrders.routes'));
-app.use('/parse-purchase-order', parseRoutes);
+
+// Parse Routes
+app.use('/parse', parseRoutes);
+
 // ✅ Start Server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
