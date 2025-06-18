@@ -182,11 +182,12 @@ router.get('/export', attendanceController.exportMonthlyAttendance);
 
 router.get('/by-date', attendanceController.getAttendanceByDate);
 
+
 /**
  * @swagger
  * /attendance/range:
  *   get:
- *     summary: Get attendance records between start and end dates
+ *     summary: Get attendance records grouped by employee between start and end dates
  *     tags:
  *       - Attendance
  *     parameters:
@@ -196,16 +197,16 @@ router.get('/by-date', attendanceController.getAttendanceByDate);
  *         schema:
  *           type: string
  *           format: date
- *         description: "Start date (YYYY-MM-DD)"
- *         example: '2025-06-01'
+ *         description: Start date (YYYY-MM-DD)
+ *         example: 2025-06-01
  *       - in: query
  *         name: end
  *         required: true
  *         schema:
  *           type: string
  *           format: date
- *         description: "End date (YYYY-MM-DD)"
- *         example: '2025-06-09'
+ *         description: End date (YYYY-MM-DD)
+ *         example: 2025-06-09
  *       - in: query
  *         name: page
  *         required: false
@@ -222,42 +223,59 @@ router.get('/by-date', attendanceController.getAttendanceByDate);
  *           example: 10
  *     responses:
  *       200:
- *         description: Attendance records between given dates
+ *         description: Successfully fetched attendance records
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   employee_id:
- *                     type: string
- *                     format: uuid
- *                     example: ca21fb9d-1bb5-4d7d-b3a5-e24c52caf93a
- *                   date:
- *                     type: string
- *                     format: date
- *                     example: '2025-06-09'
- *                   status:
- *                     type: string
- *                     example: PRESENT
- *                   shift:
- *                     type: string
- *                     example: morning
- *                   in_time:
- *                     type: string
- *                     format: date-time
- *                     example: '2025-06-09T09:00:00Z'
- *                   out_time:
- *                     type: string
- *                     format: date-time
- *                     example: '2025-06-09T17:00:00Z'
- *                   overtime_hours:
- *                     type: number
- *                     format: float
- *                     example: 1.5
+ *               type: object
+ *               properties:
+ *                 page:
+ *                   type: integer
+ *                 limit:
+ *                   type: integer
+ *                 total:
+ *                   type: integer
+ *                 total_pages:
+ *                   type: integer
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       employee_id:
+ *                         type: string
+ *                       employee:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                           department:
+ *                             type: string
+ *                           token_no:
+ *                             type: string
+ *                           shift_rate:
+ *                             type: string
+ *                       attendance:
+ *                         type: object
+ *                         additionalProperties:
+ *                           type: object
+ *                           properties:
+ *                             status:
+ *                               type: string
+ *                             in_time:
+ *                               type: string
+ *                               example: "08:00"
+ *                             out_time:
+ *                               type: string
+ *                               example: "17:00"
+ *                             total_hours:
+ *                               type: number
+ *                             overtime_hours:
+ *                               type: number
+ *                             shift:
+ *                               type: string
  *       400:
- *         description: Missing start or end date parameter
+ *         description: Invalid request or missing parameters
  *         content:
  *           application/json:
  *             schema:
@@ -265,17 +283,6 @@ router.get('/by-date', attendanceController.getAttendanceByDate);
  *               properties:
  *                 error:
  *                   type: string
- *                   example: Start and end dates are required
- *       500:
- *         description: Failed to fetch attendance range
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   example: Failed to fetch attendance range
  */
 
 router.get('/range', attendanceController.getAttendanceRange);
@@ -587,12 +594,14 @@ router.get('/summary-range', attendanceController.getAttendanceRangeSummary);
  */
 router.get('/filter', attendanceController.getFilteredAttendance);
 
+
 /**
  * @swagger
  * /attendance:
  *   post:
  *     summary: Create a new attendance record
- *     tags: [Attendance]
+ *     tags:
+ *       - Attendance
  *     requestBody:
  *       required: true
  *       content:
@@ -602,28 +611,50 @@ router.get('/filter', attendanceController.getFilteredAttendance);
  *             properties:
  *               employee_id:
  *                 type: string
+ *                 format: uuid
+ *                 example: "b5b0f251-ce25-47bf-a22a-7960a6ccefdd"
  *               date:
  *                 type: string
  *                 format: date
+ *                 example: "2025-06-18"
+ *               status:
+ *                 type: string
+ *                 enum: [PRESENT, HALF_DAY, ABSENT]
+ *                 example: "PRESENT"
  *               shift:
  *                 type: string
+ *                 example: "Morning"
+ *                 description: Required only when status is PRESENT or HALF_DAY. Must be omitted for ABSENT.
  *               in_time:
  *                 type: string
  *                 format: date-time
+ *                 example: "2025-06-18T06:33:08.638Z"
+ *                 description: Required only when status is PRESENT or HALF_DAY. Must be omitted for ABSENT.
  *               out_time:
  *                 type: string
  *                 format: date-time
+ *                 example: "2025-06-18T09:33:08.638Z"
+ *                 description: Required only when status is PRESENT or HALF_DAY. Must be omitted for ABSENT.
  *               overtime_hours:
  *                 type: number
- *               status:
- *                 type: string
- *                 enum: [PRESENT, ABSENT, HALF_DAY, LEAVE]
+ *                 example: 1.5
+ *                 description: Optional when status is PRESENT or HALF_DAY. Must be omitted for ABSENT.
+ *             required:
+ *               - employee_id
+ *               - date
+ *               - status
+ *             description: >
+ *               - For **ABSENT**, only `employee_id`, `date`, and `status` are required.  
+ *               - For **PRESENT** and **HALF_DAY**, `shift`, `in_time`, and `out_time` are required, and `overtime_hours` is optional.
  *     responses:
  *       201:
- *         description: Attendance record created
+ *         description: Attendance record created successfully
  *       400:
- *         description: Invalid input
+ *         description: Validation error or missing/extra fields
+ *       500:
+ *         description: Internal server error
  */
+
 router.post('/', validateAttendance, attendanceController.createAttendance);
 
 /**

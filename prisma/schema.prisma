@@ -523,4 +523,119 @@ model purchase_order_items {
   purchase_order    purchase_orders @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
 }
 
+model Tenant {
+  id            String         @id @default(uuid())
+  name          String
+  domain        String?       @unique
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  users         User[]
+  subscriptions Subscription[]
+  usage_logs    UsageLog[]
+  audit_logs    AuditLog[]
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String        @unique
+  name          String
+  password_hash String
+  role          String
+  tenant_id     String
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+  tenant        Tenant        @relation(fields: [tenant_id], references: [id])
+  user_roles    UserRole[]
+  audit_logs    AuditLog[]
+}
+
+model Role {
+  id          String     @id @default(uuid())
+  name        String
+  description String?
+  permissions Json
+  tenant_id   String
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  user_roles  UserRole[]
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  user_id   String
+  role_id   String
+  user      User     @relation(fields: [user_id], references: [id])
+  role      Role     @relation(fields: [role_id], references: [id])
+  created_at DateTime @default(now())
+
+  @@unique([user_id, role_id])
+}
+
+model Subscription {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  plan_type   String
+  start_date  DateTime
+  end_date    DateTime
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id])
+}
+
+model UsageLog {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  feature     String
+  usage_count Int      @default(1)
+  timestamp   DateTime @default(now())
+  metadata    Json?
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  tenant_id   String
+  user_id     String
+  action      String
+  entity_type String
+  entity_id   String
+  changes     Json?
+  created_at  DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id])
+  user        User     @relation(fields: [user_id], references: [id])
+}
+
+model usage_logs {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  feature     String
+  usage_count Int      @default(1)
+  timestamp   DateTime @default(now())
+  metadata    Json?
+  tenant      tenants  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([feature])
+  @@index([timestamp])
+}
+
+model audit_logs {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenant_id   String   @db.Uuid
+  user_id     String   @db.Uuid
+  action      String
+  entity_type String
+  entity_id   String
+  changes     Json?
+  created_at  DateTime @default(now())
+  tenant      tenants  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user        users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([user_id])
+  @@index([entity_type])
+  @@index([created_at])
+}
+
 
