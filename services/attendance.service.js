@@ -142,8 +142,9 @@ class AttendanceService {
       }),
       prisma.attendance.count({ where: whereClause }),
     ]);
+    const totalPages = Math.ceil(total / limit);
 
-    return { data, total, page, limit };
+    return { data, total, page, limit,totalPages };
   } catch (error) {
     console.error('Get attendance by date service error:', error);
     throw error;
@@ -155,57 +156,105 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
     throw new Error('Start and end dates are required');
   }
 
-  try {
-    // ✅ Parse to integer
-    page = parseInt(page);
-    limit = parseInt(limit);
-    const skip = (page - 1) * limit;
+  page = parseInt(page);
+  limit = parseInt(limit);
+  const skip = (page - 1) * limit;
 
-    const startDate = this.validateDate(start);
-    const endDate = this.validateDate(end);
+  const startDate = this.validateDate(start);
+  const endDate = this.validateDate(end);
 
-    if (startDate > endDate) {
-      throw new Error('Start date cannot be after end date');
+  if (startDate > endDate) {
+    throw new Error('Start date cannot be after end date');
+  }
+
+  // Get distinct employee IDs with attendance in range (for accurate pagination)
+  const employeeIds = await prisma.attendance.findMany({
+    where: {
+      date: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    select: {
+      employee_id: true,
+    },
+    distinct: ['employee_id'],
+  });
+
+  const total = employeeIds.length;
+  const totalPages = Math.ceil(total / limit);
+
+  const paginatedIds = employeeIds
+    .slice(skip, skip + limit)
+    .map((item) => item.employee_id);
+
+  // Get all attendance data for selected employees within the range
+  const records = await prisma.attendance.findMany({
+    where: {
+      date: {
+        gte: startDate,
+        lte: endDate,
+      },
+      employee_id: {
+        in: paginatedIds,
+      },
+    },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          department: true,
+          token_no: true,
+          shift_rate: true,
+        },
+      },
+    },
+    orderBy: [
+      { employee_id: 'asc' },
+      { date: 'asc' },
+    ],
+  });
+
+  // Grouping by employee
+  const grouped = {};
+  for (const rec of records) {
+    const empId = rec.employee.id;
+
+    if (!grouped[empId]) {
+      grouped[empId] = {
+        employee_id: empId,
+        employee: {
+          name: rec.employee.name,
+          department: rec.employee.department,
+          token_no: rec.employee.token_no,
+          shift_rate: rec.employee.shift_rate,
+        },
+        attendance: {},
+      };
     }
 
-    const [data, total] = await Promise.all([
-      prisma.attendance.findMany({
-        where: {
-          date: {
-            gte: startDate,
-            lte: endDate,
-          },
-        },
-        include: {
-          employee: {
-            select: {
-              name: true,
-              department: true,
-              token_no: true,
-              shift_rate: true,
-            },
-          },
-        },
-        orderBy: { date: 'asc' },
-        skip,
-        take: limit,
-      }),
-      prisma.attendance.count({
-        where: {
-          date: {
-            gte: startDate,
-            lte: endDate,
-          },
-        },
-      }),
-    ]);
+    const dateKey = rec.date.toISOString().split('T')[0];
 
-    return { data, total, page, limit };
-  } catch (error) {
-    console.error('Get attendance range service error:', error);
-    throw error;
+    grouped[empId].attendance[dateKey] = {
+      status: rec.status,
+      in_time: rec.in_time.toTimeString().split(':').slice(0, 2).join(':'),   // "HH:MM"
+      out_time: rec.out_time.toTimeString().split(':').slice(0, 2).join(':'),
+      total_hours: rec.total_hours,
+      overtime_hours: rec.overtime_hours,
+      shift: rec.shift,
+    };
   }
+
+  return {
+    page,
+    limit,
+    total,
+    total_pages: totalPages,
+    data: Object.values(grouped),
+  };
 }
+
 
   // Get all attendance with pagination
   async getAllAttendance({ page = '1', limit = '10' } = {}) {
@@ -234,6 +283,7 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
           },
         }),
       ]);
+      const totalPages = Math.ceil(total / limitNum);
 
       // Format data for response
       const formattedData = data.map(record => ({
@@ -267,40 +317,66 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
   // Create new attendance record
   async createAttendance(data) {
     try {
-      const { employee_id, date, shift, in_time, out_time, overtime_hours = 0, status } = data;
-
-      // Validate required fields
-      if (!employee_id || !date || !shift || !in_time || !out_time || !status) {
-        throw new Error('Missing required fields: employee_id, date, shift, in_time, out_time, status');
+      const { employee_id, date, status } = data;
+  
+      if (!employee_id || !date || !status) {
+        throw new Error('Missing required fields: employee_id, date, and status');
       }
-
+  
       const validatedDate = this.validateDate(date);
-      const inTime = new Date(in_time);
-      const outTime = new Date(out_time);
-      
-      if (inTime >= outTime) {
-        throw new Error('Out time must be after in time');
-      }
-
-      const totalHours = this.calculateWorkingHours(inTime, outTime, overtime_hours);
-
-      return await prisma.attendance.create({
-        data: {
-          employee_id,
-          date: validatedDate,
+  
+      let attendanceData = {
+        employee_id,
+        date: validatedDate,
+        status,
+      };
+  
+      if (status === 'PRESENT' || status === 'HALF_DAY') {
+        const { shift, in_time, out_time, overtime_hours = 0 } = data;
+  
+        if (!shift || !in_time || !out_time) {
+          throw new Error('Missing required fields: shift, in_time, or out_time for PRESENT/HALF_DAY');
+        }
+  
+        const inTime = new Date(in_time);
+        const outTime = new Date(out_time);
+  
+        if (inTime >= outTime) {
+          throw new Error('Out time must be after in time');
+        }
+  
+        const totalHours = this.calculateWorkingHours(inTime, outTime, overtime_hours);
+  
+        attendanceData = {
+          ...attendanceData,
           shift,
           in_time: inTime,
           out_time: outTime,
           overtime_hours,
           total_hours: totalHours,
-          status,
-        },
+        };
+      } else if (status === 'ABSENT') {
+        // Force default values for required fields even if empty/missing in input
+        const defaultTime = new Date(`${validatedDate.toISOString().split('T')[0]}T00:00:00.000Z`);
+  
+        attendanceData = {
+          ...attendanceData,
+          shift: 'N/A',
+          in_time: defaultTime,
+          out_time: defaultTime,
+          overtime_hours: 0,
+          total_hours: 0,
+        };
+      }
+  
+      return await prisma.attendance.create({
+        data: attendanceData,
         include: {
           employee: {
             select: {
               name: true,
               department: true,
-              shift_rate: true, // This comes from employees table
+              shift_rate: true,
             },
           },
         },
@@ -310,6 +386,7 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
       throw error;
     }
   }
+  
 
   // Update attendance records
   async updateAttendance(employeeId, updateData) {

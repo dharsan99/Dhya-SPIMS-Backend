@@ -21,10 +21,12 @@ exports.getAttendanceByDate = async (req, res) => {
   }
 };
 
+
+
 exports.getAttendanceRange = async (req, res) => {
   try {
-    const data = await attendanceService.getAttendanceRange(req.query);
-    res.json(data);
+    const result = await attendanceService.getAttendanceRange(req.query);
+    res.json(result);
   } catch (error) {
     console.error('Error fetching attendance range:', error);
     res.status(400).json({ error: error.message || 'Failed to fetch attendance range' });

@@ -3,11 +3,31 @@ const Joi = require('joi');
 const attendanceSchema = Joi.object({
   employee_id: Joi.string().uuid().required(),
   date: Joi.date().iso().required(),
-  shift: Joi.string().required(),
-  in_time: Joi.date().iso().required(),
-  out_time: Joi.date().iso().greater(Joi.ref('in_time')).required(),
-  overtime_hours: Joi.number().min(0).required(),
-  status: Joi.string().valid('PRESENT', 'ABSENT', 'HALF_DAY', 'LEAVE').required()
+  status: Joi.string().valid('PRESENT', 'ABSENT', 'HALF_DAY', 'LEAVE').required(),
+
+  shift: Joi.alternatives().conditional('status', {
+    is: Joi.valid('PRESENT', 'HALF_DAY'),
+    then: Joi.string().required(),
+    otherwise: Joi.forbidden(),
+  }),
+
+  in_time: Joi.alternatives().conditional('status', {
+    is: Joi.valid('PRESENT', 'HALF_DAY'),
+    then: Joi.date().iso().required(),
+    otherwise: Joi.forbidden(),
+  }),
+
+  out_time: Joi.alternatives().conditional('status', {
+    is: Joi.valid('PRESENT', 'HALF_DAY'),
+    then: Joi.date().iso().greater(Joi.ref('in_time')).required(),
+    otherwise: Joi.forbidden(),
+  }),
+
+  overtime_hours: Joi.alternatives().conditional('status', {
+    is: Joi.valid('PRESENT', 'HALF_DAY'),
+    then: Joi.number().min(0).optional(),
+    otherwise: Joi.forbidden(),
+  }),
 });
 
 const validateAttendance = (req, res, next) => {
