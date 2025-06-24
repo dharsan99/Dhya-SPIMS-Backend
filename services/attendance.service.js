@@ -1,6 +1,8 @@
+
 //pullable request
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+
 
 class AttendanceService {
   
@@ -35,6 +37,10 @@ class AttendanceService {
 
   // Mark attendance with bulk operations
   async markAttendance({ date, records }) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
+   
     try {
       // Validate input like old code
       if (!date || !records || !Array.isArray(records)) {
@@ -101,222 +107,298 @@ class AttendanceService {
   }
 
   // Get attendance by date with filters
- async getAttendanceByDate({ date, employee_id, shift, status, page = 1, limit = 10 }) {
-  if (!date) {
-    throw new Error('Date is required');
-  }
+  async getAttendanceByDate({ date, employee_id, shift, status, page = 1, limit = 10 }) {
+    if (!date) throw new Error('Date is required');
 
-  try {
-    // ✅ Parse to integer
     page = parseInt(page);
     limit = parseInt(limit);
     const skip = (page - 1) * limit;
 
-    const targetDate = this.validateDate(date);
+    // 1. Get all employees (with optional filters)
+    const employeeWhere = {};
+    if (employee_id) employeeWhere.id = employee_id;
+    // Note: shift filter only if you have shift in employee table
+    // if (shift) employeeWhere.shift = shift;
+
+    const allEmployees = await prisma.employees.findMany({
+      where: employeeWhere,
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        token_no: true,
+        shift_rate: true,
+      },
+      skip,
+      take: limit,
+    });
+
+    // 2. Get all attendance records for the date
+    const targetDate = new Date(date);
     const startOfDay = new Date(targetDate.setUTCHours(0, 0, 0, 0));
     const endOfDay = new Date(targetDate.setUTCHours(23, 59, 59, 999));
 
-    const whereClause = {
-      date: { gte: startOfDay, lte: endOfDay },
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: {
+        date: { gte: startOfDay, lte: endOfDay },
+      },
+    });
+
+    // 3. Map attendance by employee_id
+    const attendanceMap = {};
+    attendanceRecords.forEach(record => {
+      attendanceMap[record.employee_id] = record;
+    });
+
+    // 4. Build response: if no record, treat as ABSENT
+    const data = allEmployees.map(emp => {
+      const att = attendanceMap[emp.id];
+      if (att) {
+        return {
+          employee_id: emp.id,
+          name: emp.name,
+          department: emp.department,
+          token_no: emp.token_no,
+          shift_rate: emp.shift_rate,
+          date: att.date,
+          shift: att.shift,
+          status: att.status,
+          in_time: att.in_time,
+          out_time: att.out_time,
+          overtime_hours: att.overtime_hours,
+          total_hours: att.total_hours,
+        };
+      } else {
+        return {
+          employee_id: emp.id,
+          name: emp.name,
+          department: emp.department,
+          token_no: emp.token_no,
+          shift_rate: emp.shift_rate,
+          date: startOfDay,
+          shift: null,
+          status: 'ABSENT',
+          in_time: null,
+          out_time: null,
+          overtime_hours: 0,
+          total_hours: 0,
+        };
+      }
+    });
+
+    // 5. Optionally filter by status
+    const filteredData = status ? data.filter(d => d.status === status) : data;
+
+    return {
+      data: filteredData,
+      total: allEmployees.length,
+      page,
+      limit,
+      totalPages: Math.ceil(allEmployees.length / limit),
     };
-
-    if (employee_id) whereClause.employee_id = employee_id;
-    if (shift) whereClause.shift = shift;
-    if (status) whereClause.status = status;
-
-    const [data, total] = await Promise.all([
-      prisma.attendance.findMany({
-        where: whereClause,
-        include: {
-          employee: {
-            select: {
-              name: true,
-              department: true,
-              token_no: true,
-              shift_rate: true,
-            },
-          },
-        },
-        orderBy: { employee_id: 'asc' },
-        skip,
-        take: limit,
-      }),
-      prisma.attendance.count({ where: whereClause }),
-    ]);
-    const totalPages = Math.ceil(total / limit);
-
-    return { data, total, page, limit,totalPages };
-  } catch (error) {
-    console.error('Get attendance by date service error:', error);
-    throw error;
-  }
-}
-
-async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
-  if (!start || !end) {
-    throw new Error('Start and end dates are required');
   }
 
-  page = parseInt(page);
-  limit = parseInt(limit);
-  const skip = (page - 1) * limit;
-
-  const startDate = this.validateDate(start);
-  const endDate = this.validateDate(end);
-
-  if (startDate > endDate) {
-    throw new Error('Start date cannot be after end date');
-  }
-
-  // Get distinct employee IDs with attendance in range (for accurate pagination)
-  const employeeIds = await prisma.attendance.findMany({
-    where: {
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    select: {
-      employee_id: true,
-    },
-    distinct: ['employee_id'],
-  });
-
-  const total = employeeIds.length;
-  const totalPages = Math.ceil(total / limit);
-
-  const paginatedIds = employeeIds
-    .slice(skip, skip + limit)
-    .map((item) => item.employee_id);
-
-  // Get all attendance data for selected employees within the range
-  const records = await prisma.attendance.findMany({
-    where: {
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-      employee_id: {
-        in: paginatedIds,
-      },
-    },
-    include: {
-      employee: {
-        select: {
-          id: true,
-          name: true,
-          department: true,
-          token_no: true,
-          shift_rate: true,
-        },
-      },
-    },
-    orderBy: [
-      { employee_id: 'asc' },
-      { date: 'asc' },
-    ],
-  });
-
-  // Grouping by employee
-  const grouped = {};
-  for (const rec of records) {
-    const empId = rec.employee.id;
-
-    if (!grouped[empId]) {
-      grouped[empId] = {
-        employee_id: empId,
-        employee: {
-          name: rec.employee.name,
-          department: rec.employee.department,
-          token_no: rec.employee.token_no,
-          shift_rate: rec.employee.shift_rate,
-        },
-        attendance: {},
-      };
+  async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
+    if (!start || !end) {
+      throw new Error('Start and end dates are required');
     }
 
-    const dateKey = rec.date.toISOString().split('T')[0];
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const skip = (page - 1) * limit;
 
-    grouped[empId].attendance[dateKey] = {
-      status: rec.status,
-      in_time: rec.in_time.toTimeString().split(':').slice(0, 2).join(':'),   // "HH:MM"
-      out_time: rec.out_time.toTimeString().split(':').slice(0, 2).join(':'),
-      total_hours: rec.total_hours,
-      overtime_hours: rec.overtime_hours,
-      shift: rec.shift,
+    const startDate = this.validateDate(start);
+    const endDate = this.validateDate(end);
+
+    if (startDate > endDate) {
+      throw new Error('Start date cannot be after end date');
+    }
+
+    // Get all employees
+    const allEmployees = await prisma.employees.findMany({
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        token_no: true,
+        shift_rate: true,
+      },
+    });
+
+    // Get all dates in the range (inclusive)
+    const dateList = [];
+    let d = new Date(startDate);
+    d.setUTCHours(0, 0, 0, 0);
+    const endUTC = new Date(endDate);
+    endUTC.setUTCHours(0, 0, 0, 0);
+    while (d <= endUTC) {
+      dateList.push(new Date(d)); // Always push a new Date object
+      d.setDate(d.getDate() + 1);
+    }
+
+    // Get all attendance records in the range
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: {
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    // Map: { employee_id: { dateString: record } }
+    const attendanceMap = {};
+    attendanceRecords.forEach(record => {
+      if (!attendanceMap[record.employee_id]) attendanceMap[record.employee_id] = {};
+      const dateKey = record.date.toISOString().split('T')[0];
+      attendanceMap[record.employee_id][dateKey] = record;
+    });
+
+    // Build grouped data
+    const grouped = allEmployees.map(emp => {
+      const attendance = {};
+      dateList.forEach(dateObj => {
+        const dateKey = dateObj.toISOString().split('T')[0];
+        const att = attendanceMap[emp.id]?.[dateKey];
+        if (att) {
+          attendance[dateKey] = {
+            status: att.status,
+            in_time: att.in_time ? att.in_time.toTimeString().split(':').slice(0, 2).join(':') : null,
+            out_time: att.out_time ? att.out_time.toTimeString().split(':').slice(0, 2).join(':') : null,
+            total_hours: att.total_hours,
+            overtime_hours: att.overtime_hours,
+            shift: att.shift,
+          };
+        } else {
+          attendance[dateKey] = {
+            status: 'ABSENT',
+            in_time: null,
+            out_time: null,
+            total_hours: 0,
+            overtime_hours: 0,
+            shift: null,
+          };
+        }
+      });
+      return {
+        employee_id: emp.id,
+        employee: {
+          name: emp.name,
+          department: emp.department,
+          token_no: emp.token_no,
+          shift_rate: emp.shift_rate,
+        },
+        attendance,
+      };
+    });
+
+    // Pagination
+    const total = allEmployees.length;
+    const totalPages = Math.ceil(total / limit);
+    const paginated = grouped.slice(skip, skip + limit);
+
+    return {
+      page,
+      limit,
+      total,
+      total_pages: totalPages,
+      data: paginated,
     };
   }
-
-  return {
-    page,
-    limit,
-    total,
-    total_pages: totalPages,
-    data: Object.values(grouped),
-  };
-}
-
 
   // Get all attendance with pagination
   async getAllAttendance({ page = '1', limit = '10' } = {}) {
-    try {
-      const pageNum = Math.max(1, parseInt(page) || 1);
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 10)); // Max 100 per page
-      const skip = (pageNum - 1) * limitNum;
+    page = parseInt(page);
+    limit = parseInt(limit);
+    const skip = (page - 1) * limit;
 
-      const [total, data] = await Promise.all([
-        prisma.attendance.count(),
-        prisma.attendance.findMany({
-          skip,
-          take: limitNum,
-          include: {
-            employee: {
-              select: { 
-                name: true,
-                department: true,
-                token_no: true,
-                shift_rate: true, // This comes from employees table
-              },
-            },
-          },
-          orderBy: {
-            date: 'desc',
-          },
-        }),
-      ]);
-      const totalPages = Math.ceil(total / limitNum);
+    // Get all employees
+    const allEmployees = await prisma.employees.findMany({
+      select: {
+        id: true,
+        name: true,
+        department: true,
+        token_no: true,
+        shift_rate: true,
+      },
+    });
 
-      // Format data for response
-      const formattedData = data.map(record => ({
-        employee_id: record.employee_id,
-        name: record.employee?.name || '',
-        department: record.employee?.department || '',
-        token_no: record.employee?.token_no || '',
-        shift_rate: record.employee?.shift_rate || 0,
-        date: record.date,
-        shift: record.shift,
-        status: record.status,
-        in_time: record.in_time,
-        out_time: record.out_time,
-        total_hours: record.total_hours,
-        overtime_hours: record.overtime_hours,
-      }));
+    // Get all unique dates in attendance table
+    const dates = await prisma.attendance.findMany({
+      select: { date: true },
+      distinct: ['date'],
+      orderBy: { date: 'desc' },
+    });
+    const dateList = dates.map(d => d.date);
 
-      return {
-        page: pageNum,
-        limit: limitNum,
-        total,
-        totalPages: Math.ceil(total / limitNum),
-        data: formattedData,
-      };
-    } catch (error) {
-      console.error('Get all attendance service error:', error);
-      throw error;
-    }
+    // Get all attendance records
+    const attendanceRecords = await prisma.attendance.findMany();
+    const attendanceMap = {};
+    attendanceRecords.forEach(record => {
+      if (!attendanceMap[record.employee_id]) attendanceMap[record.employee_id] = {};
+      const dateKey = record.date.toISOString().split('T')[0];
+      attendanceMap[record.employee_id][dateKey] = record;
+    });
+
+    // Build data: for each employee, for each date, show attendance or ABSENT
+    const data = [];
+    allEmployees.forEach(emp => {
+      dateList.forEach(dateObj => {
+        const dateKey = dateObj.toISOString().split('T')[0];
+        const att = attendanceMap[emp.id]?.[dateKey];
+        if (att) {
+          data.push({
+            employee_id: emp.id,
+            name: emp.name,
+            department: emp.department,
+            token_no: emp.token_no,
+            shift_rate: emp.shift_rate,
+            date: att.date,
+            shift: att.shift,
+            status: att.status,
+            in_time: att.in_time,
+            out_time: att.out_time,
+            total_hours: att.total_hours,
+            overtime_hours: att.overtime_hours,
+          });
+        } else {
+          data.push({
+            employee_id: emp.id,
+            name: emp.name,
+            department: emp.department,
+            token_no: emp.token_no,
+            shift_rate: emp.shift_rate,
+            date: dateObj,
+            shift: null,
+            status: 'ABSENT',
+            in_time: null,
+            out_time: null,
+            total_hours: 0,
+            overtime_hours: 0,
+          });
+        }
+      });
+    });
+
+    // Pagination
+    const total = data.length;
+    const totalPages = Math.ceil(total / limit);
+    const paginated = data.slice(skip, skip + limit);
+
+    return {
+      page,
+      limit,
+      total,
+      totalPages,
+      data: paginated,
+    };
   }
 
   // Create new attendance record
   async createAttendance(data) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
     try {
       const { employee_id, date, status } = data;
   
@@ -395,17 +477,32 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
       if (!employeeId) {
         throw new Error('Employee ID is required');
       }
-
-      // If time fields are being updated, recalculate total hours
+  
+      if (!updateData.date) {
+        throw new Error('Date is required in updateData');
+      }
+  
+      const parsedDate = new Date(updateData.date);
+      parsedDate.setHours(0, 0, 0, 0);
+  
+      await this.ensureAbsentEntriesForToday(parsedDate);
+  
+      // Recalculate total hours if in/out time is provided
       if (updateData.in_time && updateData.out_time) {
         const inTime = new Date(updateData.in_time);
         const outTime = new Date(updateData.out_time);
         const overtimeHours = updateData.overtime_hours || 0;
         updateData.total_hours = this.calculateWorkingHours(inTime, outTime, overtimeHours);
       }
-
+  
+      // Fix: convert `updateData.date` to a proper Date object
+      updateData.date = parsedDate;
+  
       return await prisma.attendance.updateMany({
-        where: { employee_id: employeeId },
+        where: {
+          employee_id: employeeId,
+          date: parsedDate,
+        },
         data: updateData,
       });
     } catch (error) {
@@ -413,9 +510,11 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
       throw error;
     }
   }
-
+  
+  
   // Delete attendance records
   async deleteAttendance(employeeId) {
+    await this.ensureAbsentEntriesForToday();
     try {
       if (!employeeId) {
         throw new Error('Employee ID is required');
@@ -432,6 +531,9 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
 
   // Get filtered attendance
   async getFilteredAttendance({ employee_id, department, shift }) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
     try {
       const whereClause = {};
 
@@ -467,6 +569,9 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
 
   // Export monthly attendance
   async exportMonthlyAttendance({ month, year }) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
     try {
       const { month: validMonth, year: validYear } = this.validateMonthYear(month, year);
 
@@ -507,6 +612,9 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
 
   // Update attendance with audit trail
   async updateAttendanceWithAudit(employeeId, auditData) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
     try {
       if (!employeeId) {
         throw new Error('Employee ID is required');
@@ -537,6 +645,9 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
   }
 
   async getAttendanceRangeSummary({ date, startDate, endDate, month, year }) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
   try {
     let start, end;
     let summaryType = 'daily';
@@ -603,6 +714,9 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
 }
   // Get attendance summary based on type (daily, weekly, monthly)
   async getAttendanceSummary({ type = 'monthly', date, start, end, month, year }) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
     try {
       switch (type) {
         case 'daily':
@@ -622,6 +736,9 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
 
   // Get daily attendance summary
   async getDailyAttendanceSummary(date) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
     try {
       if (!date) {
         throw new Error('Date is required for daily summary');
@@ -689,6 +806,9 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
 
   // Get weekly attendance summary
   async getWeeklyAttendanceSummary(start, end) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
     try {
       if (!start || !end) {
         throw new Error('Start and end dates are required for weekly summary');
@@ -774,6 +894,9 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
 
   // Get monthly attendance summary
   async getMonthlyAttendanceSummary(month, year) {
+    const parsedDate = new Date(date);
+    parsedDate.setHours(0, 0, 0, 0);
+    await this.ensureAbsentEntriesForToday(parsedDate);
     try {
       const { month: validMonth, year: validYear } = this.validateMonthYear(month, year);
 
@@ -852,7 +975,44 @@ async getAttendanceRange({ start, end, page = 1, limit = 10 }) {
       throw error;
     }
   }
+  async ensureAbsentEntriesForToday(date) {
+    const today = new Date(date);
+    today.setHours(0, 0, 0, 0);
+  
+    const employees = await prisma.employees.findMany();
+  
+    for (const emp of employees) {
+      const existing = await prisma.attendance.findFirst({
+        where: {
+          employee_id: emp.id,
+          date: today, // ✅ FIXED
+        },
+      });
+  
+      if (!existing) {
+        await prisma.attendance.create({
+          data: {
+            date: today, // ✅ FIXED
+            employee_id: emp.id,
+            status: 'ABSENT',
+            shift: '',
+            in_time: new Date(today),
+            out_time: new Date(today),
+            overtime_hours: 0,
+            total_hours: 0,
+          },
+        });
+      }
+    }
+  
+    console.log(`✅ ABSENT entries ensured for all employees on ${today.toDateString()}`);
+  }
+  
+  
+  
 }
+
 
 // Export service instance
 module.exports = new AttendanceService();
+

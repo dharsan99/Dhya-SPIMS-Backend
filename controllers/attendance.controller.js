@@ -1,3 +1,4 @@
+
 //pullable request
 const attendanceService = require('../services/attendance.service');
 
@@ -58,10 +59,16 @@ exports.updateAttendance = async (req, res) => {
   try {
     const employeeId = req.params.employee_id;
     const updated = await attendanceService.updateAttendance(employeeId, req.body);
-    res.json({ message: 'Attendance updated', count: updated.count });
+    
+    // Handle both update and create responses
+    if (updated.count !== undefined) {
+      res.json({ message: 'Attendance updated', count: updated.count });
+    } else {
+      res.json({ message: 'Attendance created/updated successfully', data: updated });
+    }
   } catch (error) {
     console.error('Update Attendance Error:', error);
-    res.status(500).json({ error: 'Failed to update attendance' });
+    res.status(500).json({ error: error.message || 'Failed to update attendance' });
   }
 };
 
@@ -147,3 +154,4 @@ exports.getAttendanceRangeSummary = async (req, res) => {
     res.status(500).json({ error: error.message || 'Failed to get attendance summary' });
   }
 };
+
