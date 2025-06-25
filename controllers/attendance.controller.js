@@ -1,6 +1,8 @@
 //pullable request
 const attendanceService = require('../services/attendance.service');
 
+
+
 exports.markAttendance = async (req, res) => {
   try {
     const result = await attendanceService.markAttendance(req.body); // pass full payload

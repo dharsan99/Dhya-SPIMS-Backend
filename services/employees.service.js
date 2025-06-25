@@ -86,13 +86,23 @@ exports.updateEmployee = async (id, data) => {
   });
 };
 
-  exports.deleteEmployee = async (id) => {
-    return await prisma.$transaction([
-      prisma.attendance.deleteMany({
-        where: { employee_id: id },
-      }),
-      prisma.employees.delete({
-        where: { id },
-      }),
-    ]);
-  };
+exports.deleteEmployee = async (id) => {
+  return await prisma.$transaction([
+    prisma.attendance.deleteMany({
+      where: { employee_id: id },
+    }),
+    prisma.employees.delete({
+      where: { id },
+    }),
+  ]);
+};
+
+exports.getAllDepartments = async () => {
+  const departments = await prisma.employees.findMany({
+    where: { department: { not: null } },
+    select: { department: true },
+    distinct: ['department'],
+  });
+  // Return as a flat array of strings
+  return departments.map(d => d.department);
+};

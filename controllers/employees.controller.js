@@ -72,3 +72,12 @@ exports.deleteEmployee = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete employee' });
   }
 };
+
+exports.getAllDepartments = async (req, res) => {
+  try {
+    const departments = await employeeService.getAllDepartments();
+    res.json(departments);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch departments' });
+  }
+};

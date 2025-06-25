@@ -757,6 +757,10 @@ router.post('/mark-bulk', attendanceController.markAttendance);
  *           schema:
  *             type: object
  *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 example: '2025-06-09'
  *               shift:
  *                 type: string
  *               in_time:
