@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const fibreController = require('../controllers/fibres.controller');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 
 /**
  * @swagger

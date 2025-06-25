@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const supplierController = require('../controllers/suppliers.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 
-router.use(verifyToken);
+// Apply JWT + tenant validation to all routes in this file
+router.use(verifyTokenAndTenant);
 
 /**
  * @swagger

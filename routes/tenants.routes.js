@@ -2,14 +2,15 @@ const express = require('express');
 const router = express.Router();
 const {
   getAllTenants,
-  getTenantById,
+  getTenantById,      
   createTenant,
   updateTenant,
   deactivateTenant
 } = require('../controllers/tenants.controller');
-
-const { verifyToken } = require('../middlewares/auth.middleware');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 const { requireRole } = require('../middlewares/role.middleware');
+
 
 /**
  * @swagger
@@ -30,7 +31,7 @@ const { requireRole } = require('../middlewares/role.middleware');
  *       200:
  *         description: List of tenants
  */
-router.get('/', verifyToken, requireRole('admin'), getAllTenants);
+router.get('/',  requireRole('admin'), getAllTenants);
 
 /**
  * @swagger
@@ -49,7 +50,7 @@ router.get('/', verifyToken, requireRole('admin'), getAllTenants);
  *       200:
  *         description: Tenant object
  */
-router.get('/:id', verifyToken, requireRole('admin'), getTenantById);
+router.get('/:id', requireRole('admin'), getTenantById);
 
 /**
  * @swagger
@@ -76,7 +77,7 @@ router.get('/:id', verifyToken, requireRole('admin'), getTenantById);
  *       201:
  *         description: Tenant created
  */
-router.post('/', verifyToken, requireRole('admin'), createTenant);
+router.post('/',  requireRole('admin'), createTenant);
 
 /**
  * @swagger
@@ -103,7 +104,7 @@ router.post('/', verifyToken, requireRole('admin'), createTenant);
  *       200:
  *         description: Tenant updated
  */
-router.put('/:id', verifyToken, requireRole('admin'), updateTenant);
+router.put('/:id', requireRole('admin'), updateTenant);
 
 /**
  * @swagger
@@ -122,6 +123,6 @@ router.put('/:id', verifyToken, requireRole('admin'), updateTenant);
  *       200:
  *         description: Tenant deactivated
  */
-router.delete('/:id', verifyToken, requireRole('admin'), deactivateTenant);
+router.delete('/:id', requireRole('admin'), deactivateTenant);
 
 module.exports = router;

@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/userSettings.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
-
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 /**
  * @swagger
  * tags:
@@ -30,7 +30,7 @@ const { verifyToken } = require('../middlewares/auth.middleware');
  *       500:
  *         description: Server error
  */
-router.get('/', verifyToken, controller.getUserSettings);
+router.get('/', controller.getUserSettings);
 
 /**
  * @swagger
@@ -56,6 +56,6 @@ router.get('/', verifyToken, controller.getUserSettings);
  *       500:
  *         description: Server error
  */
-router.put('/', verifyToken, controller.updateUserSettings);
+router.put('/',  controller.updateUserSettings);
 
 module.exports = router;

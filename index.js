@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { PrismaClient } = require('@prisma/client');
+const { verifyTokenAndTenant } = require('./middlewares/auth.middleware');
 
 dotenv.config();
 const app = express();
@@ -26,9 +27,7 @@ const setupSwagger = require('./swagger');
 setupSwagger(app);
 
 // ✅ Health Check
-app.get('/', (req, res) => {
-  res.send('SPIMS API is running ✅');
-});
+app.get('/', (req, res) => res.send('SPIMS API is running ✅'));
 
 // ✅ Route Imports
 const authRoutes = require('./routes/auth.routes');
@@ -106,6 +105,10 @@ app.use('/purchase-orders', require('./routes/purchaseOrders.routes'));
 
 // Parse Routes
 app.use('/parse', parseRoutes);
+
+// Apply auth & tenant verification middleware to all routes
+app.use(verifyTokenAndTenant);
+
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5001;

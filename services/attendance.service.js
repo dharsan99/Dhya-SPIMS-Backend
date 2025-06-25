@@ -1,4 +1,3 @@
-
 //pullable request
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -7,8 +6,13 @@ const prisma = new PrismaClient();
 class AttendanceService {
   
   // Utility method to calculate total working hours
-  calculateWorkingHours(inTime, outTime, overtimeHours = 0) {
-    const workingHours = (new Date(outTime) - new Date(inTime)) / (1000 * 60 * 60);
+  calculateWorkingHours(status, overtimeHours = 0) {
+    let workingHours = 0;
+    if (status === 'PRESENT') {
+      workingHours = 8;
+    } else if (status === 'HALF_DAY') {
+      workingHours = 4;
+    }
     return parseFloat((workingHours + overtimeHours).toFixed(2));
   }
 
@@ -67,9 +71,15 @@ class AttendanceService {
         const inTime = new Date(record.in_time);
         const outTime = new Date(record.out_time);
 
-        // Calculate working hours like old code
-        const workingHours = (outTime - inTime) / (1000 * 60 * 60);
-        const total = parseFloat((workingHours + overtime).toFixed(2));
+        let workingHours = 0;
+        if (record.status === 'PRESENT') {
+          workingHours = 8;
+        } else if (record.status === 'HALF_DAY') {
+          workingHours = 4;
+        } else {
+          workingHours = 0;
+        }
+        const totalHours = this.calculateWorkingHours(record.status, overtime);
 
         return prisma.attendance.upsert({
           where: {
@@ -83,7 +93,7 @@ class AttendanceService {
             in_time: inTime,
             out_time: outTime,
             overtime_hours: overtime,
-            total_hours: total,
+            total_hours: totalHours,
             status: record.status,
           },
           create: {
@@ -93,7 +103,7 @@ class AttendanceService {
             in_time: inTime,
             out_time: outTime,
             overtime_hours: overtime,
-            total_hours: total,
+            total_hours: totalHours,
             status: record.status,
           },
         });
@@ -263,8 +273,8 @@ class AttendanceService {
         if (att) {
           attendance[dateKey] = {
             status: att.status,
-            in_time: att.in_time ? att.in_time.toTimeString().split(':').slice(0, 2).join(':') : null,
-            out_time: att.out_time ? att.out_time.toTimeString().split(':').slice(0, 2).join(':') : null,
+            in_time: att.in_time ? att.in_time.toISOString() : null,
+            out_time: att.out_time ? att.out_time.toISOString() : null,
             total_hours: att.total_hours,
             overtime_hours: att.overtime_hours,
             shift: att.shift,
@@ -428,7 +438,7 @@ class AttendanceService {
           throw new Error('Out time must be after in time');
         }
   
-        const totalHours = this.calculateWorkingHours(inTime, outTime, overtime_hours);
+        const totalHours = this.calculateWorkingHours(status, overtime_hours);
   
         attendanceData = {
           ...attendanceData,
@@ -492,7 +502,7 @@ class AttendanceService {
         const inTime = new Date(updateData.in_time);
         const outTime = new Date(updateData.out_time);
         const overtimeHours = updateData.overtime_hours || 0;
-        updateData.total_hours = this.calculateWorkingHours(inTime, outTime, overtimeHours);
+        updateData.total_hours = this.calculateWorkingHours(updateData.status, overtimeHours);
       }
   
       // Fix: convert `updateData.date` to a proper Date object
@@ -631,7 +641,7 @@ class AttendanceService {
         const inTime = new Date(updateData.in_time);
         const outTime = new Date(updateData.out_time);
         const overtimeHours = updateData.overtime_hours || 0;
-        updateData.total_hours = this.calculateWorkingHours(inTime, outTime, overtimeHours);
+        updateData.total_hours = this.calculateWorkingHours(updateData.status, overtimeHours);
       }
 
       return await prisma.attendance.updateMany({
@@ -645,73 +655,88 @@ class AttendanceService {
   }
 
   async getAttendanceRangeSummary({ date, startDate, endDate, month, year }) {
-    const parsedDate = new Date(date);
-    parsedDate.setHours(0, 0, 0, 0);
-    await this.ensureAbsentEntriesForToday(parsedDate);
-  try {
-    let start, end;
-    let summaryType = 'daily';
-
-    if (startDate && endDate) {
-      const s = this.validateDate(startDate);
-      const e = this.validateDate(endDate);
-      if (s > e) throw new Error('startDate cannot be after endDate');
-
-      start = new Date(s.setHours(0, 0, 0, 0));
-      end = new Date(e.setHours(23, 59, 59, 999));
-      summaryType = 'custom_range';
-    } else if (month && year) {
-      const m = parseInt(month) - 1;
-      const y = parseInt(year);
-
-      start = new Date(Date.UTC(y, m, 1));
-      end = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
-      summaryType = 'monthly';
-    } else if (date) {
-      const d = this.validateDate(date);
-      start = new Date(d.setHours(0, 0, 0, 0));
-      end = new Date(d.setHours(23, 59, 59, 999));
-      summaryType = 'daily';
-    } else {
-      throw new Error('Provide date or startDate & endDate or month & year');
+    let parsedDate;
+    if (date) {
+      parsedDate = new Date(date);
+      if (!isNaN(parsedDate.getTime())) {
+        parsedDate.setHours(0, 0, 0, 0);
+        await this.ensureAbsentEntriesForToday(parsedDate);
+      }
     }
+    try {
+      let start, end;
+      let summaryType = 'daily';
 
-    const records = await prisma.attendance.findMany({
-      where: {
-        date: {
-          gte: start,
-          lte: end,
+      if (startDate && endDate) {
+        const s = this.validateDate(startDate);
+        const e = this.validateDate(endDate);
+        if (s > e) throw new Error('startDate cannot be after endDate');
+
+        start = new Date(s);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(e);
+        end.setHours(23, 59, 59, 999);
+        summaryType = 'custom_range';
+      } else if (month && year) {
+        const m = parseInt(month) - 1;
+        const y = parseInt(year);
+
+        start = new Date(Date.UTC(y, m, 1));
+        end = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999));
+        summaryType = 'monthly';
+      } else if (date) {
+        const d = this.validateDate(date);
+        start = new Date(d);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(d);
+        end.setHours(23, 59, 59, 999);
+        summaryType = 'daily';
+      } else {
+        throw new Error('Provide date or startDate & endDate or month & year');
+      }
+
+      const records = await prisma.attendance.findMany({
+        where: {
+          date: {
+            gte: start,
+            lte: end,
+          },
         },
-      },
-    });
+      });
 
-    const totalEmployees = await prisma.employees.count();
+      const totalEmployees = await prisma.employees.count();
 
-    const present = records.filter(r => r.status === 'PRESENT').length;
-    const absent = records.filter(r => r.status === 'ABSENT').length;
-    const totalMarked = records.length;
+      // Calculate total days in the range (inclusive)
+      const totalDays = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-    const totalOvertime = records.reduce((sum, r) => sum + (r.overtime_hours || 0), 0);
-    const totalHours = records.reduce((sum, r) => sum + (r.total_hours || 0), 0);
-    const avgHours = totalMarked > 0 ? parseFloat((totalHours / totalMarked).toFixed(2)) : 0;
+      // For range/monthly, present = total PRESENT records, absent = total slots - present
+      const present = records.filter(r => r.status === 'PRESENT').length;
+      const absent = (totalDays * totalEmployees) - present;
 
-    return {
-      summary_type: summaryType,
-      range: {
-        start: start.toISOString().split('T')[0],
-        end: end.toISOString().split('T')[0],
-      },
-      total_employees: totalEmployees,
-      present,
-      absent,
-      total_overtime: parseFloat(totalOvertime.toFixed(2)),
-      average_shift_hours: avgHours,
-    };
-  } catch (error) {
-    console.error('Error in getAttendanceRangeSummary service:', error);
-    throw new Error('Failed to get attendance summary');
+      const totalMarked = records.length;
+
+      const totalOvertime = records.reduce((sum, r) => sum + (r.overtime_hours || 0), 0);
+      const totalHours = records.reduce((sum, r) => sum + (r.total_hours || 0), 0);
+      const avgHours = totalMarked > 0 ? parseFloat((totalHours / totalMarked).toFixed(2)) : 0;
+
+      return {
+        summary_type: summaryType,
+        range: {
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0],
+        },
+        total_employees: totalEmployees,
+        present,
+        absent,
+        total_overtime: parseFloat(totalOvertime.toFixed(2)),
+        average_shift_hours: avgHours,
+      };
+    } catch (error) {
+      console.error('Error in getAttendanceRangeSummary service:', error);
+      throw new Error('Failed to get attendance summary');
+    }
   }
-}
+
   // Get attendance summary based on type (daily, weekly, monthly)
   async getAttendanceSummary({ type = 'monthly', date, start, end, month, year }) {
     const parsedDate = new Date(date);
@@ -1007,9 +1032,7 @@ class AttendanceService {
   
     console.log(`✅ ABSENT entries ensured for all employees on ${today.toDateString()}`);
   }
-  
-  
-  
+   
 }
 
 

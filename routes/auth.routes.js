@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { login } = require('../controllers/auth.controller');
+//const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+
+// Apply JWT + tenant validation to all routes in this file
+//router.use(verifyTokenAndTenant);
 
 /**
  * @swagger

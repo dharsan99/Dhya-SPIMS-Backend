@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/production.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
-
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 /**
  * @swagger
  * tags:
@@ -11,7 +11,7 @@ const { verifyToken } = require('../middlewares/auth.middleware');
  */
 
 // Apply JWT middleware to all routes
-router.use(verifyToken);
+
 
 /**
  * @swagger

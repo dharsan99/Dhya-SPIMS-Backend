@@ -1,4 +1,3 @@
-
 //pullable request
 const attendanceService = require('../services/attendance.service');
 
@@ -22,7 +21,6 @@ exports.getAttendanceByDate = async (req, res) => {
     res.status(400).json({ error: error.message || 'Failed to fetch attendance' });
   }
 };
-
 
 
 exports.getAttendanceRange = async (req, res) => {

@@ -21,6 +21,12 @@ const options = {
           scheme: 'bearer',
           bearerFormat: 'JWT',
         },
+        tenantId: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-tenant-id',
+          description: 'Tenant ID required for tenant-based authorization',
+        },
       },
       schemas: {
         Settings: {
@@ -59,7 +65,12 @@ const options = {
         },
       },
     },
-    security: [{ bearerAuth: [] }],
+    security: [
+      {
+        bearerAuth: [],
+        tenantId: [],
+      },
+    ],
   },
   apis: ['./routes/*.js'],
 };
