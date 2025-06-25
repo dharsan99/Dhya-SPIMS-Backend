@@ -3,12 +3,12 @@ const router = express.Router();
 const {
   getAllUsers,
   getUserById,
-  createUser,
+  createUser, 
   updateUser,
   deleteUser
 } = require('../controllers/users.controller');
-
-const { verifyToken } = require('../middlewares/auth.middleware');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 
 /**
  * @swagger
@@ -29,7 +29,7 @@ const { verifyToken } = require('../middlewares/auth.middleware');
  *       200:
  *         description: List of users
  */
-router.get('/', verifyToken, getAllUsers);
+router.get('/', verifyTokenAndTenant, getAllUsers);
 
 /**
  * @swagger
@@ -48,7 +48,7 @@ router.get('/', verifyToken, getAllUsers);
  *       200:
  *         description: User object
  */
-router.get('/:id', verifyToken, getUserById);
+router.get('/:id', verifyTokenAndTenant, getUserById);
 /**
  * @swagger
  * /users:
@@ -92,7 +92,7 @@ router.get('/:id', verifyToken, getUserById);
  *       500:
  *         description: Internal server error
  */
-router.post('/', verifyToken, createUser);
+router.post('/', verifyTokenAndTenant, createUser);
 
 /**
  * @swagger
@@ -121,7 +121,7 @@ router.post('/', verifyToken, createUser);
  *       200:
  *         description: User updated
  */
-router.put('/:id', verifyToken, updateUser);
+router.put('/:id', verifyTokenAndTenant, updateUser);
 
 /**
  * @swagger
@@ -140,6 +140,6 @@ router.put('/:id', verifyToken, updateUser);
  *       200:
  *         description: User deactivated
  */
-router.delete('/:id', verifyToken, deleteUser);
+router.delete('/:id', verifyTokenAndTenant, deleteUser);
 
 module.exports = router;

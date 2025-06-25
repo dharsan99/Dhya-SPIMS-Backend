@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { createRole, getRolesByTenant } = require('../controllers/userRoles.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
-
-/**
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
+/** 
  * @swagger
  * tags:
  *   name: User Roles

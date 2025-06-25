@@ -1,4 +1,7 @@
 const express = require('express');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+
+
 const {
   createMailingList,
   getMailingLists,
@@ -7,7 +10,7 @@ const {
 } = require('../controllers/mailingLists.controller');
 
 const router = express.Router();
-
+router.use(verifyTokenAndTenant);
 router.post('/', createMailingList);
 router.get('/', getMailingLists);
 router.put('/:id', updateMailingList); // ✅ define update route

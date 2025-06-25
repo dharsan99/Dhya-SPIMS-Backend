@@ -4,14 +4,15 @@ const router = express.Router();
 const attendanceController = require('../controllers/attendance.controller');
 const validateAttendance = require('../middlewares/attendance.validation');
 
-const { verifyToken } = require('../middlewares/auth.middleware');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 const { requireRole } = require('../middlewares/role.middleware');
 
 // 🔐 Apply middleware for all routes in this file
-router.use(verifyToken);
+router.use(verifyTokenAndTenant);
 router.use(requireRole('admin', 'hr'));
 
 console.log('✅ Attendance routes loaded');
+
 
 /**
  * @swagger
@@ -819,7 +820,7 @@ router.put('/:employee_id', attendanceController.updateAttendance);
  *       500:
  *         description: Failed to update attendance
  */
-router.put('/audit/:employee_id', verifyToken, attendanceController.updateAttendanceWithAudit);
+router.put('/audit/:employee_id',  attendanceController.updateAttendanceWithAudit);
 
 /**
  * @swagger

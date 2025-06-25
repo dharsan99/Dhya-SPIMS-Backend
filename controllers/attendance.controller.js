@@ -23,7 +23,6 @@ exports.getAttendanceByDate = async (req, res) => {
 };
 
 
-
 exports.getAttendanceRange = async (req, res) => {
   try {
     const result = await attendanceService.getAttendanceRange(req.query);

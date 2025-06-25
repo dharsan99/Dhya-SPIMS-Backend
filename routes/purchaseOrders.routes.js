@@ -2,12 +2,12 @@
 const express = require('express');
 const router = express.Router();
 const purchaseOrdersController = require('../controllers/purchaseOrders.controller');
-const { verifyToken } = require('../middlewares/auth.middleware'); // ✅ Use the correct middleware
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware'); // ✅ Use the correct middleware
 const upload = require('../middlewares/upload.middleware'); // 👈 Import multer middleware
 const { requireRole } = require('../middlewares/role.middleware');
 
 // Apply authentication middleware to all routes
-router.use(verifyToken);
+router.use(verifyTokenAndTenant);
 router.use(requireRole('admin', 'hr', 'manager'));
 
 router.post(
@@ -146,6 +146,6 @@ router.put('/:id', purchaseOrdersController.updatePurchaseOrder);
  */
 router.delete('/:id', purchaseOrdersController.deletePurchaseOrder);
 
-router.post('/:id/verify', verifyToken, purchaseOrdersController.verify);
-router.post('/:id/convert', verifyToken, purchaseOrdersController.convert);
+router.post('/:id/verify',  purchaseOrdersController.verify);
+router.post('/:id/convert', purchaseOrdersController.convert);
 module.exports = router;

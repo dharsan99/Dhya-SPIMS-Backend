@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/orders.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 const multer = require('multer');
 const upload = multer({ dest: 'upload/' });
 
@@ -13,7 +13,7 @@ const upload = multer({ dest: 'upload/' });
  */
 
 // Apply JWT verification middleware to all routes
-router.use(verifyToken);
+router.use(verifyTokenAndTenant);
 
 /**
  * @swagger

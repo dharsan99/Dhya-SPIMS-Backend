@@ -2,7 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const roleController = require('../controllers/role.controller');
-
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 /**
  * @swagger
  * components:
