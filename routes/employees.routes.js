@@ -109,4 +109,15 @@ router.put('/:id', employeeController.updateEmployee);
  */
 router.delete('/:id', employeeController.deleteEmployee);
 
+/**
+ * @swagger
+ * /employees/departments/all:
+ *   get:
+ *     summary: Get all unique departments
+ *     responses:
+ *       200:
+ *         description: List of all unique departments
+ */
+router.get('/departments/all', employeeController.getAllDepartments);
+
 module.exports = router;
