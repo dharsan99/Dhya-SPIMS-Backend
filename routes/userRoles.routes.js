@@ -1,23 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { createRole, getRolesByTenant } = require('../controllers/userRoles.controller');
+const userRolesController = require('../controllers/userRoles.controller');
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+
 router.use(verifyTokenAndTenant);
-/** 
- * @swagger
- * tags:
- *   name: User Roles
- *   description: Manage role definitions for a tenant
- */
 
 /**
  * @swagger
- * /user-roles:
+ * /roles:
  *   post:
  *     summary: Create a new role
- *     tags: [User Roles]
- *     security:
- *       - bearerAuth: []
+ *     tags: [ User Roles]
  *     requestBody:
  *       required: true
  *       content:
@@ -25,49 +18,162 @@ router.use(verifyTokenAndTenant);
  *           schema:
  *             type: object
  *             required:
- *               - tenant_id
  *               - name
  *             properties:
- *               tenant_id:
- *                 type: string
  *               name:
  *                 type: string
- *               permissions:
- *                 type: object
- *                 example:
- *                   canEditOrders: true
- *                   canDeleteUsers: false
+ *               description:
+ *                 type: string
+ *               is_active:
+ *                 type: boolean
  *     responses:
  *       201:
- *         description: Role created
- *       409:
- *         description: Role already exists
+ *         description: Role created successfully
+ *       400:
+ *         description: Bad request
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
+router.post('/', userRolesController.createRole);
 
 /**
  * @swagger
- * /user-roles:
+ * /roles/{id}:
  *   get:
- *     summary: Get all roles for a tenant
+ *     summary: Get role by ID
  *     tags: [User Roles]
- *     security:
- *       - bearerAuth: []
  *     parameters:
- *       - in: query
- *         name: tenant_id
+ *       - in: path
+ *         name: id
  *         required: true
  *         schema:
  *           type: string
  *     responses:
  *       200:
- *         description: List of roles
+ *         description: Role found
+ *       404:
+ *         description: Role not found
  *       500:
- *         description: Server error
+ *         description: Internal server error
+ */
+router.get('/:id', userRolesController.getRoleById);
+
+/**
+ * @swagger
+ * /roles:
+ *   get:
+ *     summary: Get all roles
+ *     tags: [User Roles]
+ *     parameters:
+ *       - in: query
+ *         name: tenantId
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The ID of the tenant
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of roles
+ *       400:
+ *         description: Missing tenantId
+ *       500:
+ *         description: Internal server error
  */
 
-router.post('/', verifyToken, createRole);
-router.get('/', verifyToken, getRolesByTenant);
+router.get('/', userRolesController.getAllRoles);
+
+/**
+ * @swagger
+ * /roles/{id}:
+ *   put:
+ *     summary: Update a role
+ *     tags: [User Roles]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               is_active:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Role updated successfully
+ *       404:
+ *         description: Role not found
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/:id', userRolesController.updateRole);
+
+/**
+ * @swagger
+ * /roles/{id}:
+ *   delete:
+ *     summary: Delete a role
+ *     tags: [User Roles]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Role deleted successfully
+ *       404:
+ *         description: Role not found
+ *       500:
+ *         description: Internal server error
+ */
+router.delete('/:id', userRolesController.deleteRole);
+
+/**
+ * @swagger
+ * /users/with-roles:
+ *   get:
+ *     summary: Get all users with their roles and permissions by tenant ID
+ *     tags: [User Roles]
+ *     parameters:
+ *       - in: query
+ *         name: tenant_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The ID of the tenant
+ *     responses:
+ *       200:
+ *         description: List of users with roles and permissions
+ *       400:
+ *         description: Missing tenant_id
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/with-roles', userRolesController.getUsersWithRolesByTenant);
+
 
 module.exports = router;

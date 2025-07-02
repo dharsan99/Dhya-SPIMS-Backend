@@ -1,35 +1,58 @@
 const express = require('express');
 const router = express.Router();
-const {
-  getAllUsers,
-  getUserById,
-  createUser, 
-  updateUser,
-  deleteUser
-} = require('../controllers/users.controller');
+const userController = require('../controllers/users.controller');
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+const { body } = require('express-validator');
+
 router.use(verifyTokenAndTenant);
 
-/**
- * @swagger
- * tags:
- *   name: Users
- *   description: User management routes
- */
+const createUserValidation = [
+  body('tenant_id').isString().notEmpty(),
+  body('email').isEmail(),
+  body('password_hash').isString().notEmpty(),
+  body('role_id').isString().notEmpty(),
+];
 
 /**
  * @swagger
  * /users:
- *   get:
- *     summary: Get all users
+ *   post:
+ *     summary: Create a new user
  *     tags: [Users]
- *     security:
- *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tenant_id
+ *               - email
+ *               - password_hash
+ *               - role_id
+ *             properties:
+ *               tenant_id:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password_hash:
+ *                 type: string
+ *               role_id:
+ *                 type: string
+ *                 description: Role UUID to assign to the user
+ *               is_active:
+ *                 type: boolean
  *     responses:
- *       200:
- *         description: List of users
+ *       201:
+ *         description: User created successfully
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Internal server error
  */
-router.get('/', verifyTokenAndTenant, getAllUsers);
+router.post('/', createUserValidation, userController.createUser);
 
 /**
  * @swagger
@@ -37,109 +60,134 @@ router.get('/', verifyTokenAndTenant, getAllUsers);
  *   get:
  *     summary: Get user by ID
  *     tags: [Users]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
- *         description: User object
+ *         description: User found
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
  */
-router.get('/:id', verifyTokenAndTenant, getUserById);
+router.get('/:id', userController.getUserById);
+
 /**
  * @swagger
  * /users:
- *   post:
- *     summary: Create a new user and assign a role
+ *   get:
+ *     summary: Get all users
  *     tags: [Users]
- *     security:
- *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: tenant_id
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of users
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/', userController.getAllUsers);
+
+/**
+ * @swagger
+ * /users/{id}:
+ *   put:
+ *     summary: Update a user
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, email, password, tenant_id]
  *             properties:
  *               name:
  *                 type: string
- *                 example: Jaya Kumar
  *               email:
  *                 type: string
- *                 format: email
- *                 example: jaya@dhya.in
- *               password:
+ *               role:
  *                 type: string
- *                 format: password
- *                 example: secure@123
- *               tenant_id:
- *                 type: string
- *                 format: uuid
- *                 example: d9f2a1a0-3c7e-4a0c-9b79-2fc9c81c3035
- *               role_id:
- *                 type: string
- *                 format: uuid
- *                 example: 3b12f1d9-ff11-41f1-8cce-b0e531f3e00a
+ *               is_active:
+ *                 type: boolean
  *     responses:
- *       201:
- *         description: User created successfully
- *       409:
- *         description: Email already in use
+ *       200:
+ *         description: User updated successfully
+ *       404:
+ *         description: User not found
  *       500:
  *         description: Internal server error
  */
-router.post('/', verifyTokenAndTenant, createUser);
-
-/**
- * @swagger
- * /users/{id}:
- *   put:
- *     summary: Update user info
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name: { type: string }
- *               email: { type: string }
- *               role: { type: string }
- *               is_active: { type: boolean }
- *     responses:
- *       200:
- *         description: User updated
- */
-router.put('/:id', verifyTokenAndTenant, updateUser);
+router.put('/:id', userController.updateUser);
 
 /**
  * @swagger
  * /users/{id}:
  *   delete:
- *     summary: Deactivate user
+ *     summary: Delete a user
  *     tags: [Users]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema: { type: string }
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
- *         description: User deactivated
+ *         description: User deleted successfully
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
  */
-router.delete('/:id', verifyTokenAndTenant, deleteUser);
+router.delete('/:id', userController.deleteUser);
+
+
+/**
+ * @swagger
+ * /roles/by-tenant:
+ *   get:
+ *     summary: Get all roles and permissions by tenant ID
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: tenant_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The ID of the tenant
+ *     responses:
+ *       200:
+ *         description: List of roles with permissions
+ *       400:
+ *         description: Missing tenant_id
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/by-tenant', userController.getAllUsersRoles);
 
 module.exports = router;

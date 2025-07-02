@@ -128,10 +128,10 @@ router.get('/export', attendanceController.exportMonthlyAttendance);
  *       - in: query
  *         name: shift
  *         required: false
- *         description: "Filter by shift (e.g., morning, evening, night)"
+ *         description: "Filter by shift (e.g., shift 1, shift 2,shift 3)"
  *         schema:
  *           type: string
- *           example: morning
+ *           example: shift 1
  *       - in: query
  *         name: status
  *         required: false
@@ -555,8 +555,8 @@ router.get('/summary-range', attendanceController.getAttendanceRangeSummary);
  *         required: false
  *         schema:
  *           type: string
- *         description: Filter by shift (e.g., morning, evening, night)
- *         example: morning
+ *         description: Filter by shift (e.g., shift 1, shift 2,shift 3)
+ *         example: shift 1
  *     responses:
  *       200:
  *         description: A list of attendance records
@@ -625,7 +625,7 @@ router.get('/filter', attendanceController.getFilteredAttendance);
  *                 example: "PRESENT"
  *               shift:
  *                 type: string
- *                 example: "Morning"
+ *                 example: "Shift 1"
  *                 description: Required only when status is PRESENT or HALF_DAY. Must be omitted for ABSENT.
  *               in_time:
  *                 type: string
@@ -695,7 +695,7 @@ router.post('/', validateAttendance, attendanceController.createAttendance);
  *                       example: 4487d2cb-966d-4cd4-b770-6e17d2036aa9
  *                     shift:
  *                       type: string
- *                       example: morning
+ *                       example: shift 1
  *                     status:
  *                       type: string
  *                       example: PRESENT

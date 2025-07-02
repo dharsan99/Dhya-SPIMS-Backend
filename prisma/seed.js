@@ -257,7 +257,7 @@ async function seedEmployeesAndAttendance() {
 
   // Generate attendance records
   const attendanceRecords = [];
-  const shifts = ['Morning', 'Evening', 'Night'];
+  const shifts = ['Shift 1', 'Shift 2', 'Shift 3'];
   const statuses = [
     'PRESENT', 'PRESENT', 'PRESENT', 'PRESENT',
     'PRESENT', 'PRESENT', 'PRESENT', 'ABSENT',
@@ -351,15 +351,15 @@ function generateShiftTimes(date, shift) {
   let startHour, endHour;
 
   switch (shift.toLowerCase()) {
-    case 'morning':
+    case 'Shift 1':
       startHour = 6;
       endHour = 14;
       break;
-    case 'evening':
+    case 'Shift 2':
       startHour = 14;
       endHour = 22;
       break;
-    case 'night':
+    case 'Shift 3':
       startHour = 22;
       endHour = 6;
       break;
@@ -418,7 +418,7 @@ async function seedEnhancedAttendance() {
       return;
     }
 
-    const shifts = ['Morning', 'Evening', 'Night'];
+    const shifts = ['Shift 1', 'Shift 2', 'Shift 3'];
     const statuses = [
       'PRESENT', 'PRESENT', 'PRESENT', 'PRESENT',
       'PRESENT', 'PRESENT', 'PRESENT', 'ABSENT',
