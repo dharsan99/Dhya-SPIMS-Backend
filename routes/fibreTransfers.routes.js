@@ -3,6 +3,8 @@ const router = express.Router();
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 const { requireRole } = require('../middlewares/role.middleware');
 const fibreTransfersController = require('../controllers/fibreTransfers.controller');
+const quotaMiddleware = require('../middlewares/quota.middleware');
+const parseController = require('../controllers/parse.controller');
 
 // Apply authentication middleware to all routes
 router.use(verifyTokenAndTenant);
@@ -139,5 +141,9 @@ router.put('/:id', fibreTransfersController.updateFibreTransfer);
  *         description: Fibre transfer not found
  */
 router.delete('/:id', fibreTransfersController.deleteFibreTransfer);
+
+//router.post('/send', quotaMiddleware('email', 100), emailController.sendEmail);
+
+//router.post('/parse', quotaMiddleware('ai_parse', 50), parseController.parseFile);
 
 module.exports = router;

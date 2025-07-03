@@ -33,7 +33,7 @@ async function registerTenantWithAdmin({ tenantName, domain, adminName, email, p
         email,
         password_hash,
         tenant_id: tenant.id,
-        role: 'admin',
+        role: null,
       },
     });
 
@@ -47,6 +47,14 @@ async function registerTenantWithAdmin({ tenantName, domain, adminName, email, p
         })
       )
     );
+
+    const adminRole = createdRoles[0];
+    if (adminRole) {
+      await tx.users.update({
+        where: { id: adminUser.id },
+        data: { role: adminRole.name },
+      });
+    }
 
     return {
       tenant_id: tenant.id,

@@ -1,21 +1,21 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const subscriptionService = require('../services/subscription.service');
 
-const subscriptionsController = {
-  // Get all subscriptions for a tenant
-  async getSubscriptions(req, res) {
+
+  exports.getSubscriptions = async (req, res) => {
     try {
-      const subscriptions = await prisma.subscriptions.findMany({
-        where: { tenant_id: req.user.tenant_id }
-      });
+      const subscriptions = await subscriptionService.getAll(req.user.tenantId);
       res.json(subscriptions);
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  },
+  };
+
+
 
   // Create a new subscription
-  async createSubscription(req, res) {
+  exports. createSubscription=async (req, res)=> {
     try {
       const subscription = await prisma.subscriptions.create({
         data: {
@@ -30,10 +30,10 @@ const subscriptionsController = {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  },
+  };
 
   // Update a subscription
-  async updateSubscription(req, res) {
+  exports. updateSubscription=async (req, res) => {
     try {
       const subscription = await prisma.subscriptions.update({
         where: { id: req.params.id },
@@ -48,10 +48,10 @@ const subscriptionsController = {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  },
+  };
 
   // Delete a subscription
-  async deleteSubscription(req, res) {
+  exports. deleteSubscription=async(req, res) => {
     try {
       await prisma.subscriptions.delete({
         where: { id: req.params.id }
@@ -60,7 +60,15 @@ const subscriptionsController = {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
-  }
-};
+  };
+  exports. handleEvent=async (req, res)=> {
+    try {
+      const updated = await subscriptionService.handleEvent(req.params.id, req.body.event);
+      res.json({ message: `Subscription ${req.body.event}`, updated });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  };
 
-module.exports = subscriptionsController;
+
+

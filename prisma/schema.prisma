@@ -508,3 +508,19 @@ enum AttendanceStatus {
   HALF_DAY
   LEAVE
 }
+
+model plan {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  price         Float
+  billingCycle  String
+  description   String?
+  features      Json     // array of strings
+  maxUsers      Json     // can be int or "Unlimited"
+  maxOrders     Json     // same
+  maxStorage    String
+  popular       Boolean
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+}

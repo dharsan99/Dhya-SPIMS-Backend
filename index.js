@@ -48,6 +48,7 @@ const settingsRoutes = require('./routes/settings.routes');
 const userSettingsRoutes = require('./routes/userSettings.routes');
 const roleRoutes = require('./routes/roles.routes'); 
 const mailingListRoutes = require('./routes/mailingLists.routes.js');
+const plansRoutes = require('./routes/plans.routes');
 
 
 // 🔒 Optional Routes (Uncomment when available)
@@ -102,6 +103,7 @@ app.use('/potential-buyers', potentialBuyersRoutes);
 // Dashboard & Other Routes
 app.use('/dashboard', require('./routes/dashboard.routes'));
 app.use('/purchase-orders', require('./routes/purchaseOrders.routes'));
+app.use('/plans', plansRoutes);
 
 // Parse Routes
 app.use('/parse', parseRoutes);
