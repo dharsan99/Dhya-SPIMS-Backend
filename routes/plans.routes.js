@@ -27,44 +27,38 @@ const planController = require('../controllers/plans.controller');
  *       properties:
  *         name:
  *           type: string
- *           example: Enterprise
+ *           example: Starter
  *         price:
  *           type: number
- *           example: 199
+ *           example: 0
  *         billingCycle:
  *           type: string
- *           example: month
+ *           example: trial
  *         description:
  *           type: string
- *           example: For large mills with complex operations
+ *           example: Basic 14-day trial plan
  *         features:
  *           type: array
  *           items:
  *             type: string
  *           example:
- *             - Unlimited employees
- *             - Full order management suite
- *             - Real-time production & inventory
- *             - 24/7 phone support
- *             - Unlimited storage
- *             - Custom analytics dashboard
- *             - Full API access
- *             - White-label solutions
- *             - Dedicated account manager
- *             - Custom training sessions
+ *             - Up to 5 users
+ *             - Basic order management
+ *             - Email support
+ *             - 14-day trial
  *         maxUsers:
  *           oneOf:
  *             - type: integer
  *             - type: string
- *           example: Unlimited
+ *           example: 5
  *         maxOrders:
  *           oneOf:
  *             - type: integer
  *             - type: string
- *           example: Unlimited
+ *           example: 20
  *         maxStorage:
  *           type: string
- *           example: Unlimited
+ *           example: 2GB
  *         popular:
  *           type: boolean
  *           example: false

@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-const { requireRole } = require('../middlewares/role.middleware');
 const productionsController = require('../controllers/productions.controller');
 
 // Apply authentication middleware to all routes
 router.use(verifyTokenAndTenant);
-router.use(requireRole('admin', 'hr', 'manager'));
 
 /**
  * @swagger

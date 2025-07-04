@@ -10,9 +10,8 @@ const options = {
       description: 'Spinning Mills Intelligent Management System API documentation',
     },
     servers: [
-      {
-        url: process.env.BASE_URL || 'http://localhost:5001',
-      },
+      { url: 'http://localhost:5001' },
+      { url: 'http://192.168.0.2:5001' }, // LAN IP for network access
     ],
     components: {
       securitySchemes: {
@@ -72,7 +71,7 @@ const options = {
       },
     ],
   },
-  apis: ['./routes/*.js'],
+  apis: ['./routes/*.js', './controllers/*.js'],
 };
 
 const swaggerSpec = swaggerJSDoc(options);

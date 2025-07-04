@@ -1,10 +1,14 @@
 // services/user.service.js
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const bcrypt = require('bcrypt');
 
 class UserService {
   async createUser(userData) {
-    const { tenant_id, name, email, password_hash, is_active, role_id } = userData;
+    const { tenant_id, name, email, password, is_active, role_id, is_verified } = userData;
+
+    // Hash the password
+    const password_hash = await bcrypt.hash(password, 10);
 
     // 1. Create user
     const user = await prisma.users.create({
@@ -14,6 +18,7 @@ class UserService {
         email,
         password_hash,
         is_active: is_active !== undefined ? is_active : true,
+        is_verified: is_verified !== undefined ? is_verified : false,
       },
     });
 
@@ -49,11 +54,12 @@ class UserService {
     return {
       ...user,
       role: roleDetails ? roleDetails.name : null,
+      is_verified: user.is_verified,
     };
   }
 
   async getUserById(userId) {
-    return prisma.users.findUnique({
+    const user = await prisma.users.findUnique({
       where: { id: userId },
       include: {
         tenants: true,
@@ -64,6 +70,14 @@ class UserService {
         },
       },
     });
+    if (!user) return null;
+    const roleObj = user.user_roles && user.user_roles.length > 0 ? user.user_roles[0].role : null;
+    const { user_roles, ...rest } = user;
+    return {
+      ...rest,
+      role: roleObj,
+      is_verified: user.is_verified,
+    };
   }
 
   async getAllUsers(query) {
@@ -97,8 +111,21 @@ class UserService {
       prisma.users.count({ where }),
     ]);
 
+    // Transform users: add top-level 'role' and remove 'user_roles'
+    const transformedUsers = users.map(user => {
+      const roleObj = user.user_roles && user.user_roles.length > 0
+        ? user.user_roles[0].role
+        : null;
+      const { user_roles, ...rest } = user;
+      return {
+        ...rest,
+        role: roleObj,
+        is_verified: user.is_verified,
+      };
+    });
+
     return {
-      data: users,
+      data: transformedUsers,
       meta: {
         total: count,
         page,
@@ -109,13 +136,61 @@ class UserService {
   }
 
   async updateUser(userId, updateData) {
-    return prisma.users.update({
+    // If role_id is present, update user_roles and user's role column
+    if (updateData.role_id) {
+      // Remove all existing user_roles for this user
+      await prisma.user_roles.deleteMany({ where: { user_id: userId } });
+
+      // Assign the new role
+      await prisma.user_roles.create({
+        data: {
+          user_id: userId,
+          role_id: updateData.role_id,
+        },
+      });
+
+      // Get the new role's name and permissions
+      const role = await prisma.roles.findUnique({
+        where: { id: updateData.role_id },
+        select: { id: true, name: true, permissions: true, tenant_id: true },
+      });
+
+      // Update the user's role column
+      await prisma.users.update({
+        where: { id: userId },
+        data: { role: role.name },
+      });
+    }
+
+    // Update other user fields (excluding role_id)
+    const { role_id, ...otherFields } = updateData;
+    await prisma.users.update({
       where: { id: userId },
       data: {
-        ...updateData,
+        ...otherFields,
         is_active: updateData.is_active !== undefined ? updateData.is_active : undefined,
       },
     });
+
+    // Return the updated user with the new role object (not user_roles array)
+    const user = await prisma.users.findUnique({
+      where: { id: userId },
+    });
+    // Get the assigned role object
+    const userRole = await prisma.user_roles.findFirst({
+      where: { user_id: userId },
+      include: { role: true },
+    });
+    return {
+      ...user,
+      role: userRole ? {
+        id: userRole.role.id,
+        name: userRole.role.name,
+        permissions: userRole.role.permissions,
+        tenant_id: userRole.role.tenant_id,
+      } : null,
+      is_verified: user.is_verified,
+    };
   }
 
   async deleteUser(userId) {

@@ -6,6 +6,7 @@ const subscriptionService = {
     return await prisma.subscriptions.create({
       data: {
         tenant_id: tenantId,
+        plan_id: data.plan_id,
         plan_type: data.plan_type,
         start_date: new Date(data.start_date),
         end_date: new Date(data.end_date),
@@ -17,6 +18,9 @@ const subscriptionService = {
   async getAll(tenantId) {
     return await prisma.subscriptions.findMany({
       where: { tenant_id: tenantId },
+      include: {
+        plan: true, // optional: include plan info
+      },
     });
   },
 
@@ -26,7 +30,6 @@ const subscriptionService = {
       data,
     });
   },
-  
 
   async delete(id) {
     return await prisma.subscriptions.delete({
@@ -40,10 +43,16 @@ const subscriptionService = {
 
     switch (event) {
       case 'activated':
-        return await prisma.subscriptions.update({ where: { id }, data: { is_active: true } });
+        return await prisma.subscriptions.update({
+          where: { id },
+          data: { is_active: true },
+        });
 
       case 'canceled':
-        return await prisma.subscriptions.update({ where: { id }, data: { is_active: false } });
+        return await prisma.subscriptions.update({
+          where: { id },
+          data: { is_active: false },
+        });
 
       case 'renewed':
         const newEnd = new Date(subscription.end_date || new Date());

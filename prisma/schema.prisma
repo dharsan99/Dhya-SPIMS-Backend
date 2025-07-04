@@ -88,6 +88,8 @@ model tenants {
   domain        String?
   plan          String?         @default("free")
   is_active     Boolean?        @default(true)
+  storage_path  String? 
+  expires_at    DateTime?
   created_at    DateTime?       @default(now()) @db.Timestamp(6)
   updated_at    DateTime?       @default(now()) @db.Timestamp(6)
   orders        orders[]
@@ -101,6 +103,8 @@ model tenants {
 model subscriptions {
   id         String    @id @default(uuid()) @db.Uuid
   tenant_id  String?   @db.Uuid
+  plan_id    String?   @db.Uuid
+  plan       plan?     @relation(fields: [plan_id], references: [id])
   plan_type  String?
   start_date DateTime? @db.Date
   end_date   DateTime? @db.Date
@@ -114,14 +118,17 @@ model users {
   name          String?
   email         String         @unique
   password_hash String
+  verification_token   String?    @unique
   role          String?
   is_active     Boolean?       @default(true)
+  is_verified   Boolean        @default(false)
   created_at    DateTime?      @default(now()) @db.Timestamp(6)
   updated_at    DateTime?      @default(now()) @db.Timestamp(6)
   productions   productions[]
   user_roles    user_roles[]
   user_settings user_settings?
   tenants       tenants?       @relation(fields: [tenant_id], references: [id])
+  verification_tokens user_verification_tokens[]
 }
 
 model user_settings {
@@ -523,4 +530,17 @@ model plan {
   is_active     Boolean  @default(true)
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
+
+  
+  subscriptions subscriptions[]
+}
+
+model user_verification_tokens {
+  id         String   @id @default(uuid())
+  user_id    String   @db.Uuid
+  token      String   @unique
+  expires_at DateTime
+  user       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
 }

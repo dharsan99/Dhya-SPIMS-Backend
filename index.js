@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const { PrismaClient } = require('@prisma/client');
 const { verifyTokenAndTenant } = require('./middlewares/auth.middleware');
 
+
 dotenv.config();
 const app = express();
 const prisma = new PrismaClient();
@@ -11,12 +12,7 @@ const prisma = new PrismaClient();
 // ✅ Middleware
 app.use(
   cors({
-    origin: [
-      'http://localhost:5173', 
-      'https://dhya-spims-frontend-prod.vercel.app',
-      'https://www.dhya.app',
-      'https://dhya-spims-frontend.vercel.app'
-    ],
+    origin: true, // Allow all origins for development
     credentials: true,
   })
 );
@@ -66,12 +62,13 @@ const marketingRoutes = require('./routes/marketing.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 const potentialBuyersRoutes = require('./routes/potentialBuyers.routes');
 const parseRoutes = require('./routes/parse.routes');
+const verifyRoutes = require('./routes/verify.routes');
 
 // ✅ Route Registration
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/tenants', tenantRoutes);
-app.use('/register', registerRoutes);
+app.use('/', registerRoutes);
 app.use('/subscriptions', subscriptionRoutes);
 
 // Core Routes
@@ -107,6 +104,7 @@ app.use('/plans', plansRoutes);
 
 // Parse Routes
 app.use('/parse', parseRoutes);
+app.use('/', verifyRoutes);
 
 // Apply auth & tenant verification middleware to all routes
 app.use(verifyTokenAndTenant);
@@ -114,7 +112,8 @@ app.use(verifyTokenAndTenant);
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 SPIMS API server running at: http://localhost:${PORT}`);
+  console.log(`SPIMS API server running at: http://<your-ip>:${PORT}`);
   console.log(`SPIMS SWAGGER API running at: http://localhost:5001/docs/`);
 });

@@ -5,11 +5,11 @@ const attendanceController = require('../controllers/attendance.controller');
 const validateAttendance = require('../middlewares/attendance.validation');
 
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-const { requireRole } = require('../middlewares/role.middleware');
+//const { requireRole } = require('../middlewares/role.middleware');
 
 // 🔐 Apply middleware for all routes in this file
 router.use(verifyTokenAndTenant);
-router.use(requireRole('admin', 'hr'));
+//router.use(requireRole(''));
 
 console.log('✅ Attendance routes loaded');
 

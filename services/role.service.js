@@ -3,8 +3,9 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 exports.getRolesByTenant = async (tenantId) => {
+  const where = tenantId ? { tenant_id: tenantId } : {};
   return prisma.roles.findMany({
-    where: { tenant_id: tenantId },
+    where,
     include: {
       user_roles: true,
       role_permissions: true,
@@ -36,6 +37,13 @@ exports.updateRole = async (id, data) => {
 };
 
 exports.deleteRole = async (id) => {
+  // Check if any users are linked to this role
+  const userRoleCount = await prisma.user_roles.count({ where: { role_id: id } });
+  if (userRoleCount > 0) {
+    const error = new Error('Cannot delete role: users are assigned to this role');
+    error.code = 'ROLE_IN_USE';
+    throw error;
+  }
   return prisma.roles.delete({
     where: { id }
   });

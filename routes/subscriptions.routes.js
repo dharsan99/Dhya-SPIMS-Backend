@@ -39,6 +39,8 @@ router.get('/', subscriptionsController.getSubscriptions);
  *           schema:
  *             type: object
  *             properties:
+ *               plan_id:
+ *                 type: string
  *               plan_type:
  *                 type: string
  *               start_date:
@@ -70,6 +72,8 @@ router.post('/', subscriptionsController.createSubscription);
  *           schema:
  *             type: object
  *             properties:
+ *               plan_id:
+ *                 type: string
  *               plan_type:
  *                 type: string
  *               start_date:

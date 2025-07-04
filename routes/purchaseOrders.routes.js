@@ -4,11 +4,9 @@ const router = express.Router();
 const purchaseOrdersController = require('../controllers/purchaseOrders.controller');
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware'); // ✅ Use the correct middleware
 const upload = require('../middlewares/upload.middleware'); // 👈 Import multer middleware
-const { requireRole } = require('../middlewares/role.middleware');
 
 // Apply authentication middleware to all routes
 router.use(verifyTokenAndTenant);
-router.use(requireRole('admin', 'hr', 'manager'));
 
 router.post(
   '/upload-and-parse',

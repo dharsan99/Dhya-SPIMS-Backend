@@ -9,7 +9,7 @@ router.use(verifyTokenAndTenant);
 const createUserValidation = [
   body('tenant_id').isString().notEmpty(),
   body('email').isEmail(),
-  body('password_hash').isString().notEmpty(),
+  body('password').isString().notEmpty(),
   body('role_id').isString().notEmpty(),
 ];
 
@@ -28,7 +28,7 @@ const createUserValidation = [
  *             required:
  *               - tenant_id
  *               - email
- *               - password_hash
+ *               - password
  *               - role_id
  *             properties:
  *               tenant_id:
@@ -37,13 +37,16 @@ const createUserValidation = [
  *                 type: string
  *               email:
  *                 type: string
- *               password_hash:
+ *               password:
  *                 type: string
  *               role_id:
  *                 type: string
  *                 description: Role UUID to assign to the user
  *               is_active:
  *                 type: boolean
+ *               is_verified:
+ *                 type: boolean
+ *                 description: Whether the user is verified (optional)
  *     responses:
  *       201:
  *         description: User created successfully
@@ -130,13 +133,45 @@ router.get('/', userController.getAllUsers);
  *                 type: string
  *               email:
  *                 type: string
- *               role:
+ *               role_id:
  *                 type: string
+ *                 description: Role UUID to assign to the user
  *               is_active:
  *                 type: boolean
+ *               is_verified:
+ *                 type: boolean
+ *                 description: Whether the user is verified (optional)
  *     responses:
  *       200:
  *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 tenant_id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 is_active:
+ *                   type: boolean
+ *                 is_verified:
+ *                   type: boolean
+ *                 role:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     permissions:
+ *                       type: object
+ *                     tenant_id:
+ *                       type: string
  *       404:
  *         description: User not found
  *       500:
