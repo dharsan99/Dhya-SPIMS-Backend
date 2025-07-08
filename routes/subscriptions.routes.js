@@ -11,15 +11,19 @@ router.use(verifyTokenAndTenant);
  *   name: Subscriptions
  *   description: Subscription management
  */
-
 /**
  * @swagger
  * /subscriptions:
  *   get:
  *     summary: Get all subscriptions
  *     tags: [Subscriptions]
- *     security:
- *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: tenantId
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Optional tenant ID to filter subscriptions
  *     responses:
  *       200:
  *         description: Subscription list
@@ -39,16 +43,12 @@ router.get('/', subscriptionsController.getSubscriptions);
  *           schema:
  *             type: object
  *             properties:
- *               plan_id:
+ *               tenantId:
+ *                 type: string
+ *               planId:
  *                 type: string
  *               plan_type:
  *                 type: string
- *               start_date:
- *                 type: string
- *                 format: date
- *               end_date:
- *                 type: string
- *                 format: date
  *     responses:
  *       201:
  *         description: Created

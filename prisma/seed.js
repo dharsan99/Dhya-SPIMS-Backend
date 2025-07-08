@@ -2,8 +2,79 @@ const { PrismaClient } = require('@prisma/client');
 const xlsx = require('xlsx');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcrypt');
 
 const prisma = new PrismaClient();
+
+async function seedSuperAdmin() {
+  console.log('🌱 Seeding Super Admin User...');
+
+  const tenantId = crypto.randomUUID();
+  const userId = crypto.randomUUID();
+  const roleId = crypto.randomUUID();
+
+  const passwordHash = await bcrypt.hash('12345', 10);
+
+  const permissions = {
+    Orders: ["Add Order", "Update Order", "Delete Order", "View Order"],
+    Shades: ["Add Shade", "Update Shade", "Delete Shade", "View Shade"],
+    Fibres: ["Add Fibre", "Update Fibre", "Delete Fibre", "View Fibre"],
+    Production: ["Add Production", "Update Production", "Delete Production", "View Production"],
+    Buyers: ["Add Buyer", "Update Buyer", "Delete Buyer", "View Buyer"],
+    Employees: ["Add Employee", "Update Employee", "Delete Employee", "View Employee"],
+    Attendance: ["Add Attendance", "Update Attendance", "Delete Attendance", "View Attendance"],
+    Suppliers: ["Add Supplier", "Update Supplier", "Delete Supplier", "View Supplier"],
+    Settings: ["Add Settings", "Update Setting", "Delete Settings", "View Settings"],
+    Roles: ["Add Role", "Update Role", "Delete Role", "View Role"],
+    Users: ["Add User", "Update User", "Delete User", "View User"],
+    Stocks: ["Add Stock", "Update Stock", "Delete Stock", "View Stock"]
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tenants.create({
+      data: {
+        id: tenantId,
+        name: 'spimsadmin',
+        domain: 'farms',
+        plan: 'TRIAL',
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    await tx.users.create({
+      data: {
+        id: userId,
+        tenant_id: tenantId,
+        name: 'Dharshan',
+        email: 'dharshan@dhya.in',
+        password_hash: passwordHash,
+        is_active: true,
+        is_verified: true,
+      },
+    });
+
+    await tx.roles.create({
+      data: {
+        id: 'cfd974b7-4841-4256-a402-0ea020d06f83',
+        tenant_id: tenantId,
+        name: 'admin',
+        description: 'Admin role with full access',
+        permissions,
+      },
+    });
+
+    await tx.user_roles.create({
+      data: {
+        user_id: userId,
+        role_id: roleId,
+      },
+    });
+  });
+
+  console.log('✅ Super Admin user, tenant, and role seeded.');
+}
+
+module.exports.seedSuperAdmin = seedSuperAdmin;
 
 async function seedFibres() {
   console.log('🌱 Starting fibre seeding...');
@@ -592,6 +663,7 @@ async function enhancedMain() {
   console.log('🌱 Starting Enhanced Database Seeding Process...\n');
   
   try {
+    await seedSuperAdmin();
     await seedFibres();
     await seedEmployeesAndAttendance();
     await seedEnhancedAttendance();

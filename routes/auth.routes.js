@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { login } = require('../controllers/auth.controller');
-//const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+const { login, inviteUser, acceptInvite } = require('../controllers/auth.controller');
 
-// Apply JWT + tenant validation to all routes in this file
-//router.use(verifyTokenAndTenant);
+/**
+ * @swagger
+ * tags:
+ *   name: Auth
+ *   description: Authentication and Invitation APIs
+ */
 
 /**
  * @swagger
@@ -41,21 +44,81 @@ const { login } = require('../controllers/auth.controller');
  *                       type: string
  *                     email:
  *                       type: string
- *                     role:
- *                       type: string
  *                     tenant_id:
  *                       type: string
- *                     permissions:
+ *                     role:
  *                       type: object
- *                       additionalProperties:
- *                         type: array
- *                         items:
- *                           type: string
+ *                     is_verified:
+ *                       type: boolean
+ *                     plan:
+ *                       type: object
  *                 token:
  *                   type: string
  *       401:
  *         description: Invalid credentials
  */
 router.post('/login', login);
+
+/**
+ * @swagger
+ * /auth/invite:
+ *   post:
+ *     summary: Admin invites teammate via email
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - tenant_id
+ *               - role_id
+ *             properties:
+ *               email:
+ *                 type: string
+ *               tenant_id:
+ *                 type: string
+ *               role_id:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Invite sent
+ *       400:
+ *         description: Missing or invalid data
+ */
+router.post('/invite', inviteUser);
+
+/**
+ * @swagger
+ * /auth/accept-invite:
+ *   post:
+ *     summary: Accept an invite and set password
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - password
+ *               - token
+ *             properties:
+ *               name:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               token:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: User registered successfully from invite
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.post('/accept-invite', acceptInvite);
 
 module.exports = router;

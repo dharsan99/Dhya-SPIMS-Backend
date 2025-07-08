@@ -521,6 +521,7 @@ model plan {
   name          String
   price         Float
   billingCycle  String
+  renewal_date DateTime @default(now()) @db.Date
   description   String?
   features      Json     // array of strings
   maxUsers      Json     // can be int or "Unlimited"

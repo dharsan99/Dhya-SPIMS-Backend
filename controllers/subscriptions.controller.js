@@ -4,8 +4,17 @@ const subscriptionService = require('../services/subscription.service');
 
 exports.getSubscriptions = async (req, res) => {
   try {
-    const subscriptions = await subscriptionService.getAll(req.user.tenant_id);
-    res.json(subscriptions);
+    const tenantId = req.query.tenantId;
+    const subscriptions = await subscriptionService.getAll(tenantId);
+
+    const result = subscriptions.map(sub => ({
+      plan: sub.plan?.name || 'Unknown',
+      renewalDate: sub.plan?.renewal_date?.toISOString().split('T')[0],
+      amount: sub.plan?.price || 0,
+      billingCycle: sub.plan?.billingCycle || 'unknown',
+    }));
+
+    res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -13,8 +22,16 @@ exports.getSubscriptions = async (req, res) => {
 
 exports.createSubscription = async (req, res) => {
   try {
-    const subscription = await subscriptionService.create(req.body, req.user.tenant_id);
-    res.status(201).json(subscription);
+    const tenantId = req.user?.tenant_id || req.body.tenantId;
+    const result = await subscriptionService.create(req.body, tenantId);
+
+    res.status(201).json({
+      tenantId,
+      planId: result.plan.id,
+      billingCycle: result.plan.billingCycle,
+      amount: result.plan.price,
+      renewalDate: result.plan.renewal_date.toISOString().split('T')[0],
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

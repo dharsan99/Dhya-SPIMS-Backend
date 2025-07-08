@@ -68,7 +68,7 @@ const verifyRoutes = require('./routes/verify.routes');
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/tenants', tenantRoutes);
-app.use('/', registerRoutes);
+app.use('/register', registerRoutes);
 app.use('/subscriptions', subscriptionRoutes);
 
 // Core Routes
@@ -105,10 +105,6 @@ app.use('/plans', plansRoutes);
 // Parse Routes
 app.use('/parse', parseRoutes);
 app.use('/', verifyRoutes);
-
-// Apply auth & tenant verification middleware to all routes
-app.use(verifyTokenAndTenant);
-
 
 // ✅ Start Server
 const PORT = process.env.PORT || 5001;
