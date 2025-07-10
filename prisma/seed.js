@@ -48,6 +48,7 @@ async function seedSuperAdmin() {
         name: 'Dharshan',
         email: 'dharshan@dhya.in',
         password_hash: passwordHash,
+        role:'Super admin',
         is_active: true,
         is_verified: true,
       },
@@ -57,7 +58,7 @@ async function seedSuperAdmin() {
       data: {
         id: 'cfd974b7-4841-4256-a402-0ea020d06f83',
         tenant_id: tenantId,
-        name: 'admin',
+        name: 'Superadmin',
         description: 'Admin role with full access',
         permissions,
       },

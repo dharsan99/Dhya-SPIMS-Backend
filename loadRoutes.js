@@ -21,24 +21,38 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         users: '/users',
         tenants: '/tenants',
         register: '/register',
+        subscriptions: '/subscriptions',
         blends: '/blends',
+        blendFibres: '/blend-fibres',
         fibres: '/fibres',
-        shades: '/api/shades',
+        shades: '/shades',
         orders: '/orders',
         buyers: '/buyers',
-        production: '/api/productions',
+        productions: '/productions',
         settings: '/settings',
         userSettings: '/user-settings',
-        dashboard: '/api/dashboard',
-        purchaseOrders: '/api/purchase-orders',
-        mailingLists: '/api/mailing-lists',
+        roles: '/roles',
+        mailingLists: '/mailing-lists',
+        plans: '/plans',
+        suppliers: '/suppliers',
+        fibreTransfers: '/fibre-transfers',
+        employees: '/employees',
         emailTemplates: '/email-templates',
-        potentialBuyers: '/potential-buyers'
+        marketing: '/marketing',
+        attendance: '/attendance',
+        potentialBuyers: '/potential-buyers',
+        dashboard: '/dashboard',
+        purchaseOrders: '/purchase-orders',
+        parse: '/parse',
+        verify: '/', // root-mount (e.g., /ping, /verify endpoints)
+        userRoleAssignments: '/user-role-assignments',
+        userRoles: '/user-roles',
+        //userRoleAssignments: '/user-role-assignments',
       }[routeName] || `/${routeName}`;
 
       // Only mount if router is a valid Express router
       if (router && typeof router === 'function') {
-        console.log(`Mounting route: ${mountPath} from ${file}`);
+        //console.log(`Mounting route: ${mountPath} from ${file}`);
         app.use(mountPath, router);
       } else {
         console.warn(`Warning: Invalid router in ${file} - skipping`);

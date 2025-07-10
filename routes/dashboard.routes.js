@@ -43,4 +43,39 @@ router.use(verifyTokenAndTenant);
  */
 router.get('/summary', dashboardController.getSummary);
 
-module.exports = router; 
+/**
+ * @swagger
+ * /dashboard/admin:
+ *   get:
+ *     summary: Get admin dashboard summary with system-wide statistics
+ *     tags: [Dashboard]
+ *     responses:
+ *       200:
+ *         description: Admin dashboard summary data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total_tenants:
+ *                   type: number
+ *                   description: Total number of active tenants
+ *                 total_users:
+ *                   type: number
+ *                   description: Total number of active users
+ *                 revenue:
+ *                   type: number
+ *                   description: Total revenue (default 0)
+ *                 orders:
+ *                   type: number
+ *                   description: Total orders (default 0)
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/admin', dashboardController.getAdminSummary);
+
+module.exports = router;  

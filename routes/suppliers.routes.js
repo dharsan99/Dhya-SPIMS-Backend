@@ -19,8 +19,7 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get all suppliers
  *     tags: [Suppliers]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: List of suppliers
@@ -37,8 +36,7 @@ router.get('/', supplierController.getAllSuppliers);
  *   get:
  *     summary: Get a supplier by ID
  *     tags: [Suppliers]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: id

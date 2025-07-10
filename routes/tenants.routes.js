@@ -7,9 +7,9 @@ const {
   updateTenant,
   deactivateTenant
 } = require('../controllers/tenants.controller');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-router.use(verifyTokenAndTenant);
-const { requireRole } = require('../middlewares/role.middleware');
+//const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+//router.use(verifyTokenAndTenant);
+//const { requireRole } = require('../middlewares/role.middleware');
 
 
 /**
@@ -25,13 +25,12 @@ const { requireRole } = require('../middlewares/role.middleware');
  *   get:
  *     summary: Get all tenants
  *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: List of tenants
  */
-router.get('/',  requireRole('admin'), getAllTenants);
+router.get('/', getAllTenants);
 
 /**
  * @swagger
@@ -39,8 +38,6 @@ router.get('/',  requireRole('admin'), getAllTenants);
  *   get:
  *     summary: Get tenant by ID
  *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -50,7 +47,7 @@ router.get('/',  requireRole('admin'), getAllTenants);
  *       200:
  *         description: Tenant object
  */
-router.get('/:id', requireRole('admin'), getTenantById);
+router.get('/:id', getTenantById);
 
 /**
  * @swagger
@@ -58,8 +55,7 @@ router.get('/:id', requireRole('admin'), getTenantById);
  *   post:
  *     summary: Create a new tenant
  *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
+
  *     requestBody:
  *       required: true
  *       content:
@@ -77,16 +73,14 @@ router.get('/:id', requireRole('admin'), getTenantById);
  *       201:
  *         description: Tenant created
  */
-router.post('/',  requireRole('admin'), createTenant);
+router.post('/', createTenant);
 
 /**
  * @swagger
  * /tenants/{id}:
  *   put:
  *     summary: Update tenant details
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: id
@@ -104,7 +98,7 @@ router.post('/',  requireRole('admin'), createTenant);
  *       200:
  *         description: Tenant updated
  */
-router.put('/:id', requireRole('admin'), updateTenant);
+router.put('/:id', updateTenant);
 
 /**
  * @swagger
@@ -112,8 +106,7 @@ router.put('/:id', requireRole('admin'), updateTenant);
  *   delete:
  *     summary: Deactivate tenant (soft delete)
  *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: id
@@ -123,6 +116,6 @@ router.put('/:id', requireRole('admin'), updateTenant);
  *       200:
  *         description: Tenant deactivated
  */
-router.delete('/:id', requireRole('admin'), deactivateTenant);
+router.delete('/:id', deactivateTenant);
 
 module.exports = router;

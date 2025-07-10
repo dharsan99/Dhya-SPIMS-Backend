@@ -16,8 +16,7 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get tenant settings
  *     tags: [Settings]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: Settings retrieved successfully

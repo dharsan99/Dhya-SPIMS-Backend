@@ -577,7 +577,7 @@ const getDefaultDashboardSummary = () => ({
 // Get all historical production data for the tenant
 const getAllHistoricalProductions = async (tenantId) => {
   return await prisma.productions.findMany({
-    where: { tenant_id: tenantId },
+    where: { tenantId },
     orderBy: { date: 'asc' }
   });
 };
@@ -680,5 +680,43 @@ exports.getDashboardSummary = async (user) => {
     return summary;
   } catch (error) {
     return summary;
+  }
+};
+
+/**
+ * Get admin dashboard summary with system-wide statistics
+ * @returns {Object} Admin dashboard summary
+ */
+exports.getAdminDashboardSummary = async () => {
+  try {
+    // Get total tenants count
+    const totalTenants = await prisma.tenants.count({
+      where: { is_active: true }
+    });
+
+    // Get total users count
+    const totalUsers = await prisma.users.count({
+      where: { is_active: true }
+    });
+
+    // Default values for revenue and orders
+    const revenue = 0;
+    const orders = 0;
+
+    return {
+      total_tenants: totalTenants,
+      total_users: totalUsers,
+      revenue: revenue,
+      orders: orders
+    };
+  } catch (error) {
+    console.error('Error fetching admin dashboard summary:', error);
+    // Return default values in case of error
+    return {
+      total_tenants: 0,
+      total_users: 0,
+      revenue: 0,
+      orders: 0
+    };
   }
 }; 

@@ -88,7 +88,7 @@ model tenants {
   domain        String?
   plan          String?         @default("free")
   is_active     Boolean?        @default(true)
-  storage_path  String? 
+  storage_path  String?
   expires_at    DateTime?
   created_at    DateTime?       @default(now()) @db.Timestamp(6)
   updated_at    DateTime?       @default(now()) @db.Timestamp(6)
@@ -113,21 +113,21 @@ model subscriptions {
 }
 
 model users {
-  id            String         @id @default(uuid()) @db.Uuid
-  tenant_id     String?        @db.Uuid
-  name          String?
-  email         String         @unique
-  password_hash String
-  verification_token   String?    @unique
-  role          String?
-  is_active     Boolean?       @default(true)
-  is_verified   Boolean        @default(false)
-  created_at    DateTime?      @default(now()) @db.Timestamp(6)
-  updated_at    DateTime?      @default(now()) @db.Timestamp(6)
-  productions   productions[]
-  user_roles    user_roles[]
-  user_settings user_settings?
-  tenants       tenants?       @relation(fields: [tenant_id], references: [id])
+  id                  String                     @id @default(uuid()) @db.Uuid
+  tenant_id           String?                    @db.Uuid
+  name                String?
+  email               String                     @unique
+  password_hash       String
+  verification_token  String?                    @unique
+  role                String?
+  is_active           Boolean?                   @default(true)
+  is_verified         Boolean                    @default(false)
+  created_at          DateTime?                  @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?                  @default(now()) @db.Timestamp(6)
+  productions         productions[]
+  user_roles          user_roles[]
+  user_settings       user_settings?
+  tenants             tenants?                   @relation(fields: [tenant_id], references: [id])
   verification_tokens user_verification_tokens[]
 }
 
@@ -376,17 +376,18 @@ model cottons {
 }
 
 model employees {
-  id         String    @id @default(uuid())
+  id         String       @id @default(uuid())
   name       String
-  token_no   String    @unique
-  shift_rate Decimal   @db.Decimal(10, 2)
-  aadhar_no  String    @unique
+  token_no   String       @unique
+  shift_rate Decimal      @db.Decimal(10, 2)
+  aadhar_no  String       @unique
   bank_acc_1 String
   bank_acc_2 String?
   department String?
   join_date  DateTime?
-  created_at DateTime  @default(now())
-  updated_at DateTime  @default(now()) @updatedAt
+  created_at DateTime     @default(now())
+  updated_at DateTime     @default(now()) @updatedAt
+  Attendance Attendance[]
 }
 
 model MailingList {
@@ -439,6 +440,8 @@ model Attendance {
   in_time         DateTime
   last_updated_by String?          @db.Uuid
   out_time        DateTime
+
+  employee employees @relation(fields: [employee_id], references: [id])
 
   @@unique([date, employee_id])
 }
@@ -517,22 +520,21 @@ enum AttendanceStatus {
 }
 
 model plan {
-  id            String   @id @default(uuid()) @db.Uuid
-  name          String
-  price         Float
-  billingCycle  String
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  price        Float
+  billingCycle String
   renewal_date DateTime @default(now()) @db.Date
-  description   String?
-  features      Json     // array of strings
-  maxUsers      Json     // can be int or "Unlimited"
-  maxOrders     Json     // same
-  maxStorage    String
-  popular       Boolean
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  description  String?
+  features     Json // array of strings
+  maxUsers     Json // can be int or "Unlimited"
+  maxOrders    Json // same
+  maxStorage   String
+  popular      Boolean
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 
-  
   subscriptions subscriptions[]
 }
 

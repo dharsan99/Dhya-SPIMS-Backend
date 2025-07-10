@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer');
 
 const prisma = new PrismaClient();
 
-async function signupUser({ name, email, password }) {
+async function signupUser({ name, email, password, tenant_id }) {
   const existing = await prisma.users.findUnique({ where: { email } });
   if (existing) throw new Error('User already exists');
 
@@ -13,27 +13,44 @@ async function signupUser({ name, email, password }) {
   const verification_token = crypto.randomBytes(32).toString('hex');
 
   return await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenants.create({
-      data: {
-        name: `${name}'s Trial`,
-        plan: 'TRIAL',
-        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      },
-    });
+    let tenant;
+    if (tenant_id) {
+      // Check if tenant exists
+      tenant = await tx.tenants.findUnique({ where: { id: tenant_id } });
+      if (!tenant) throw new Error('Tenant not found');
+    } else {
+      // Create new tenant
+      tenant = await tx.tenants.create({
+        data: {
+          name: `${name}'s Trial`,
+          plan: 'TRIAL',
+          expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
 
     const user = await tx.users.create({
       data: {
         name,
         email,
         password_hash,
-        tenant_id: tenant.id,
+        tenant_id: tenant_id ? tenant_id : tenant.id,
         verification_token,
+      },
+    });
+
+    // Assign default role to user
+    const defaultRoleId = '611e24f3-856f-471e-9d24-959f8b2e3dc1';
+    await tx.user_roles.create({
+      data: {
+        user_id: user.id,
+        role_id: defaultRoleId,
       },
     });
 
     await sendVerificationEmail(email, verification_token);
 
-    return { user_id: user.id, tenant_id: tenant.id, email };
+    return { user_id: user.id, tenant_id: tenant_id ? tenant_id : tenant.id, email, assigned_role_id: defaultRoleId };
   });
 }
 
@@ -46,7 +63,14 @@ async function verifyEmailToken(token) {
     data: { is_verified: true, verification_token: null },
   });
 
-  return { message: 'Email verified successfully' };
+  // Fetch the default role
+  const roleId = '611e24f3-856f-471e-9d24-959f8b2e3dc1';
+  const role = await prisma.roles.findUnique({ where: { id: roleId } });
+
+  return {
+    message: 'Email verified successfully',
+    role: role || null
+  };
 }
 
 async function sendVerificationEmail(email, token) {

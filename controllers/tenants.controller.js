@@ -14,19 +14,31 @@ const getTenantById = async (req, res) => {
 
 const createTenant = async (req, res) => {
   const { name, domain } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name is required' });
 
-  const existing = await prisma.tenants.findFirst({ where: { domain } });
-  if (existing) return res.status(409).json({ error: 'Tenant with this domain already exists' });
+  // Default plan values
+  const planId = '15382d9a-6bdb-4769-8c62-08ffc86ddd8f';
+  const planName = 'TRAIL';
 
+  // Fetch plan data from plan table
+  const planData = await prisma.plan.findUnique({ where: { id: planId } });
+
+  // Create tenant
   const tenant = await prisma.tenants.create({
     data: {
       name,
-      domain,
-      plan: 'free'
+      domain: domain || null,
+      plan: planName,
+      is_active: true,
     }
   });
 
-  res.status(201).json(tenant);
+  res.status(201).json({
+    message: 'successfully tenant is created!',
+    id: tenant.id,
+    name: tenant.name,
+    plan: planData ? [planData] : []
+  });
 };
 
 const updateTenant = async (req, res) => {

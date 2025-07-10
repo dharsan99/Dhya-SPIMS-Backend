@@ -17,6 +17,21 @@ exports.getDashboardSummary = async (req, res) => {
   }
 };
 
+/**
+ * Get admin dashboard summary with system-wide statistics
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.getAdminSummary = async (req, res) => {
+  try {
+    const summary = await dashboardService.getAdminDashboardSummary();
+    res.json(summary);
+  } catch (error) {
+    console.error('Error fetching admin dashboard summary:', error);
+    res.status(500).json({ error: 'Failed to fetch admin dashboard summary' });
+  }
+};
+
 exports.getSummary = async (req, res) => {
   try {
     // Get counts from various services

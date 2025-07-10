@@ -16,8 +16,7 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get settings for the logged-in user
  *     tags: [UserSettings]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: User settings retrieved

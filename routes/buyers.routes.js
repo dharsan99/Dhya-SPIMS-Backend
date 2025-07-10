@@ -18,8 +18,7 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get all buyers
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: List of buyers

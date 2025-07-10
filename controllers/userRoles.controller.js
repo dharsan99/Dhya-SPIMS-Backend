@@ -1,4 +1,4 @@
-const userRolesService = require('../services/userRoles.service');
+const userRolesService = require('services/userRolesAssignments.service.js');
 //const { validate: isUuid } = require('uuid');
 
 exports.createRole = async (req, res) => {
