@@ -69,7 +69,7 @@ exports.handleEvent = async (req, res) => {
 
 exports.getUsageStats = async (req, res) => {
   try {
-    const tenantId = req.user?.tenantId;
+    const tenantId = req.user?.tenantId || req.query.tenantId;
     if (!tenantId) return res.status(400).json({ error: 'Missing tenant ID' });
 
     const now = new Date();

@@ -8,6 +8,7 @@ const loadRoutes = require('./loadRoutes');
 
 dotenv.config();
 const app = express();
+app.use(express.json()); // <-- This line is required!
 const prisma = new PrismaClient();
 
 // ✅ Middleware
@@ -17,7 +18,6 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: '10mb' }));
 app.options('*', cors()); // handle preflight requests
 // ✅ Swagger Docs
 const setupSwagger = require('./swagger');
@@ -32,4 +32,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 SPIMS API server running at: http://localhost:${PORT}`);
   console.log(`SPIMS API server running at: http://<your-ip>:${PORT}`);
   console.log(`SPIMS SWAGGER API running at: http://localhost:5001/docs/`);
+  
 });

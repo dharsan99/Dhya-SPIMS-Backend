@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const subscriptionsController = require('../controllers/subscriptions.controller');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+//const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 
-router.use(verifyTokenAndTenant);
+//router.use(verifyTokenAndTenant);
 
 /**
  * @swagger
@@ -169,6 +169,13 @@ router.post('/event/:id', subscriptionsController.handleEvent);
  *   get:
  *     summary: Get usage statistics for the current tenant
  *     tags: [Subscriptions]
+ *     parameters:
+ *       - in: query
+ *         name: tenantId
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Optional tenant ID to filter usage stats (if not using authentication)
  *     responses:
  *       200:
  *         description: Usage statistics

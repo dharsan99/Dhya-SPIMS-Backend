@@ -3,79 +3,241 @@ const xlsx = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 
 const prisma = new PrismaClient();
 
+// Remove plan_code and use plan.name as the unique key
+const planSeedData = [
+  {
+    name: 'Starter (4-day trial)',
+    price: 0,
+    billingCycle: 'trial',
+    description: 'Perfect for trying out core features of SPIMS for small mills',
+    features: [
+      'Up to 5 employees',
+      'Basic order management',
+      'Production tracking',
+      'Email support',
+      '500MB storage'
+    ],
+    maxUsers: 5,
+    maxOrders: 50,
+    maxStorage: '500MB',
+    popular: false,
+    is_active: true
+  },
+  {
+    name: 'Growth',
+    price: 49,
+    billingCycle: 'month',
+    description: 'Ideal for growing spinning mills with advanced operations',
+    features: [
+      'Up to 50 employees',
+      'Advanced order management',
+      'Inventory control',
+      'Email & chat support',
+      '5GB storage',
+      'Basic analytics dashboard',
+      'API access'
+    ],
+    maxUsers: 50,
+    maxOrders: 500,
+    maxStorage: '5GB',
+    popular: true,
+    is_active: true
+  },
+  {
+    name: 'Enterprise',
+    price: 199,
+    billingCycle: 'month',
+    description: 'For large mills with complex operations and custom needs',
+    features: [
+      'Unlimited employees',
+      'Full order management suite',
+      'Real-time production & inventory',
+      '24/7 phone support',
+      'Unlimited storage',
+      'Custom analytics dashboard',
+      'Full API access',
+      'White-label solutions',
+      'Dedicated account manager',
+      'Custom training sessions'
+    ],
+    maxUsers: 'Unlimited',
+    maxOrders: 'Unlimited',
+    maxStorage: 'Unlimited',
+    popular: false,
+    is_active: true
+  }
+];
+
+// Will hold { planName: uuid }
+const planNameToId = {};
+
+async function seedPlans() {
+  console.log('🌱 Seeding Plans...');
+  for (const plan of planSeedData) {
+    let existing = await prisma.plan.findFirst({ where: { name: plan.name } });
+    if (!existing) {
+      const id = uuidv4();
+      const created = await prisma.plan.create({ data: { ...plan, id } });
+      planNameToId[plan.name] = created.id;
+      console.log(`✅ Created plan: ${plan.name}`);
+    } else {
+      planNameToId[plan.name] = existing.id;
+      console.log(`⚡ Plan already exists: ${plan.name}`);
+    }
+  }
+}
+
+// Modified seedSuperAdmin to return tenantId, userId, roleId
 async function seedSuperAdmin() {
   console.log('🌱 Seeding Super Admin User...');
+  let tenantId, userId, roleId;
+  try {
+    // Check if super admin already exists
+    const existingUser = await prisma.users.findFirst({
+      where: { email: 'dharshan@dhya.in' }
+    });
+    if (existingUser) {
+      const existingTenant = await prisma.tenants.findFirst({ where: { id: existingUser.tenant_id } });
+      const existingRole = await prisma.roles.findFirst({ where: { tenant_id: existingUser.tenant_id, name: 'Superadmin' } });
+      console.log('✅ Super Admin user already exists, skipping...');
+      return { tenantId: existingTenant.id, userId: existingUser.id, roleId: existingRole.id };
+    }
+    tenantId = crypto.randomUUID();
+    userId = crypto.randomUUID();
+    roleId = tenantId; // Use tenantId as roleId for superadmin
+    const passwordHash = await bcrypt.hash('12345', 10);
+    const permissions = {
+      Orders: ["Add Order", "Update Order", "Delete Order", "View Order"],
+      Shades: ["Add Shade", "Update Shade", "Delete Shade", "View Shade"],
+      Fibres: ["Add Fibre", "Update Fibre", "Delete Fibre", "View Fibre"],
+      Production: ["Add Production", "Update Production", "Delete Production", "View Production"],
+      Buyers: ["Add Buyer", "Update Buyer", "Delete Buyer", "View Buyer"],
+      Employees: ["Add Employee", "Update Employee", "Delete Employee", "View Employee"],
+      Attendance: ["Add Attendance", "Update Attendance", "Delete Attendance", "View Attendance"],
+      Suppliers: ["Add Supplier", "Update Supplier", "Delete Supplier", "View Supplier"],
+      Settings: ["Add Settings", "Update Setting", "Delete Settings", "View Settings"],
+      Roles: ["Add Role", "Update Role", "Delete Role", "View Role"],
+      Users: ["Add User", "Update User", "Delete User", "View User"],
+      Stocks: ["Add Stock", "Update Stock", "Delete Stock", "View Stock"]
+    };
+    await prisma.$transaction(async (tx) => {
+      await tx.tenants.create({
+        data: {
+          id: tenantId,
+          name: 'spimsadmin',
+          domain: 'farms',
+          plan: 'TRIAL',
+          expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
+      });
+      await tx.roles.create({
+        data: {
+          id: roleId,
+          tenant_id: tenantId,
+          name: 'Superadmin',
+          description: 'Admin role with full access',
+          permissions,
+        },
+      });
+      await tx.users.create({
+        data: {
+          id: userId,
+          tenant_id: tenantId,
+          name: 'Dharshan',
+          email: 'dharshan@dhya.in',
+          password_hash: passwordHash,
+          role: 'Super admin',
+          is_active: true,
+          is_verified: true,
+        },
+      });
+      await tx.user_roles.create({
+        data: {
+          user_id: userId,
+          role_id: roleId,
+        },
+      });
+    });
+    console.log('✅ Super Admin user, tenant, and role seeded.');
+    return { tenantId, userId, roleId };
+  } catch (error) {
+    console.error('❌ Error seeding Super Admin:', error.message);
+    throw error;
+  }
+}
 
-  const tenantId = crypto.randomUUID();
-  const userId = crypto.randomUUID();
-  const roleId = crypto.randomUUID();
-
-  const passwordHash = await bcrypt.hash('12345', 10);
-
-  const permissions = {
-    Orders: ["Add Order", "Update Order", "Delete Order", "View Order"],
-    Shades: ["Add Shade", "Update Shade", "Delete Shade", "View Shade"],
-    Fibres: ["Add Fibre", "Update Fibre", "Delete Fibre", "View Fibre"],
-    Production: ["Add Production", "Update Production", "Delete Production", "View Production"],
-    Buyers: ["Add Buyer", "Update Buyer", "Delete Buyer", "View Buyer"],
-    Employees: ["Add Employee", "Update Employee", "Delete Employee", "View Employee"],
-    Attendance: ["Add Attendance", "Update Attendance", "Delete Attendance", "View Attendance"],
-    Suppliers: ["Add Supplier", "Update Supplier", "Delete Supplier", "View Supplier"],
-    Settings: ["Add Settings", "Update Setting", "Delete Settings", "View Settings"],
-    Roles: ["Add Role", "Update Role", "Delete Role", "View Role"],
-    Users: ["Add User", "Update User", "Delete User", "View User"],
-    Stocks: ["Add Stock", "Update Stock", "Delete Stock", "View Stock"]
-  };
-
+async function seedAdminRoleAndUser(superTenantId, permissions) {
+  console.log('🌱 Seeding Admin role and user for superadmin tenant...');
+  const adminRoleId = crypto.randomUUID();
+  const adminUserId = crypto.randomUUID();
+  const adminEmail = 'admin@dhya.in';
+  const passwordHash = await bcrypt.hash('admin123', 10);
+  // Check if admin user already exists
+  const existingAdmin = await prisma.users.findFirst({ where: { email: adminEmail } });
+  if (existingAdmin) {
+    console.log('✅ Admin user already exists, skipping...');
+    return { adminRoleId: existingAdmin.id, adminUserId: existingAdmin.id };
+  }
   await prisma.$transaction(async (tx) => {
-    await tx.tenants.create({
-      data: {
-        id: tenantId,
-        name: 'spimsadmin',
-        domain: 'farms',
-        plan: 'TRIAL',
-        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      },
-    });
-
-    await tx.users.create({
-      data: {
-        id: userId,
-        tenant_id: tenantId,
-        name: 'Dharshan',
-        email: 'dharshan@dhya.in',
-        password_hash: passwordHash,
-        role:'Super admin',
-        is_active: true,
-        is_verified: true,
-      },
-    });
-
     await tx.roles.create({
       data: {
-        id: 'cfd974b7-4841-4256-a402-0ea020d06f83',
-        tenant_id: tenantId,
-        name: 'Superadmin',
+        id: adminRoleId,
+        tenant_id: superTenantId,
+        name: 'Admin',
         description: 'Admin role with full access',
         permissions,
       },
     });
-
+    await tx.users.create({
+      data: {
+        id: adminUserId,
+        tenant_id: superTenantId,
+        name: 'Admin',
+        email: adminEmail,
+        password_hash: passwordHash,
+        role: 'Admin',
+        is_active: true,
+        is_verified: true,
+      },
+    });
     await tx.user_roles.create({
       data: {
-        user_id: userId,
-        role_id: roleId,
+        user_id: adminUserId,
+        role_id: adminRoleId,
       },
     });
   });
-
-  console.log('✅ Super Admin user, tenant, and role seeded.');
+  console.log('✅ Admin role and user seeded.');
+  return { adminRoleId, adminUserId };
 }
 
-module.exports.seedSuperAdmin = seedSuperAdmin;
+async function seedPlanSubscriptionsForTenant(tenantId) {
+  for (const plan of planSeedData) {
+    const planId = planNameToId[plan.name];
+    if (!planId) continue;
+    const existing = await prisma.subscriptions.findFirst({ where: { tenant_id: tenantId, plan_id: planId } });
+    if (!existing) {
+      await prisma.subscriptions.create({
+        data: {
+          tenant_id: tenantId,
+          plan_id: planId,
+          plan_type: plan.name,
+          start_date: new Date(),
+          end_date: null,
+          is_active: true
+        }
+      });
+      console.log(`✅ Created subscription for tenant ${tenantId} to plan ${plan.name}`);
+    } else {
+      console.log(`⚡ Subscription already exists for tenant ${tenantId} to plan ${plan.name}`);
+    }
+  }
+}
 
 async function seedFibres() {
   console.log('🌱 Starting fibre seeding...');
@@ -251,6 +413,7 @@ async function seedFibres() {
 }
 
 // ========== EMPLOYEE & ATTENDANCE SEEDING ==========
+// ========== EMPLOYEE & ATTENDANCE SEEDING ==========
 async function seedEmployeesAndAttendance() {
   console.log('👥 Starting employee & attendance seeding...');
 
@@ -327,45 +490,38 @@ async function seedEmployeesAndAttendance() {
     return;
   }
 
-  // Generate attendance records
-  const attendanceRecords = [];
-  const shifts = ['Shift 1', 'Shift 2', 'Shift 3'];
+  const shifts = ['SHIFT_1', 'SHIFT_2', 'SHIFT_3'];
   const statuses = [
     'PRESENT', 'PRESENT', 'PRESENT', 'PRESENT',
     'PRESENT', 'PRESENT', 'PRESENT', 'ABSENT',
-    'HALF_DAY', 'LEAVE',
+    'HALF_DAY',
   ];
 
-  const generateRandomDate = () => {
-    const day = Math.floor(Math.random() * 31) + 1;
-    return new Date(2025, 4, Math.min(day, 31)); // May 2025, ensure valid date
-  };
+  const enhancedAttendanceRecords = [];
 
-  for (let i = 0; i < 55; i++) {
+  for (let i = 0; i < 50; i++) {
     const employee = createdEmployees[Math.floor(Math.random() * createdEmployees.length)];
-    const date = generateRandomDate();
+    const day = Math.floor(Math.random() * 30) + 1;
+    const date = new Date(2025, 4, day);
     const shift = shifts[Math.floor(Math.random() * shifts.length)];
     const status = statuses[Math.floor(Math.random() * statuses.length)];
 
-    let regularHours = 8, overtimeHours = 0, totalHours = 0;
+    const { inTime, outTime } = generateShiftTimes(date, shift);
+    const { overtimeHours, totalHours } = calculateHours(inTime, outTime, status);
 
-    switch (status) {
-      case 'PRESENT':
-        overtimeHours = Math.random() < 0.3 ? Math.round(Math.random() * 4 * 2) / 2 : 0;
-        totalHours = regularHours + overtimeHours;
-        break;
-      case 'HALF_DAY':
-        regularHours = 4;
-        totalHours = 4;
-        break;
-      default:
-        regularHours = 0;
-        totalHours = 0;
-    }
+    const finalInTime = (status === 'ABSENT')
+      ? new Date(date.setHours(0, 0, 0, 0))
+      : inTime;
 
-    attendanceRecords.push({
-      date,
+    const finalOutTime = (status === 'ABSENT')
+      ? new Date(date.setHours(0, 0, 0, 0))
+      : outTime;
+
+    enhancedAttendanceRecords.push({
+      date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
       shift,
+      in_time: finalInTime,
+      out_time: finalOutTime,
       overtime_hours: overtimeHours,
       total_hours: totalHours,
       status,
@@ -373,17 +529,16 @@ async function seedEmployeesAndAttendance() {
     });
   }
 
-  // Insert attendance records
   try {
     const result = await prisma.attendance.createMany({
-      data: attendanceRecords,
+      data: enhancedAttendanceRecords,
       skipDuplicates: true,
     });
-    console.log(`📅 Created ${result.count} attendance records`);
+    console.log(`📅 Created ${result.count} enhanced attendance records`);
   } catch (error) {
-    console.warn('⚠️ Bulk insert failed, falling back to individual inserts:', error.message);
+    console.warn('⚠️ Bulk insert failed, using individual inserts:', error.message);
     let createdCount = 0;
-    for (const record of attendanceRecords) {
+    for (const record of enhancedAttendanceRecords) {
       try {
         await prisma.attendance.create({ data: record });
         createdCount++;
@@ -396,7 +551,6 @@ async function seedEmployeesAndAttendance() {
     console.log(`📆 Individual insert completed: ${createdCount} records`);
   }
 
-  // Summary
   const totalEmployees = await prisma.employees.count();
   const totalAttendance = await prisma.attendance.count();
   console.log(`\n📊 Employee Summary:\nEmployees: ${totalEmployees}, Attendance Records: ${totalAttendance}`);
@@ -416,22 +570,20 @@ async function seedEmployeesAndAttendance() {
   }
 }
 
-// ========== ENHANCED ATTENDANCE FUNCTIONS ==========
-
 function generateShiftTimes(date, shift) {
   const baseDate = new Date(date);
   let startHour, endHour;
 
-  switch (shift.toLowerCase()) {
-    case 'Shift 1':
+  switch (shift) {
+    case 'SHIFT_1':
       startHour = 6;
       endHour = 14;
       break;
-    case 'Shift 2':
+    case 'SHIFT_2':
       startHour = 14;
       endHour = 22;
       break;
-    case 'Shift 3':
+    case 'SHIFT_3':
       startHour = 22;
       endHour = 6;
       break;
@@ -444,7 +596,7 @@ function generateShiftTimes(date, shift) {
   inTime.setHours(startHour, Math.floor(Math.random() * 30), 0, 0);
 
   const outTime = new Date(baseDate);
-  if (shift.toLowerCase() === 'night' && endHour < startHour) {
+  if (shift === 'SHIFT_3') {
     outTime.setDate(outTime.getDate() + 1);
   }
   outTime.setHours(endHour, Math.floor(Math.random() * 30), 0, 0);
@@ -453,7 +605,7 @@ function generateShiftTimes(date, shift) {
 }
 
 function calculateHours(inTime, outTime, status) {
-  if (status === 'ABSENT' || status === 'LEAVE') {
+  if (status === 'ABSENT') {
     return { overtimeHours: 0, totalHours: 0 };
   }
 
@@ -469,189 +621,6 @@ function calculateHours(inTime, outTime, status) {
   return { overtimeHours, totalHours: actualHours };
 }
 
-function generateRandomDateRange() {
-  const startDate = new Date(2025, 3, 1); // April 1, 2025
-  const endDate = new Date(2025, 4, 30);   // May 30, 2025 (avoid May 31 issues)
-  
-  const timeDiff = endDate.getTime() - startDate.getTime();
-  const randomTime = Math.random() * timeDiff;
-  
-  return new Date(startDate.getTime() + randomTime);
-}
-
-async function seedEnhancedAttendance() {
-  console.log('📅 Starting enhanced attendance seeding with in_time/out_time...');
-
-  try {
-    const existingEmployees = await prisma.employees.findMany();
-    
-    if (existingEmployees.length === 0) {
-      console.log('⚠️ No employees found. Please run employee seeding first.');
-      return;
-    }
-
-    const shifts = ['Shift 1', 'Shift 2', 'Shift 3'];
-    const statuses = [
-      'PRESENT', 'PRESENT', 'PRESENT', 'PRESENT',
-      'PRESENT', 'PRESENT', 'PRESENT', 'ABSENT',
-      'HALF_DAY', 'LEAVE',
-    ];
-
-    const enhancedAttendanceRecords = [];
-
-    // Generate 50 enhanced attendance records
-    for (let i = 0; i < 50; i++) {
-      const employee = existingEmployees[Math.floor(Math.random() * existingEmployees.length)];
-      const date = generateRandomDateRange();
-      const shift = shifts[Math.floor(Math.random() * shifts.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-
-      const { inTime, outTime } = generateShiftTimes(date, shift);
-      const { overtimeHours, totalHours } = calculateHours(inTime, outTime, status);
-
-      // Handle absent/leave cases
-      const finalInTime = (status === 'ABSENT' || status === 'LEAVE') 
-        ? new Date(date.setHours(9, 0, 0, 0)) 
-        : inTime;
-      
-      const finalOutTime = (status === 'ABSENT' || status === 'LEAVE') 
-        ? new Date(date.setHours(9, 0, 0, 0)) 
-        : outTime;
-
-      enhancedAttendanceRecords.push({
-        date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-        shift,
-        in_time: finalInTime,
-        out_time: finalOutTime,
-        overtime_hours: overtimeHours,
-        total_hours: totalHours,
-        status,
-        employee_id: employee.id,
-      });
-    }
-
-    // Insert enhanced attendance records
-    try {
-      const result = await prisma.attendance.createMany({
-        data: enhancedAttendanceRecords,
-        skipDuplicates: true,
-      });
-      console.log(`📅 Created ${result.count} enhanced attendance records`);
-    } catch (error) {
-      console.warn('⚠️ Bulk insert failed, using individual inserts:', error.message);
-      
-      let createdCount = 0;
-      for (const record of enhancedAttendanceRecords) {
-        try {
-          await prisma.attendance.create({ data: record });
-          createdCount++;
-        } catch (err) {
-          if (!err.message.includes('Unique constraint')) {
-            console.error('⚠️ Failed enhanced record:', err.message);
-          }
-        }
-      }
-      console.log(`📆 Individual insert completed: ${createdCount} enhanced records`);
-    }
-  } catch (error) {
-    console.error('❌ Error in seedEnhancedAttendance:', error.message);
-  }
-}
-
-async function generateEnhancedReport() {
-  console.log('\n📊 Generating Enhanced Summary Report...\n');
-
-  try {
-    // Total counts
-    const totalEmployees = await prisma.employees.count();
-    const totalAttendance = await prisma.attendance.count();
-    
-    console.log(`👥 Total Employees: ${totalEmployees}`);
-    console.log(`📅 Total Attendance Records: ${totalAttendance}`);
-
-    // Employee by department
-    const employeesByDept = await prisma.employees.groupBy({
-      by: ['department'],
-      _count: { id: true },
-    });
-
-    console.log(`\n🏢 Employees by Department:`);
-    employeesByDept.forEach((group) => {
-      console.log(`   ${group.department || 'Unassigned'}: ${group._count.id} employees`);
-    });
-
-    // Attendance by status
-    const attendanceByStatus = await prisma.attendance.groupBy({
-      by: ['status'],
-      _count: { id: true },
-    });
-
-    console.log(`\n🧾 Attendance Status Breakdown:`);
-    attendanceByStatus.forEach((group) => {
-      console.log(`   ${group.status}: ${group._count.id} records`);
-    });
-
-    // Attendance by shift
-    const attendanceByShift = await prisma.attendance.groupBy({
-      by: ['shift'],
-      _count: { id: true },
-    });
-
-    console.log(`\n⏰ Attendance by Shift:`);
-    attendanceByShift.forEach((group) => {
-      console.log(`   ${group.shift}: ${group._count.id} records`);
-    });
-
-    // Average overtime hours
-    const avgOvertime = await prisma.attendance.aggregate({
-      _avg: { overtime_hours: true, total_hours: true },
-      where: { overtime_hours: { gt: 0 } }
-    });
-
-    console.log(`\n⏱️ Overtime Statistics:`);
-    console.log(`   Average Overtime Hours: ${avgOvertime._avg.overtime_hours?.toFixed(2) || 0} hours`);
-    console.log(`   Average Total Hours: ${avgOvertime._avg.total_hours?.toFixed(2) || 0} hours`);
-
-    // Top 3 employees by attendance count
-    const topEmployees = await prisma.attendance.groupBy({
-      by: ['employee_id'],
-      _count: { id: true },
-      orderBy: { _count: { id: 'desc' } },
-      take: 3,
-    });
-
-    console.log(`\n🏆 Top 3 Employees by Attendance Records:`);
-    for (const emp of topEmployees) {
-      const employee = await prisma.employees.findUnique({
-        where: { id: emp.employee_id },
-      });
-      console.log(`   ${employee?.name} (${employee?.token_no}): ${emp._count.id} records`);
-    }
-
-    // Recent attendance with in/out times
-    const recentAttendance = await prisma.attendance.findMany({
-      orderBy: { date: 'desc' },
-      take: 5,
-      include: {
-        employee: {
-          select: { name: true, token_no: true }
-        }
-      }
-    });
-
-    console.log(`\n📈 Recent Attendance (Last 5 records with times):`);
-    recentAttendance.forEach((record) => {
-      const inTime = record.in_time ? record.in_time.toLocaleTimeString() : 'N/A';
-      const outTime = record.out_time ? record.out_time.toLocaleTimeString() : 'N/A';
-      console.log(`   ${record.date.toISOString().split('T')[0]} - ${record.employee.name} (${record.employee.token_no})`);
-      console.log(`     Status: ${record.status} | Shift: ${record.shift} | In: ${inTime} | Out: ${outTime} | OT: ${record.overtime_hours}h`);
-    });
-
-  } catch (error) {
-    console.error('❌ Error generating report:', error.message);
-  }
-}
-
 // ========== MAIN FUNCTIONS ==========
 async function main() {
   console.log('🌱 Starting Basic Database Seeding...\n');
@@ -664,12 +633,17 @@ async function enhancedMain() {
   console.log('🌱 Starting Enhanced Database Seeding Process...\n');
   
   try {
-    await seedSuperAdmin();
+    await seedPlans();
+    const { tenantId, userId, roleId } = await seedSuperAdmin();
+    // Get permissions from superadmin role
+    const superRole = await prisma.roles.findUnique({ where: { id: roleId } });
+    const permissions = superRole ? superRole.permissions : {};
+    await seedAdminRoleAndUser(tenantId, permissions);
+    await seedPlanSubscriptionsForTenant(tenantId);
+    // If you want to create another tenant and map plans, repeat here
+    // await seedPlanSubscriptionsForTenant(otherTenantId);
     await seedFibres();
     await seedEmployeesAndAttendance();
-    await seedEnhancedAttendance();
-    await generateEnhancedReport();
-    
     console.log('\n🌟 Enhanced Seeding Complete! ✨');
   } catch (error) {
     console.error('❌ Error in enhancedMain:', error.message);
@@ -684,8 +658,6 @@ module.exports = {
   enhancedMain,
   seedFibres,
   seedEmployeesAndAttendance,
-  seedEnhancedAttendance,
-  generateEnhancedReport
 };
 
 // Execute enhanced seeding

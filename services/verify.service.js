@@ -14,6 +14,7 @@ async function signupUser({ name, email, password, tenant_id }) {
 
   return await prisma.$transaction(async (tx) => {
     let tenant;
+    let createdTenant = false;
     if (tenant_id) {
       // Check if tenant exists
       tenant = await tx.tenants.findUnique({ where: { id: tenant_id } });
@@ -27,6 +28,44 @@ async function signupUser({ name, email, password, tenant_id }) {
           expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
         },
       });
+      createdTenant = true;
+    }
+
+    // Always ensure a subscription exists for the tenant
+    const existingSubscription = await tx.subscriptions.findFirst({
+      where: { tenant_id: tenant.id }
+    });
+    if (!existingSubscription) {
+      const trialPlan = await tx.plan.findFirst({ where: { billingCycle: 'trial' } });
+      console.log('Trial plan found for subscription creation:', trialPlan);
+      if (trialPlan) {
+        const subscription = await tx.subscriptions.create({
+          data: {
+            tenant_id: tenant.id,
+            plan_id: trialPlan.id,
+            plan_type: trialPlan.name,
+            start_date: new Date(),
+            is_active: true,
+          }
+        });
+        console.log('Subscription created for tenant:', subscription);
+      } else {
+        console.log('No trial plan found for subscription creation.');
+      }
+    } else {
+      console.log('Subscription already exists for tenant:', tenant.id);
+    }
+
+    // If we just created a tenant, also create the Admin role for it
+    if (createdTenant) {
+      await tx.roles.create({
+        data: {
+          tenant_id: tenant.id,
+          name: 'Admin',
+          description: 'Default admin role for new tenant',
+          permissions: {}, // You can use your default permissions object here
+        }
+      });
     }
 
     const user = await tx.users.create({
@@ -39,8 +78,26 @@ async function signupUser({ name, email, password, tenant_id }) {
       },
     });
 
-    // Assign default role to user
-    const defaultRoleId = '611e24f3-856f-471e-9d24-959f8b2e3dc1';
+    // Assign default role to user (lookup by name and tenant or global)
+    let defaultRole;
+    if (tenant_id) {
+      // Use the first Admin role found (global or seeded)
+      defaultRole = await tx.roles.findFirst({
+        where: {
+          name: 'Admin',
+        },
+      });
+    } else {
+      // For new tenants, use tenant-specific Admin role
+      defaultRole = await tx.roles.findFirst({
+        where: {
+          tenant_id: tenant.id,
+          name: 'Admin',
+        },
+      });
+    }
+    if (!defaultRole) throw new Error('Default role (Admin) not found');
+    const defaultRoleId = defaultRole.id;
     await tx.user_roles.create({
       data: {
         user_id: user.id,
@@ -63,13 +120,17 @@ async function verifyEmailToken(token) {
     data: { is_verified: true, verification_token: null },
   });
 
-  // Fetch the default role
-  const roleId = '611e24f3-856f-471e-9d24-959f8b2e3dc1';
-  const role = await prisma.roles.findUnique({ where: { id: roleId } });
+  // Fetch the default role for the user's tenant
+  const defaultRole = await prisma.roles.findFirst({
+    where: {
+      tenant_id: user.tenant_id,
+      name: 'Admin',
+    },
+  });
 
   return {
     message: 'Email verified successfully',
-    role: role || null
+    role: defaultRole || null
   };
 }
 
@@ -86,7 +147,7 @@ async function sendVerificationEmail(email, token) {
   await transporter.sendMail({
     from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
     to: email,
-    subject: 'Verify your TexIntelli Email',
+    subject: '😊Verify your TexIntelli Email',
     html: `<p>Click the link to verify your email:</p><a href="${verificationUrl}">${verificationUrl}</a>`,
   });
 }

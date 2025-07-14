@@ -16,28 +16,41 @@ const createTenant = async (req, res) => {
   const { name, domain } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
 
-  // Default plan values
-  const planId = '15382d9a-6bdb-4769-8c62-08ffc86ddd8f';
-  const planName = 'TRAIL';
-
-  // Fetch plan data from plan table
-  const planData = await prisma.plan.findUnique({ where: { id: planId } });
-
   // Create tenant
   const tenant = await prisma.tenants.create({
     data: {
       name,
       domain: domain || null,
-      plan: planName,
+      plan: 'TRIAL',
       is_active: true,
     }
   });
+
+  // Find the plan with name 'Starter (4-day trial)'
+  const trialPlan = await prisma.plan.findFirst({ where: { name: 'Starter (14-day trial)' } });
+  let subscription = null;
+  if (trialPlan) {
+    subscription = await prisma.subscriptions.create({
+      data: {
+        tenant_id: tenant.id,
+        plan_id: trialPlan.id,
+        plan_type: trialPlan.name,
+        start_date: new Date(),
+        is_active: true,
+      }
+    });
+  }
 
   res.status(201).json({
     message: 'successfully tenant is created!',
     id: tenant.id,
     name: tenant.name,
-    plan: planData ? [planData] : []
+    subscription: subscription ? {
+      id: subscription.id,
+      plan: trialPlan ? trialPlan.name : null,
+      start_date: subscription.start_date,
+      is_active: subscription.is_active
+    } : null
   });
 };
 

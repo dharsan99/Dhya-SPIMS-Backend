@@ -1,5 +1,6 @@
 const { PrismaClient, Decimal } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { v4: uuidv4 } = require('uuid');
 
 // Helper function to get date ranges
 const getDateRanges = () => {
@@ -577,9 +578,223 @@ const getDefaultDashboardSummary = () => ({
 // Get all historical production data for the tenant
 const getAllHistoricalProductions = async (tenantId) => {
   return await prisma.productions.findMany({
-    where: { tenantId },
+    where: { tenant_id: tenantId },
     orderBy: { date: 'asc' }
   });
+};
+
+// Admin Tenant Management
+async function adminCreateTenant(data) {
+  const {
+    name,
+    status = 'active',
+    plan = 'basic',
+    adminUser,
+    companyDetails
+  } = data;
+  const is_active = status === 'active';
+  return await prisma.$transaction(async (tx) => {
+    const tenant = await tx.tenants.create({
+      data: {
+        name,
+        plan,
+        is_active,
+        // company_details: companyDetails ? JSON.stringify(companyDetails) : undefined, // Uncomment if you add this field
+      },
+    });
+    const admin = await tx.users.create({
+      data: {
+        tenant_id: tenant.id,
+        name: `${adminUser.firstName} ${adminUser.lastName}`.trim(),
+        email: adminUser.email,
+        password_hash: adminUser.password, // In production, hash the password!
+        role: 'admin',
+        is_active: true,
+        is_verified: false,
+      },
+    });
+    return {
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        plan: tenant.plan,
+        is_active: tenant.is_active,
+      },
+      adminUser: {
+        id: admin.id,
+        name: admin.name,
+        email: admin.email,
+      },
+    };
+  });
+}
+
+async function adminGetTenantById(id) {
+  const tenant = await prisma.tenants.findUnique({
+    where: { id },
+    include: {
+      users: true,
+      subscriptions: {
+        orderBy: { start_date: 'desc' },
+        take: 1,
+      },
+    },
+  });
+  if (!tenant) return null;
+  const companyDetails = {
+    address: '',
+    phone: '',
+    industry: '',
+    website: '',
+  };
+  const sub = tenant.subscriptions[0];
+  const subscription = sub
+    ? {
+        plan: sub.plan_type || tenant.plan,
+        startDate: sub.start_date ? sub.start_date.toISOString() : null,
+        endDate: sub.end_date ? sub.end_date.toISOString() : null,
+        status: sub.is_active ? 'active' : 'inactive',
+      }
+    : null;
+  const users = tenant.users.map(u => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    is_active: u.is_active,
+    is_verified: u.is_verified,
+    created_at: u.created_at,
+    updated_at: u.updated_at,
+    role: u.role,
+  }));
+  const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.is_active).length;
+  const usage = {
+    totalUsers,
+    activeUsers,
+    storageUsed: 0,
+    storageLimit: 0,
+  };
+  return {
+    ...tenant,
+    companyDetails,
+    subscription,
+    users,
+    usage,
+  };
+}
+
+async function adminUpdateTenant(id, data) {
+  const {
+    name,
+    status,
+    plan,
+    companyDetails
+  } = data;
+  let is_active;
+  if (status === 'active') is_active = true;
+  else if (status === 'inactive' || status === 'suspended') is_active = false;
+  const updateData = {
+    ...(name && { name }),
+    ...(plan && { plan }),
+    ...(is_active !== undefined && { is_active }),
+    // company_details: companyDetails ? JSON.stringify(companyDetails) : undefined, // Uncomment if you add this field
+  };
+  const updated = await prisma.tenants.update({
+    where: { id },
+    data: updateData,
+  });
+  const companyDetailsResp = companyDetails || {
+    address: '',
+    phone: '',
+    industry: '',
+    website: '',
+  };
+  return {
+    ...updated,
+    companyDetails: companyDetailsResp,
+  };
+}
+
+async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }) {
+  const where = {
+    ...(search && {
+      name: { contains: search, mode: 'insensitive' },
+    }),
+    ...((status !== 'all') && {
+      is_active: status === 'active' ? true : status === 'inactive' ? false : undefined,
+    }),
+    ...(plan && { plan: { equals: plan, mode: 'insensitive' } }),
+  };
+  let orderBy = {};
+  if (sortBy === 'name') orderBy = { name: sortOrder };
+  else if (sortBy === 'createdAt') orderBy = { created_at: sortOrder };
+  else if (sortBy === 'lastActive') orderBy = { updated_at: sortOrder };
+  else orderBy = { created_at: sortOrder };
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const take = parseInt(limit);
+  let tenants = await prisma.tenants.findMany({
+    where,
+    orderBy,
+    skip,
+    take,
+    include: {
+      users: {
+        select: { id: true, updated_at: true, is_active: true },
+      },
+    },
+  });
+  if (sortBy === 'users') {
+    tenants = tenants.sort((a, b) => {
+      const aCount = a.users.length;
+      const bCount = b.users.length;
+      return sortOrder === 'asc' ? aCount - bCount : bCount - aCount;
+    });
+  }
+  const mappedTenants = tenants.map(t => {
+    const userCount = t.users.length;
+    let lastActive = null;
+    if (userCount > 0) {
+      lastActive = t.users.reduce((latest, u) => {
+        if (!u.updated_at) return latest;
+        return !latest || u.updated_at > latest ? u.updated_at : latest;
+      }, null);
+    }
+    return {
+      id: t.id,
+      name: t.name,
+      domain: t.domain,
+      plan: t.plan,
+      is_active: t.is_active,
+      created_at: t.created_at,
+      updated_at: t.updated_at,
+      userCount,
+      lastActive,
+    };
+  });
+  const totalItems = await prisma.tenants.count({ where });
+  const totalPages = Math.ceil(totalItems / take);
+  return {
+    tenants: mappedTenants,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems,
+      itemsPerPage: take,
+    },
+  };
+}
+
+async function adminDeleteTenant(id) {
+  return prisma.tenants.delete({ where: { id } });
+}
+
+module.exports = {
+  ...module.exports,
+  adminCreateTenant,
+  adminGetTenantById,
+  adminUpdateTenant,
+  adminGetAllTenants,
+  adminDeleteTenant,
 };
 
 exports.getDashboardSummary = async (user) => {
@@ -689,34 +904,116 @@ exports.getDashboardSummary = async (user) => {
  */
 exports.getAdminDashboardSummary = async () => {
   try {
-    // Get total tenants count
-    const totalTenants = await prisma.tenants.count({
-      where: { is_active: true }
-    });
+    // Helper to get month range
+    function getMonthRange(date) {
+      const start = new Date(date.getFullYear(), date.getMonth(), 1);
+      const end = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+      return { start, end };
+    }
 
-    // Get total users count
-    const totalUsers = await prisma.users.count({
-      where: { is_active: true }
-    });
+    const now = new Date();
+    const { start: currStart, end: currEnd } = getMonthRange(now);
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const { start: prevStart, end: prevEnd } = getMonthRange(prevMonth);
 
-    // Default values for revenue and orders
-    const revenue = 0;
-    const orders = 0;
+    // Tenants
+    const currTenants = await prisma.tenants.count({
+      where: { created_at: { gte: currStart, lte: currEnd }, is_active: true }
+    });
+    const prevTenants = await prisma.tenants.count({
+      where: { created_at: { gte: prevStart, lte: prevEnd }, is_active: true }
+    });
+    const totalTenants = await prisma.tenants.count({ where: { is_active: true } });
+
+    // Users
+    const currUsers = await prisma.users.count({
+      where: { is_active: true, created_at: { gte: currStart, lte: currEnd } }
+    });
+    const prevUsers = await prisma.users.count({
+      where: { is_active: true, created_at: { gte: prevStart, lte: prevEnd } }
+    });
+    const totalUsers = await prisma.users.count({ where: { is_active: true } });
+
+    // For now, orders and revenue are 0
+    const currOrders = 0, prevOrders = 0;
+    const currRevenue = 0, prevRevenue = 0;
+
+    // Helper for change
+    const getChange = (curr, prev) => ({
+      change: curr - prev,
+      change_type: curr - prev >= 0 ? "positive" : "negative"
+    });
 
     return {
-      total_tenants: totalTenants,
-      total_users: totalUsers,
-      revenue: revenue,
-      orders: orders
+      dashboard_stats: [
+        {
+          id: uuidv4(),
+          key: "total_tenants",
+          title: "Total Tenants",
+          value: totalTenants,
+          ...getChange(currTenants, prevTenants)
+        },
+        {
+          id: uuidv4(),
+          key: "active_users",
+          title: "Active Users",
+          value: totalUsers,
+          ...getChange(currUsers, prevUsers)
+        },
+        {
+          id: uuidv4(),
+          key: "total_orders",
+          title: "Total Orders",
+          value: currOrders,
+          ...getChange(currOrders, prevOrders)
+        },
+        {
+          id: uuidv4(),
+          key: "revenue",
+          title: "Revenue",
+          value: currRevenue,
+          ...getChange(currRevenue, prevRevenue)
+        }
+      ]
     };
   } catch (error) {
     console.error('Error fetching admin dashboard summary:', error);
     // Return default values in case of error
     return {
-      total_tenants: 0,
-      total_users: 0,
-      revenue: 0,
-      orders: 0
+      dashboard_stats: [
+        {
+          id: uuidv4(),
+          key: "total_tenants",
+          title: "Total Tenants",
+          value: 0,
+          change: 0,
+          change_type: "positive"
+        },
+        {
+          id: uuidv4(),
+          key: "active_users",
+          title: "Active Users",
+          value: 0,
+          change: 0,
+          change_type: "positive"
+        },
+        {
+          id: uuidv4(),
+          key: "total_orders",
+          title: "Total Orders",
+          value: 0,
+          change: 0,
+          change_type: "positive"
+        },
+        {
+          id: uuidv4(),
+          key: "revenue",
+          title: "Revenue",
+          value: 0,
+          change: 0,
+          change_type: "positive"
+        }
+      ]
     };
   }
 }; 

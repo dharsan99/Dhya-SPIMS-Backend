@@ -2,6 +2,7 @@ const dashboardService = require('../services/dashboard.service');
 const purchaseOrdersService = require('../services/purchaseOrders.service');
 const productionsService = require('../services/productions.service');
 const fibreTransfersService = require('../services/fibreTransfers.service');
+const tenantService = require('../services/tenant.service');
 
 /**
  * Get comprehensive dashboard summary
@@ -78,4 +79,94 @@ async function getRecentActivities() {
       details: 'New fibre transfer requested'
     }
   ];
-} 
+}
+
+// Admin: Create Tenant
+const adminCreateTenant = async (req, res) => {
+  try {
+    const { name, status, plan, adminUser, companyDetails } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
+    if (!adminUser || !adminUser.email || !adminUser.password) {
+      return res.status(400).json({ success: false, message: 'Admin user details are required' });
+    }
+    const result = await tenantService.createTenant({ name, status, plan, adminUser, companyDetails });
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: 'Tenant and admin user created successfully',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Get Single Tenant
+const adminGetTenantById = async (req, res) => {
+  try {
+    const details = await tenantService.getTenantById(req.params.id);
+    if (!details) return res.status(404).json({ success: false, message: 'Tenant not found' });
+    res.json({
+      success: true,
+      data: details,
+      message: 'Tenant details fetched successfully',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Update Tenant
+const adminUpdateTenant = async (req, res) => {
+  try {
+    const updated = await tenantService.updateTenant(req.params.id, req.body);
+    res.json({
+      success: true,
+      data: updated,
+      message: 'Tenant updated successfully',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Get All Tenants
+const adminGetAllTenants = async (req, res) => {
+  try {
+    const {
+      search = '',
+      status = 'all',
+      plan,
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
+    const result = await tenantService.getAllTenants({ search, status, plan, page, limit, sortBy, sortOrder });
+    res.json({
+      success: true,
+      data: result,
+      message: 'Tenants fetched successfully',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Delete Tenant
+const adminDeleteTenant = async (req, res) => {
+  try {
+    await tenantService.deleteTenant(req.params.id);
+    res.json({ success: true, message: 'Tenant deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = {
+  ...require('./dashboard.controller'), // keep existing dashboard exports
+  adminCreateTenant,
+  adminGetTenantById,
+  adminUpdateTenant,
+  adminGetAllTenants,
+  adminDeleteTenant,
+}; 
