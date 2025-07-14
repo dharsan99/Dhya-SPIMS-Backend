@@ -13,8 +13,10 @@ const getTenantById = async (req, res) => {
 };
 
 const createTenant = async (req, res) => {
-  const { name, domain } = req.body;
+  const { name, domain, address, industry, phone } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
+  if (!address) return res.status(400).json({ error: 'Address is required' });
+  if (!industry) return res.status(400).json({ error: 'Industry is required' });
 
   // Create tenant
   const tenant = await prisma.tenants.create({
@@ -23,10 +25,13 @@ const createTenant = async (req, res) => {
       domain: domain || null,
       plan: 'TRIAL',
       is_active: true,
+      address,
+      industry,
+      phone: phone || null,
     }
   });
 
-  // Find the plan with name 'Starter (4-day trial)'
+  // Find the plan with name 'Starter (14-day trial)'
   const trialPlan = await prisma.plan.findFirst({ where: { name: 'Starter (14-day trial)' } });
   let subscription = null;
   if (trialPlan) {

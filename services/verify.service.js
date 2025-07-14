@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer');
 
 const prisma = new PrismaClient();
 
-async function signupUser({ name, email, password, tenant_id }) {
+async function signupUser({ name, email, password, tenant_id, isSuperadmin }) {
   const existing = await prisma.users.findUnique({ where: { email } });
   if (existing) throw new Error('User already exists');
 
@@ -105,7 +105,7 @@ async function signupUser({ name, email, password, tenant_id }) {
       },
     });
 
-    await sendVerificationEmail(email, verification_token);
+    await sendVerificationEmail(email, verification_token, isSuperadmin);
 
     return { user_id: user.id, tenant_id: tenant_id ? tenant_id : tenant.id, email, assigned_role_id: defaultRoleId };
   });
@@ -134,7 +134,7 @@ async function verifyEmailToken(token) {
   };
 }
 
-async function sendVerificationEmail(email, token) {
+async function sendVerificationEmail(email, token, isSuperadmin = false) {
   const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
@@ -143,7 +143,12 @@ async function sendVerificationEmail(email, token) {
     },
   });
 
-  const verificationUrl = `${process.env.BASE_URL}/verify-email?token=${token}`;
+  let verificationUrl;
+  if (isSuperadmin) {
+    verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/superadmin/verify-email?token=${token}`;
+  } else {
+    verificationUrl = `${process.env.BASE_URL}/verify-email?token=${token}`;
+  }
   await transporter.sendMail({
     from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
     to: email,

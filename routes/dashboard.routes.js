@@ -100,59 +100,51 @@ router.get('/admin', dashboardController.getAdminSummary);
  *       content:
  *         application/json:
  *           schema:
- *             required: [name, adminUser]
+ *             required: [name, domain, address, industry]
  *             properties:
  *               name:
  *                 type: string
  *                 example: Example Company
- *               status:
+ *               domain:
  *                 type: string
- *                 enum: [active, inactive, suspended]
- *                 example: active
- *               plan:
+ *                 example: example.com
+ *               address:
  *                 type: string
- *                 enum: [basic, premium, enterprise]
- *                 example: basic
- *               adminUser:
- *                 type: object
- *                 required: [firstName, lastName, email, password]
- *                 properties:
- *                   firstName: { type: string, example: John }
- *                   lastName: { type: string, example: Doe }
- *                   email: { type: string, example: admin@example.com }
- *                   password: { type: string, example: secret123 }
- *               companyDetails:
- *                 type: object
- *                 properties:
- *                   address: { type: string, example: 123 Main St }
- *                   phone: { type: string, example: '+1-555-1234' }
- *                   industry: { type: string, example: 'Textiles' }
+ *                 example: 123 Main St
+ *               industry:
+ *                 type: string
+ *                 example: Textiles
+ *               phone:
+ *                 type: string
+ *                 example: '+1-555-1234'
  *     responses:
  *       201:
- *         description: Tenant and admin user created
+ *         description: Tenant created
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 success: { type: boolean }
- *                 data:
+ *                 message:
+ *                   type: string
+ *                   example: successfully tenant is created!
+ *                 id:
+ *                   type: string
+ *                   example: 123e4567-e89b-12d3-a456-426614174000
+ *                 name:
+ *                   type: string
+ *                   example: Example Company
+ *                 subscription:
  *                   type: object
  *                   properties:
- *                     tenant:
- *                       type: object
- *                       properties:
- *                         id: { type: string }
- *                         name: { type: string }
- *                         plan: { type: string }
- *                         is_active: { type: boolean }
- *                     adminUser:
- *                       type: object
- *                       properties:
- *                         id: { type: string }
- *                         name: { type: string }
- *                         email: { type: string }
- *                 message: { type: string }
+ *                     id: { type: string, example: 123e4567-e89b-12d3-a456-426614174001 }
+ *                     plan: { type: string, example: Starter (14-day trial) }
+ *                     start_date: { type: string, example: 2024-06-01T00:00:00.000Z }
+ *                     is_active: { type: boolean, example: true }
+ *       400:
+ *         description: Missing or invalid fields
+ *       500:
+ *         description: Server error
  */
 router.post('/admin/createTenant', dashboardController.adminCreateTenant);
 
@@ -360,5 +352,42 @@ router.put('/admin/tenants/:id', dashboardController.adminUpdateTenant);
  *                 message: { type: string }
  */
 router.delete('/admin/tenants/:id', dashboardController.adminDeleteTenant);
+
+/**
+ * @swagger
+ * /dashboard/admin/verify-mail:
+ *   get:
+ *     summary: Verify admin email using token
+ *     tags: [Dashboard]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Token from verification email
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Email verified successfully
+ *                 role:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string, example: 123e4567-e89b-12d3-a456-426614174002 }
+ *                     tenant_id: { type: string, example: 123e4567-e89b-12d3-a456-426614174000 }
+ *                     name: { type: string, example: Admin }
+ *                     description: { type: string, example: Default admin role for new tenant }
+ *                     permissions: { type: object, example: {} }
+ *       400:
+ *         description: Invalid or missing token
+ */
+router.get('/admin/verify-mail', dashboardController.verifyMail);
 
 module.exports = router;  

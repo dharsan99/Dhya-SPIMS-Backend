@@ -55,13 +55,12 @@ router.get('/:id', getTenantById);
  *   post:
  *     summary: Create a new tenant
  *     tags: [Tenants]
-
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             required: [name, domain]
+ *             required: [name, domain, address, industry]
  *             properties:
  *               name:
  *                 type: string
@@ -69,6 +68,15 @@ router.get('/:id', getTenantById);
  *               domain:
  *                 type: string
  *                 example: nscspinning.com
+ *               address:
+ *                 type: string
+ *                 example: 123 Main St
+ *               industry:
+ *                 type: string
+ *                 example: Textiles
+ *               phone:
+ *                 type: string
+ *                 example: '+1-555-1234'
  *     responses:
  *       201:
  *         description: Tenant created

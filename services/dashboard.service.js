@@ -1,6 +1,9 @@
 const { PrismaClient, Decimal } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { v4: uuidv4 } = require('uuid');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 // Helper function to get date ranges
 const getDateRanges = () => {
@@ -587,46 +590,72 @@ const getAllHistoricalProductions = async (tenantId) => {
 async function adminCreateTenant(data) {
   const {
     name,
-    status = 'active',
-    plan = 'basic',
-    adminUser,
-    companyDetails
+    domain,
+    address,
+    industry,
+    phone
   } = data;
-  const is_active = status === 'active';
-  return await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenants.create({
-      data: {
-        name,
-        plan,
-        is_active,
-        // company_details: companyDetails ? JSON.stringify(companyDetails) : undefined, // Uncomment if you add this field
-      },
-    });
-    const admin = await tx.users.create({
+  // Validate required fields
+  if (!name) throw new Error('Name is required');
+  if (!address) throw new Error('Address is required');
+  if (!industry) throw new Error('Industry is required');
+  // Create tenant
+  const tenant = await prisma.tenants.create({
+    data: {
+      name,
+      domain: domain || null,
+      plan: 'TRIAL',
+      is_active: true,
+      address,
+      industry,
+      phone: phone || null,
+    },
+  });
+  // Find the plan with name 'Starter (14-day trial)'
+  const trialPlan = await prisma.plan.findFirst({ where: { name: 'Starter (14-day trial)' } });
+  let subscription = null;
+  if (trialPlan) {
+    subscription = await prisma.subscriptions.create({
       data: {
         tenant_id: tenant.id,
-        name: `${adminUser.firstName} ${adminUser.lastName}`.trim(),
-        email: adminUser.email,
-        password_hash: adminUser.password, // In production, hash the password!
-        role: 'admin',
+        plan_id: trialPlan.id,
+        plan_type: trialPlan.name,
+        start_date: new Date(),
         is_active: true,
-        is_verified: false,
-      },
+      }
     });
-    return {
-      tenant: {
-        id: tenant.id,
-        name: tenant.name,
-        plan: tenant.plan,
-        is_active: tenant.is_active,
-      },
-      adminUser: {
-        id: admin.id,
-        name: admin.name,
-        email: admin.email,
-      },
-    };
+  }
+  return {
+    message: 'successfully tenant is created!',
+    id: tenant.id,
+    name: tenant.name,
+    subscription: subscription ? {
+      id: subscription.id,
+      plan: trialPlan ? trialPlan.name : null,
+      start_date: subscription.start_date,
+      is_active: subscription.is_active
+    } : null
+  };
+}
+
+async function verifyAdminMail(token) {
+  const user = await prisma.users.findFirst({ where: { verification_token: token } });
+  if (!user) throw new Error('Invalid or expired token');
+  await prisma.users.update({
+    where: { id: user.id },
+    data: { is_verified: true, verification_token: null },
   });
+  // Fetch the default role for the user's tenant
+  const defaultRole = await prisma.roles.findFirst({
+    where: {
+      tenant_id: user.tenant_id,
+      name: 'Admin',
+    },
+  });
+  return {
+    message: 'Email verified successfully',
+    role: defaultRole || null
+  };
 }
 
 async function adminGetTenantById(id) {
@@ -765,6 +794,7 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
       domain: t.domain,
       plan: t.plan,
       is_active: t.is_active,
+      status: t.is_active ? 'active' : 'inactive', // <-- add this
       created_at: t.created_at,
       updated_at: t.updated_at,
       userCount,
@@ -788,16 +818,7 @@ async function adminDeleteTenant(id) {
   return prisma.tenants.delete({ where: { id } });
 }
 
-module.exports = {
-  ...module.exports,
-  adminCreateTenant,
-  adminGetTenantById,
-  adminUpdateTenant,
-  adminGetAllTenants,
-  adminDeleteTenant,
-};
-
-exports.getDashboardSummary = async (user) => {
+async function getDashboardSummary(user) {
   // Initialize with default structure
   const summary = getDefaultDashboardSummary();
   
@@ -902,7 +923,7 @@ exports.getDashboardSummary = async (user) => {
  * Get admin dashboard summary with system-wide statistics
  * @returns {Object} Admin dashboard summary
  */
-exports.getAdminDashboardSummary = async () => {
+async function getAdminDashboardSummary() {
   try {
     // Helper to get month range
     function getMonthRange(date) {
@@ -1016,4 +1037,15 @@ exports.getAdminDashboardSummary = async () => {
       ]
     };
   }
+}; 
+
+module.exports = {
+  getDashboardSummary,
+  getAdminDashboardSummary,
+  adminCreateTenant,
+  adminGetTenantById,
+  adminUpdateTenant,
+  adminGetAllTenants,
+  adminDeleteTenant,
+  verifyAdminMail,
 }; 

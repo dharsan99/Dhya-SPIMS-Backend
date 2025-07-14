@@ -84,26 +84,33 @@ async function getRecentActivities() {
 // Admin: Create Tenant
 const adminCreateTenant = async (req, res) => {
   try {
-    const { name, status, plan, adminUser, companyDetails } = req.body;
-    if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
-    if (!adminUser || !adminUser.email || !adminUser.password) {
-      return res.status(400).json({ success: false, message: 'Admin user details are required' });
+    const { name, domain, address, industry, phone } = req.body;
+    if (!name || !address || !industry) {
+      return res.status(400).json({ error: 'Missing fields' });
     }
-    const result = await tenantService.createTenant({ name, status, plan, adminUser, companyDetails });
-    res.status(201).json({
-      success: true,
-      data: result,
-      message: 'Tenant and admin user created successfully',
-    });
+    const result = await dashboardService.adminCreateTenant({ name, domain, address, industry, phone });
+    res.status(201).json(result);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// New: verifyMail
+const verifyMail = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ success: false, message: 'Missing token' });
+    const result = await dashboardService.verifyAdminMail(token);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
   }
 };
 
 // Admin: Get Single Tenant
 const adminGetTenantById = async (req, res) => {
   try {
-    const details = await tenantService.getTenantById(req.params.id);
+    const details = await dashboardService.adminGetTenantById(req.params.id);
     if (!details) return res.status(404).json({ success: false, message: 'Tenant not found' });
     res.json({
       success: true,
@@ -118,7 +125,7 @@ const adminGetTenantById = async (req, res) => {
 // Admin: Update Tenant
 const adminUpdateTenant = async (req, res) => {
   try {
-    const updated = await tenantService.updateTenant(req.params.id, req.body);
+    const updated = await dashboardService.adminUpdateTenant(req.params.id, req.body);
     res.json({
       success: true,
       data: updated,
@@ -141,7 +148,7 @@ const adminGetAllTenants = async (req, res) => {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = req.query;
-    const result = await tenantService.getAllTenants({ search, status, plan, page, limit, sortBy, sortOrder });
+    const result = await dashboardService.adminGetAllTenants({ search, status, plan, page, limit, sortBy, sortOrder });
     res.json({
       success: true,
       data: result,
@@ -155,7 +162,7 @@ const adminGetAllTenants = async (req, res) => {
 // Admin: Delete Tenant
 const adminDeleteTenant = async (req, res) => {
   try {
-    await tenantService.deleteTenant(req.params.id);
+    await dashboardService.adminDeleteTenant(req.params.id);
     res.json({ success: true, message: 'Tenant deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -163,10 +170,13 @@ const adminDeleteTenant = async (req, res) => {
 };
 
 module.exports = {
-  ...require('./dashboard.controller'), // keep existing dashboard exports
+  getDashboardSummary: exports.getDashboardSummary,
+  getAdminSummary: exports.getAdminSummary,
+  getSummary: exports.getSummary,
   adminCreateTenant,
   adminGetTenantById,
   adminUpdateTenant,
   adminGetAllTenants,
   adminDeleteTenant,
+  verifyMail,
 }; 

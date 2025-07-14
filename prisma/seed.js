@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 // Remove plan_code and use plan.name as the unique key
 const planSeedData = [
   {
-    name: 'Starter (4-day trial)',
+    name: 'Starter (14-day trial)',
     price: 0,
     billingCycle: 'trial',
     description: 'Perfect for trying out core features of SPIMS for small mills',
@@ -76,13 +76,36 @@ const planSeedData = [
 // Will hold { planName: uuid }
 const planNameToId = {};
 
+// Utility to calculate expiry and renewal dates
+function getPlanDates(billingCycle, createdAt = new Date()) {
+  let expiry_date, renewal_date;
+  if (billingCycle === 'trial') {
+    expiry_date = new Date(createdAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+  } else if (billingCycle === 'month') {
+    expiry_date = new Date(createdAt);
+    expiry_date.setMonth(expiry_date.getMonth() + 1);
+  } else if (billingCycle === 'year') {
+    expiry_date = new Date(createdAt);
+    expiry_date.setFullYear(expiry_date.getFullYear() + 1);
+  }
+  if (expiry_date) {
+    renewal_date = new Date(expiry_date);
+    renewal_date.setDate(renewal_date.getDate() + 1);
+  } else {
+    renewal_date = createdAt;
+  }
+  return { expiry_date, renewal_date };
+}
+
 async function seedPlans() {
   console.log('🌱 Seeding Plans...');
   for (const plan of planSeedData) {
     let existing = await prisma.plan.findFirst({ where: { name: plan.name } });
     if (!existing) {
       const id = uuidv4();
-      const created = await prisma.plan.create({ data: { ...plan, id } });
+      const createdAt = new Date();
+      const { expiry_date, renewal_date } = getPlanDates(plan.billingCycle, createdAt);
+      const created = await prisma.plan.create({ data: { ...plan, id, expiry_date, renewal_date } });
       planNameToId[plan.name] = created.id;
       console.log(`✅ Created plan: ${plan.name}`);
     } else {
@@ -407,7 +430,7 @@ async function seedFibres() {
     console.log('🌟 Fibre Seeding Complete!\n');
 
   } catch (error) {
-    console.error('❌ Critical error in seedFibres:', error.message);
+    console.error('❌ Error seeding Fibres:', error.message);
     throw error;
   }
 }
@@ -660,19 +683,9 @@ module.exports = {
   seedEmployeesAndAttendance,
 };
 
-// Execute enhanced seeding
 if (require.main === module) {
-  enhancedMain()
-    .catch((e) => {
-      console.error('❌ Critical Error:', e.message);
-      process.exit(1);
-    })
-    .finally(async () => {
-      try {
-        await prisma.$disconnect();
-        console.log('📤 Database connection closed');
-      } catch (disconnectError) {
-        console.error('⚠️ Error disconnecting:', disconnectError.message);
-      }
-    });
+  enhancedMain().catch((err) => {
+    console.error('❌ Seeding failed:', err);
+    process.exit(1);
+  });
 }
