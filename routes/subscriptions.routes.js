@@ -44,10 +44,13 @@ const subscriptionsController = require('../controllers/subscriptions.controller
  *                     type: number
  *                   billingCycle:
  *                     type: string
+ *                   is_active:
+ *                     type: boolean
  *                   created_at:
  *                     type: string
  *                   updated_at:
  *                     type: string
+
  */
 router.get('/', subscriptionsController.getSubscriptions);
 

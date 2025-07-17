@@ -101,6 +101,7 @@ model tenants {
   settings      settings?
   subscriptions subscriptions[]
   users         users[]
+  billing       billing[]
 }
 
 model subscriptions {
@@ -555,4 +556,17 @@ model user_verification_tokens {
   user       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
+}
+
+model billing {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenant_id      String?  @db.Uuid
+  invoice_number String   @unique
+  amount         Float
+  due_date       DateTime
+  paid_date      DateTime?
+  status         String   // e.g., 'PAID', 'PENDING', 'OVERDUE'
+  created_at     DateTime @default(now())
+  updated_at     DateTime @default(now())
+  tenants        tenants? @relation(fields: [tenant_id], references: [id])
 }

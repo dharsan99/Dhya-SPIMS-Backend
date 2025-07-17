@@ -239,29 +239,6 @@ async function seedAdminRoleAndUser(superTenantId, permissions) {
   return { adminRoleId, adminUserId };
 }
 
-async function seedPlanSubscriptionsForTenant(tenantId) {
-  for (const plan of planSeedData) {
-    const planId = planNameToId[plan.name];
-    if (!planId) continue;
-    const existing = await prisma.subscriptions.findFirst({ where: { tenant_id: tenantId, plan_id: planId } });
-    if (!existing) {
-      await prisma.subscriptions.create({
-        data: {
-          tenant_id: tenantId,
-          plan_id: planId,
-          plan_type: plan.name,
-          start_date: new Date(),
-          end_date: null,
-          is_active: true
-        }
-      });
-      console.log(`✅ Created subscription for tenant ${tenantId} to plan ${plan.name}`);
-    } else {
-      console.log(`⚡ Subscription already exists for tenant ${tenantId} to plan ${plan.name}`);
-    }
-  }
-}
-
 async function seedFibres() {
   console.log('🌱 Starting fibre seeding...');
   
@@ -662,9 +639,6 @@ async function enhancedMain() {
     const superRole = await prisma.roles.findUnique({ where: { id: roleId } });
     const permissions = superRole ? superRole.permissions : {};
     await seedAdminRoleAndUser(tenantId, permissions);
-    await seedPlanSubscriptionsForTenant(tenantId);
-    // If you want to create another tenant and map plans, repeat here
-    // await seedPlanSubscriptionsForTenant(otherTenantId);
     await seedFibres();
     await seedEmployeesAndAttendance();
     console.log('\n🌟 Enhanced Seeding Complete! ✨');

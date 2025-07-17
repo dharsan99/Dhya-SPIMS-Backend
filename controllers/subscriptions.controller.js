@@ -13,8 +13,10 @@ exports.getSubscriptions = async (req, res) => {
       renewalDate: sub.plan?.renewal_date?.toISOString().split('T')[0],
       amount: sub.plan?.price || 0,
       billingCycle: sub.plan?.billingCycle || 'unknown',
+      is_active: sub.is_active === undefined ? null : sub.is_active,
       created_at: sub.created_at ? sub.created_at.toISOString() : null,
       updated_at: sub.updated_at ? sub.updated_at.toISOString() : null
+      
     }));
 
     res.status(200).json(result);

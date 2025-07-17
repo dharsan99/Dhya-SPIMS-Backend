@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const dashboardController = require('../controllers/dashboard.controller');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 
 /**
  * @swagger
@@ -222,6 +224,139 @@ router.get('/admin/tenants', dashboardController.adminGetAllTenants);
 
 /**
  * @swagger
+ * /dashboard/admin/tenants/subscriptions:
+ *   get:
+ *     summary: Admin - Get all tenant subscriptions (with search, filter, pagination, sorting)
+ *     tags: [Dashboard]
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *         description: Search in tenant name
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [active, inactive, all] }
+ *         description: Filter by subscription status
+ *       - in: query
+ *         name: plan
+ *         schema: { type: string }
+ *         description: Filter by plan name
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer }
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer }
+ *         description: Items per page
+ *       - in: query
+ *         name: sortBy
+ *         schema: { type: string, enum: [planName, createdAt, updatedAt] }
+ *         description: Sort by field
+ *       - in: query
+ *         name: sortOrder
+ *         schema: { type: string, enum: [asc, desc] }
+ *         description: Sort order
+ *     responses:
+ *       200:
+ *         description: List of tenant subscriptions with pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     subscriptions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id: { type: string }
+ *                           tenantName: { type: string }
+ *                           planName: { type: string }
+ *                           description: { type: string }
+ *                           price: { type: number }
+ *                           billingCycle: { type: string }
+ *                           maxUsers: { type: integer }
+ *                           maxOrders: { type: integer }
+ *                           maxStorage: { type: string }
+ *                           status: { type: string, enum: [active, inactive] }
+ *                           createdAt: { type: string, format: date-time }
+ *                           updatedAt: { type: string, format: date-time }
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage: { type: integer }
+ *                         totalPages: { type: integer }
+ *                         totalItems: { type: integer }
+ *                         itemsPerPage: { type: integer }
+ */
+router.get('/admin/tenants/subscriptions', dashboardController.adminGetAllSubscriptions);
+
+/**
+ * @swagger
+ * /dashboard/admin/tenants/subscriptions:
+ *   post:
+ *     summary: Admin - Create a new subscription for a tenant and plan
+ *     tags: [Dashboard]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [tenantId, planId]
+ *             properties:
+ *               tenantId:
+ *                 type: string
+ *                 description: The tenant ID (UUID)
+ *               planId:
+ *                 type: string
+ *                 description: The plan ID (UUID)
+ *     responses:
+ *       200:
+ *         description: Subscription created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     subscriptions:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id: { type: string }
+ *                           tenantName: { type: string }
+ *                           planName: { type: string }
+ *                           description: { type: string }
+ *                           price: { type: number }
+ *                           billingCycle: { type: string }
+ *                           maxUsers: { type: integer }
+ *                           maxOrders: { type: integer }
+ *                           maxStorage: { type: string }
+ *                           status: { type: string, enum: [active, inactive] }
+ *                           createdAt: { type: string, format: date-time }
+ *                           updatedAt: { type: string, format: date-time }
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         currentPage: { type: integer }
+ *                         totalPages: { type: integer }
+ *                         totalItems: { type: integer }
+ *                         itemsPerPage: { type: integer }
+ */
+router.post('/admin/tenants/subscriptions', dashboardController.adminCreateSubscription);
+
+/**
+ * @swagger
  * /dashboard/admin/tenants/{id}:
  *   get:
  *     summary: Admin - Get tenant by ID (detailed)
@@ -305,15 +440,14 @@ router.get('/admin/tenants/:id', dashboardController.adminGetTenantById);
  *           schema:
  *             properties:
  *               name: { type: string }
- *               status: { type: string, enum: [active, inactive, suspended] }
- *               plan: { type: string, enum: [basic, premium, enterprise] }
+ *               status: { type: string, enum: [active, inactive, suspended], description: 'Set to inactive or suspended to deactivate tenant and all users' }
  *               companyDetails:
  *                 type: object
  *                 properties:
  *                   address: { type: string }
  *                   phone: { type: string }
  *                   industry: { type: string }
- *                   website: { type: string }
+ *                   domain: { type: string }
  *     responses:
  *       200:
  *         description: Tenant updated
@@ -324,8 +458,11 @@ router.get('/admin/tenants/:id', dashboardController.adminGetTenantById);
  *               properties:
  *                 success: { type: boolean }
  *                 data:
- *                   $ref: '#/components/schemas/Tenant'
- *                 message: { type: string }
+ *                   type: object
+ *                   properties:
+ *                     is_active: { type: boolean, description: 'Current active status of the tenant' }
+ *                     #/components/schemas/Tenant
+ *                 message: { type: string, example: 'Tenant updated successfully. All users for this tenant have been deactivated and cannot login.' }
  */
 router.put('/admin/tenants/:id', dashboardController.adminUpdateTenant);
 
@@ -389,5 +526,278 @@ router.delete('/admin/tenants/:id', dashboardController.adminDeleteTenant);
  *         description: Invalid or missing token
  */
 router.get('/admin/verify-mail', dashboardController.verifyMail);
+
+/**
+ * @swagger
+ * /dashboard/admin/tenants/subscriptions/{id}:
+ *   put:
+ *     summary: Admin - Update a subscription status (active/inactive)
+ *     tags: [Dashboard]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Subscription ID (UUID)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *                 description: Set to 'active' or 'inactive'
+ *     responses:
+ *       200:
+ *         description: Subscription updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
+ *                     tenantName: { type: string }
+ *                     planName: { type: string }
+ *                     description: { type: string }
+ *                     price: { type: number }
+ *                     billingCycle: { type: string }
+ *                     maxUsers: { type: integer }
+ *                     maxOrders: { type: integer }
+ *                     maxStorage: { type: string }
+ *                     status: { type: string, enum: [active, inactive] }
+ *                     createdAt: { type: string, format: date-time }
+ *                     updatedAt: { type: string, format: date-time }
+ *                 message: { type: string }
+ *       400:
+ *         description: Invalid request or business rule violation
+ *       404:
+ *         description: Subscription not found
+ */
+router.put('/admin/tenants/subscriptions/:id', dashboardController.adminUpdateSubscription);
+
+/**
+ * @swagger
+ * /dashboard/admin/users:
+ *   get:
+ *     summary: Admin - Get all users (with search, filter, pagination)
+ *     tags: [Dashboard]
+ *     parameters:
+ *       - in: query
+ *         name: tenant_id
+ *         schema:
+ *           type: string
+ *         description: Filter by tenant ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name or email
+ *     responses:
+ *       200:
+ *         description: List of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           id: { type: string }
+ *                           tenant_id: { type: string }
+ *                           name: { type: string }
+ *                           email: { type: string }
+ *                           is_active: { type: boolean }
+ *                           is_verified: { type: boolean }
+ *                           role:
+ *                             type: object
+ *                             properties:
+ *                               id: { type: string }
+ *                               name: { type: string }
+ *                               permissions: { type: object }
+ *                               tenant_id: { type: string }
+ *                     meta:
+ *                       type: object
+ *                       properties:
+ *                         total: { type: integer }
+ *                         page: { type: integer }
+ *                         limit: { type: integer }
+ *                         totalPages: { type: integer }
+ */
+router.get('/admin/users', dashboardController.adminGetAllUsers);
+
+/**
+ * @swagger
+ * /dashboard/admin/users/{id}:
+ *   put:
+ *     summary: Admin - Update a user
+ *     tags: [Dashboard]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               email: { type: string }
+ *               role_id: { type: string, description: 'Role UUID to assign to the user' }
+ *               is_active: { type: boolean, description: 'Set to true or false to activate/deactivate user (optional)' }
+ *               
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string }
+ *                     tenant_id: { type: string }
+ *                     name: { type: string }
+ *                     email: { type: string }
+ *                     is_active: { type: boolean }
+ *                     is_verified: { type: boolean }
+ *                     role:
+ *                       type: object
+ *                       properties:
+ *                         id: { type: string }
+ *                         name: { type: string }
+ *                         permissions: { type: object }
+ *                         tenant_id: { type: string }
+ *                 message: { type: string }
+ *       404:
+ *         description: User not found
+ */
+router.put('/admin/users/:id', dashboardController.adminUpdateUser);
+
+/**
+ * @swagger
+ * /dashboard/admin/invite-user:
+ *   post:
+ *     summary: Admin invites teammate via email
+ *     tags: [Dashboard]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - tenant_id
+ *               - role_id
+ *             properties:
+ *               email:
+ *                 type: string
+ *               tenant_id:
+ *                 type: string
+ *               role_id:
+ *                 type: string
+ *               isSuperadmin:
+ *                 type: boolean
+ *                 description: Set true to send a Superadmin invite link
+ *     responses:
+ *       200:
+ *         description: Invite sent
+ *       400:
+ *         description: Missing or invalid data
+ */
+router.post('/admin/invite-user', dashboardController.adminInviteUser);
+
+/**
+ * @swagger
+ * /dashboard/admin/accept-invite:
+ *   post:
+ *     summary: Accept an invite and set password (admin)
+ *     tags: [Dashboard]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - password
+ *               - token
+ *             properties:
+ *               name:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               token:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: User registered successfully from invite
+ *       400:
+ *         description: Invalid or expired token
+ */
+router.post('/admin/accept-invite', dashboardController.adminAcceptInvite);
+
+/**
+ * @swagger
+ * /dashboard/admin/users/{id}:
+ *   delete:
+ *     summary: Admin - Deactivate (soft delete) a user
+ *     tags: [Dashboard]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: User successfully deactivated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 is_active: { type: boolean, example: false }
+ *                 message: { type: string, example: 'This user successfully deactivated' }
+ *       404:
+ *         description: User not found
+ */
+router.delete('/admin/users/:id', dashboardController.adminDeleteUser);
 
 module.exports = router;  

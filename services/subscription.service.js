@@ -27,6 +27,7 @@ const subscriptionService = {
 
 
   async getAll(tenantId) {
+    // is_active is already included by default in the Prisma result
     return await prisma.subscriptions.findMany({
       where: tenantId ? { tenant_id: tenantId } : {},
       include: {

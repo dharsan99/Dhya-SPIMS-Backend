@@ -4,6 +4,8 @@ const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Helper function to get date ranges
 const getDateRanges = () => {
@@ -588,13 +590,13 @@ const getAllHistoricalProductions = async (tenantId) => {
 
 // Admin Tenant Management
 async function adminCreateTenant(data) {
-  const {
-    name,
-    domain,
-    address,
-    industry,
-    phone
-  } = data;
+  // Accept companyDetails object or flat fields
+  const companyDetails = data.companyDetails || {};
+  const name = data.name;
+  const domain = data.domain || companyDetails.domain || null;
+  const address = companyDetails.address || data.address || null;
+  const industry = companyDetails.industry || data.industry || null;
+  const phone = companyDetails.phone || data.phone || null;
   // Validate required fields
   if (!name) throw new Error('Name is required');
   if (!address) throw new Error('Address is required');
@@ -603,12 +605,12 @@ async function adminCreateTenant(data) {
   const tenant = await prisma.tenants.create({
     data: {
       name,
-      domain: domain || null,
+      domain,
       plan: 'TRIAL',
       is_active: true,
       address,
       industry,
-      phone: phone || null,
+      phone,
     },
   });
   // Find the plan with name 'Starter (14-day trial)'
@@ -629,6 +631,13 @@ async function adminCreateTenant(data) {
     message: 'successfully tenant is created!',
     id: tenant.id,
     name: tenant.name,
+    domain: tenant.domain,
+    companyDetails: {
+      address: tenant.address || '',
+      phone: tenant.phone || '',
+      industry: tenant.industry || '',
+      domain: tenant.domain || '',
+    },
     subscription: subscription ? {
       id: subscription.id,
       plan: trialPlan ? trialPlan.name : null,
@@ -666,22 +675,19 @@ async function adminGetTenantById(id) {
       subscriptions: {
         orderBy: { start_date: 'desc' },
         take: 1,
+        include: { plan: true },
       },
     },
   });
   if (!tenant) return null;
-  const companyDetails = {
-    address: '',
-    phone: '',
-    industry: '',
-    website: '',
-  };
   const sub = tenant.subscriptions[0];
   const subscription = sub
     ? {
         plan: sub.plan_type || tenant.plan,
         startDate: sub.start_date ? sub.start_date.toISOString() : null,
-        endDate: sub.end_date ? sub.end_date.toISOString() : null,
+        endDate: (sub.plan && sub.plan.expiry_date)
+          ? sub.plan.expiry_date.toISOString()
+          : (sub.end_date ? sub.end_date.toISOString() : null),
         status: sub.is_active ? 'active' : 'inactive',
       }
     : null;
@@ -703,8 +709,21 @@ async function adminGetTenantById(id) {
     storageUsed: 0,
     storageLimit: 0,
   };
+  // Group company details
+  const companyDetails = {
+    address: tenant.address || '',
+    phone: tenant.phone || '',
+    industry: tenant.industry || '',
+    domain: tenant.domain || '',
+  };
   return {
-    ...tenant,
+    id: tenant.id,
+    name: tenant.name,
+    domain: tenant.domain || '',
+    plan: tenant.plan,
+    is_active: tenant.is_active,
+    created_at: tenant.created_at,
+    updated_at: tenant.updated_at,
     companyDetails,
     subscription,
     users,
@@ -713,33 +732,49 @@ async function adminGetTenantById(id) {
 }
 
 async function adminUpdateTenant(id, data) {
-  const {
-    name,
-    status,
-    plan,
-    companyDetails
-  } = data;
+  // Accept companyDetails object or flat fields
+  const companyDetails = data.companyDetails || {};
+  const name = data.name;
+  const status = data.status;
+  // Determine is_active from status only
   let is_active;
   if (status === 'active') is_active = true;
   else if (status === 'inactive' || status === 'suspended') is_active = false;
+  // Allow updating address, phone, industry, domain via companyDetails or flat fields
+  const address = companyDetails.address || data.address;
+  const phone = companyDetails.phone || data.phone;
+  const industry = companyDetails.industry || data.industry;
+  const domain = companyDetails.domain || data.domain;
   const updateData = {
     ...(name && { name }),
-    ...(plan && { plan }),
     ...(is_active !== undefined && { is_active }),
-    // company_details: companyDetails ? JSON.stringify(companyDetails) : undefined, // Uncomment if you add this field
+    ...(address !== undefined && { address }),
+    ...(phone !== undefined && { phone }),
+    ...(industry !== undefined && { industry }),
+    ...(domain !== undefined && { domain }),
   };
   const updated = await prisma.tenants.update({
     where: { id },
     data: updateData,
   });
-  const companyDetailsResp = companyDetails || {
-    address: '',
-    phone: '',
-    industry: '',
-    website: '',
+  // If status is inactive or suspended, deactivate all users for this tenant
+  if (status === 'inactive' || status === 'suspended' || is_active === false) {
+    await prisma.users.updateMany({
+      where: { tenant_id: id },
+      data: { is_active: false },
+    });
+  }
+  // Return grouped companyDetails and domain at top level
+  const companyDetailsResp = {
+    address: updated.address || '',
+    phone: updated.phone || '',
+    industry: updated.industry || '',
+    domain: updated.domain || '',
   };
   return {
     ...updated,
+    is_active: updated.is_active,
+    domain: updated.domain || '',
     companyDetails: companyDetailsResp,
   };
 }
@@ -816,6 +851,378 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
 
 async function adminDeleteTenant(id) {
   return prisma.tenants.delete({ where: { id } });
+}
+
+async function adminGetAllSubscriptions({ search = '', status = 'all', plan, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }) {
+  // Build where clause for filtering
+  const where = {
+    ...(plan && { plan_type: { equals: plan, mode: 'insensitive' } }),
+    ...(status !== 'all' && {
+      is_active: status === 'active' ? true : status === 'inactive' ? false : undefined,
+    }),
+    // We'll filter by tenant name in-memory after join
+  };
+  // Sorting
+  let orderBy = {};
+  if (sortBy === 'planName') orderBy = { plan_type: sortOrder };
+  else if (sortBy === 'createdAt') orderBy = { start_date: sortOrder };
+  else if (sortBy === 'updatedAt') orderBy = { end_date: sortOrder };
+  else orderBy = { start_date: sortOrder };
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const take = parseInt(limit);
+  // Query subscriptions with plan and tenant
+  const [subscriptions, totalItems] = await Promise.all([
+    prisma.subscriptions.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+      include: {
+        plan: true,
+        tenants: true,
+      },
+    }),
+    prisma.subscriptions.count({ where }),
+  ]);
+  // Filter by tenant name if search is provided
+  let filtered = subscriptions;
+  if (search) {
+    filtered = subscriptions.filter(sub =>
+      sub.tenants && sub.tenants.name && sub.tenants.name.toLowerCase().includes(search.toLowerCase())
+    );
+  }
+  // Pagination after filtering
+  const paged = filtered.slice(0, take);
+  // Map to output format
+  const mapped = paged.map(sub => ({
+    id: sub.id,
+    tenantName: sub.tenants ? sub.tenants.name : '',
+    planName: sub.plan ? sub.plan.name : sub.plan_type,
+    description: sub.plan ? sub.plan.description : '',
+    price: sub.plan ? sub.plan.price : null,
+    billingCycle: sub.plan ? sub.plan.billingCycle : '',
+    maxUsers: sub.plan ? sub.plan.maxUsers : null,
+    maxOrders: sub.plan ? sub.plan.maxOrders : null,
+    maxStorage: sub.plan ? sub.plan.maxStorage : '',
+    status: sub.is_active ? 'active' : 'inactive',
+    createdAt: sub.start_date,
+    updatedAt: sub.end_date,
+  }));
+  const totalPages = Math.ceil(totalItems / take);
+  return {
+    subscriptions: mapped,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems,
+      itemsPerPage: take,
+    },
+  };
+}
+
+async function adminCreateSubscription({ tenantId, planId }) {
+  // Validate input
+  if (!tenantId || !planId) throw new Error('tenantId and planId are required');
+  // Fetch tenant and plan
+  const tenant = await prisma.tenants.findUnique({ where: { id: tenantId } });
+  if (!tenant) throw new Error('Tenant not found');
+  const plan = await prisma.plan.findUnique({ where: { id: planId } });
+  if (!plan) throw new Error('Plan not found');
+  // Deactivate all previous subscriptions for this tenant (regardless of is_active)
+  await prisma.subscriptions.updateMany({
+    where: { tenant_id: tenantId },
+    data: { is_active: false },
+  });
+  // Create new subscription
+  const now = new Date();
+  // Calculate end_date using plan billingCycle
+  let end_date = null;
+  if (plan.billingCycle === 'trial') {
+    end_date = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  } else if (plan.billingCycle === 'month') {
+    end_date = new Date(now);
+    end_date.setMonth(end_date.getMonth() + 1);
+  } else if (plan.billingCycle === 'year') {
+    end_date = new Date(now);
+    end_date.setFullYear(end_date.getFullYear() + 1);
+  }
+  const newSubscription = await prisma.subscriptions.create({
+    data: {
+      tenant_id: tenantId,
+      plan_id: planId,
+      plan_type: plan.name,
+      start_date: now,
+      end_date,
+      is_active: true,
+    },
+    include: {
+      plan: true,
+      tenants: true,
+    },
+  });
+  // Fetch all subscriptions for this tenant (most recent first)
+  const allSubscriptions = await prisma.subscriptions.findMany({
+    where: { tenant_id: tenantId },
+    orderBy: { start_date: 'desc' },
+    include: { plan: true, tenants: true },
+  });
+  // Format response as in adminGetAllSubscriptions
+  const mapped = allSubscriptions.map(sub => ({
+    id: sub.id,
+    tenantName: sub.tenants ? sub.tenants.name : '',
+    planName: sub.plan ? sub.plan.name : sub.plan_type,
+    description: sub.plan ? sub.plan.description : '',
+    price: sub.plan ? sub.plan.price : null,
+    billingCycle: sub.plan ? sub.plan.billingCycle : '',
+    maxUsers: sub.plan ? sub.plan.maxUsers : null,
+    maxOrders: sub.plan ? sub.plan.maxOrders : null,
+    maxStorage: sub.plan ? sub.plan.maxStorage : '',
+    status: sub.is_active ? 'active' : 'inactive',
+    createdAt: sub.start_date,
+    updatedAt: sub.end_date,
+  }));
+  return {
+    subscriptions: mapped,
+    pagination: {
+      currentPage: 1,
+      totalPages: 1,
+      totalItems: mapped.length,
+      itemsPerPage: mapped.length,
+    },
+  };
+}
+
+async function adminUpdateSubscription(id, { status }) {
+  if (!id || !status) throw new Error('subscription id and status are required');
+  const sub = await prisma.subscriptions.findUnique({
+    where: { id },
+    include: { tenants: true, plan: true },
+  });
+  if (!sub) throw new Error('Subscription not found');
+  if (status === 'inactive') {
+    const updated = await prisma.subscriptions.update({
+      where: { id },
+      data: { is_active: false },
+      include: { tenants: true, plan: true },
+    });
+    return {
+      id: updated.id,
+      tenantName: updated.tenants ? updated.tenants.name : '',
+      planName: updated.plan ? updated.plan.name : updated.plan_type,
+      description: updated.plan ? updated.plan.description : '',
+      price: updated.plan ? updated.plan.price : null,
+      billingCycle: updated.plan ? updated.plan.billingCycle : '',
+      maxUsers: updated.plan ? updated.plan.maxUsers : null,
+      maxOrders: updated.plan ? updated.plan.maxOrders : null,
+      maxStorage: updated.plan ? updated.plan.maxStorage : '',
+      status: updated.is_active ? 'active' : 'inactive',
+      createdAt: updated.start_date,
+      updatedAt: updated.end_date,
+    };
+  } else if (status === 'active') {
+    // Check if another active subscription exists for this tenant
+    const activeCount = await prisma.subscriptions.count({
+      where: {
+        tenant_id: sub.tenant_id,
+        is_active: true,
+        NOT: { id },
+      },
+    });
+    if (activeCount > 0) {
+      throw new Error('Another active subscription already exists for this tenant.');
+    }
+    const updated = await prisma.subscriptions.update({
+      where: { id },
+      data: { is_active: true },
+      include: { tenants: true, plan: true },
+    });
+    return {
+      id: updated.id,
+      tenantName: updated.tenants ? updated.tenants.name : '',
+      planName: updated.plan ? updated.plan.name : updated.plan_type,
+      description: updated.plan ? updated.plan.description : '',
+      price: updated.plan ? updated.plan.price : null,
+      billingCycle: updated.plan ? updated.plan.billingCycle : '',
+      maxUsers: updated.plan ? updated.plan.maxUsers : null,
+      maxOrders: updated.plan ? updated.plan.maxOrders : null,
+      maxStorage: updated.plan ? updated.plan.maxStorage : '',
+      status: updated.is_active ? 'active' : 'inactive',
+      createdAt: updated.start_date,
+      updatedAt: updated.end_date,
+    };
+  } else {
+    throw new Error('Invalid status value. Must be "active" or "inactive".');
+  }
+}
+
+async function adminGetAllUsers(query) {
+  const { tenant_id, page = 1, limit = 10, search = '' } = query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const where = {
+    ...(tenant_id && { tenant_id }),
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ],
+    }),
+  };
+  const [users, count] = await prisma.$transaction([
+    prisma.users.findMany({
+      where,
+      skip,
+      take: parseInt(limit),
+      include: {
+        tenants: true,
+        user_roles: { include: { role: true } },
+      },
+    }),
+    prisma.users.count({ where }),
+  ]);
+  const transformedUsers = users.map(user => {
+    const roleObj = user.user_roles && user.user_roles.length > 0
+      ? user.user_roles[0].role
+      : null;
+    const { user_roles, ...rest } = user;
+    return {
+      ...rest,
+      role: roleObj,
+      is_verified: user.is_verified,
+    };
+  });
+  const totalPages = Math.ceil(count / parseInt(limit));
+  return {
+    users: transformedUsers,
+    pagination: {
+      currentPage: parseInt(page),
+      totalPages,
+      totalItems: count,
+      itemsPerPage: parseInt(limit),
+    },
+  };
+}
+
+async function adminUpdateUser(userId, updateData) {
+  if (updateData.role_id) {
+    await prisma.user_roles.deleteMany({ where: { user_id: userId } });
+    await prisma.user_roles.create({
+      data: {
+        user_id: userId,
+        role_id: updateData.role_id,
+      },
+    });
+    const role = await prisma.roles.findUnique({
+      where: { id: updateData.role_id },
+      select: { id: true, name: true, permissions: true, tenant_id: true },
+    });
+    await prisma.users.update({
+      where: { id: userId },
+      data: { role: role.name },
+    });
+  }
+  // Remove email and is_verified if present
+  const { role_id, email, is_verified, ...otherFields } = updateData;
+  // Only include is_active if present in updateData
+  const updateObj = { ...otherFields };
+  if (updateData.hasOwnProperty('is_active')) {
+    updateObj.is_active = updateData.is_active;
+  }
+  await prisma.users.update({
+    where: { id: userId },
+    data: updateObj,
+  });
+  const user = await prisma.users.findUnique({ where: { id: userId } });
+  const userRole = await prisma.user_roles.findFirst({
+    where: { user_id: userId },
+    include: { role: true },
+  });
+  return {
+    ...user,
+    role: userRole ? {
+      id: userRole.role.id,
+      name: userRole.role.name,
+      permissions: userRole.role.permissions,
+      tenant_id: userRole.role.tenant_id,
+    } : null,
+    is_verified: user.is_verified,
+  };
+}
+
+async function adminInviteUser({ email, tenant_id, role_id }) {
+  if (!email || !tenant_id || !role_id) {
+    throw new Error('Missing required fields');
+  }
+  // Generate invite token
+  const token = jwt.sign({ email, tenant_id, role_id }, JWT_SECRET, { expiresIn: '72h' });
+  const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/superadmin/accept-invite?token=${token}`;
+  // Send email
+  const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+      user: process.env.EMAIL_FROM,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+  await transporter.sendMail({
+    from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
+    to: email,
+    subject: 'You are invited to join TexIntelli',
+    html: `
+      <p>Hello,</p>
+      <p>You have been invited to join TexIntelli. Click below to accept the invitation:</p>
+      <a href="${inviteLink}">${inviteLink}</a>
+      <p>This link will expire in 72 hours.</p>
+    `
+  });
+  return { message: 'Invitation sent, check your email' };
+}
+
+async function adminAcceptInvite({ token, name, password }) {
+  if (!token || !name || !password) {
+    throw new Error('Missing fields: token, name, password');
+  }
+  // Verify token
+  let payload;
+  try {
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch {
+    throw new Error('Invalid or expired token');
+  }
+  const { email, tenant_id, role_id } = payload;
+  // Check if user exists
+  const existing = await prisma.users.findUnique({ where: { email } });
+  if (existing) throw new Error('User already exists');
+  // Hash password
+  const bcrypt = require('bcrypt');
+  const password_hash = await bcrypt.hash(password, 10);
+  // Create user
+  const user = await prisma.users.create({
+    data: {
+      name,
+      email,
+      tenant_id,
+      password_hash,
+      is_verified: true
+    }
+  });
+  // Assign role
+  await prisma.user_roles.create({
+    data: {
+      user_id: user.id,
+      role_id
+    }
+  });
+  return user;
+}
+
+async function adminDeleteUser(userId) {
+  const user = await prisma.users.findUnique({ where: { id: userId } });
+  if (!user) throw new Error('User not found');
+  await prisma.users.update({
+    where: { id: userId },
+    data: { is_active: false },
+  });
+  return { is_active: false, message: 'This user successfully deactivated' };
 }
 
 async function getDashboardSummary(user) {
@@ -1048,4 +1455,12 @@ module.exports = {
   adminGetAllTenants,
   adminDeleteTenant,
   verifyAdminMail,
+  adminGetAllSubscriptions,
+  adminCreateSubscription,
+  adminUpdateSubscription,
+  adminGetAllUsers,
+  adminUpdateUser,
+  adminInviteUser,
+  adminAcceptInvite,
+  adminDeleteUser,
 }; 
