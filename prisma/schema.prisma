@@ -102,6 +102,7 @@ model tenants {
   subscriptions subscriptions[]
   users         users[]
   billing       billing[]
+  payments      payment[]
 }
 
 model subscriptions {
@@ -569,4 +570,18 @@ model billing {
   created_at     DateTime @default(now())
   updated_at     DateTime @default(now())
   tenants        tenants? @relation(fields: [tenant_id], references: [id])
+  payments       payment[]
+}
+
+model payment {
+  id          String   @id @default(uuid())
+  billing_id  String   @db.Uuid
+  tenant_id   String   @db.Uuid
+  amount      Float
+  paid_at     DateTime @default(now())
+  method      String   // e.g., 'creditcard', 'upi', 'banktransfer'
+  status      String   // 'paid', 'pending', 'overdue'
+  txn_id      String?
+  billing     billing  @relation(fields: [billing_id], references: [id])
+  tenants     tenants  @relation(fields: [tenant_id], references: [id])
 }

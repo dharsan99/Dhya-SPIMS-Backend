@@ -47,6 +47,7 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         verify: '/', // root-mount (e.g., /ping, /verify endpoints)
         userRoleAssignments: '/user-role-assignments',
         userRoles: '/user-roles',
+        billing: '/billing', // <-- add this line
         //userRoleAssignments: '/user-role-assignments',
       }[routeName] || `/${routeName}`;
 

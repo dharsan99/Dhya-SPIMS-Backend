@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET;
+const billingService = require('./billing.service');
 
 // Helper function to get date ranges
 const getDateRanges = () => {
@@ -960,6 +961,62 @@ async function adminCreateSubscription({ tenantId, planId }) {
       tenants: true,
     },
   });
+
+  // Create billing invoice for this subscription
+  // Generate invoice number: INV+YYYYMMDD+last 3 auto increment
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const count = await prisma.billing.count({ where: { created_at: { gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()) } } });
+  const invoiceNumber = `INV${dateStr}${String(count + 1).padStart(3, '0')}`;
+  const billing = await prisma.billing.create({
+    data: {
+      tenant_id: tenantId,
+      invoice_number: invoiceNumber,
+      amount: plan.price,
+      due_date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15),
+      paid_date: null,
+      status: 'PAID', // since subscription is_active==true
+    },
+    include: { tenants: true },
+  });
+  // Send the invoice email using the styled template
+  await billingService.sendInvoiceEmail(billing.id);
+  // Create payment for this invoice (full amount, creditcard, paid)
+  const payment = await billingService.postPayment({
+    billingId: billing.id,
+    tenantId: tenantId,
+    amount: plan.price,
+    method: 'creditcard',
+    status: 'paid',
+    txnId: null
+  });
+  // Get user for this tenant (prefer Admin, fallback to any user)
+  let invoiceUser = await prisma.users.findFirst({
+    where: { tenant_id: tenantId, role: 'Admin' },
+  });
+  if (!invoiceUser) {
+    invoiceUser = await prisma.users.findFirst({
+      where: { tenant_id: tenantId },
+    });
+  }
+  if (!invoiceUser) throw new Error('No user found for this tenant');
+  // Format invoice response as in adminGetInvoices
+  const invoiceResponse = {
+    id: billing.id,
+    tenantName: billing.tenants?.name || '',
+    tenantEmail: invoiceUser?.email || '',
+    invoiceNumber: billing.invoice_number,
+    amount: billing.amount,
+    currency: 'USD',
+    status: billing.status?.toLowerCase() || '',
+    dueDate: billing.due_date?.toISOString().split('T')[0] || '',
+    issueDate: billing.created_at?.toISOString().split('T')[0] || '',
+    paidDate: billing.paid_date?.toISOString().split('T')[0] || '',
+    plan: plan.name,
+    billingCycle: plan.billingCycle,
+    description: plan.description,
+  };
+
   // Fetch all subscriptions for this tenant (most recent first)
   const allSubscriptions = await prisma.subscriptions.findMany({
     where: { tenant_id: tenantId },
@@ -983,6 +1040,8 @@ async function adminCreateSubscription({ tenantId, planId }) {
   }));
   return {
     subscriptions: mapped,
+    invoice: invoiceResponse,
+    payment,
     pagination: {
       currentPage: 1,
       totalPages: 1,

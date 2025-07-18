@@ -106,3 +106,4 @@ exports.getAllDepartments = async () => {
   // Return as a flat array of strings
   return departments.map(d => d.department);
 };
+

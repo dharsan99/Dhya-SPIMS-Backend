@@ -209,6 +209,7 @@ const adminCreateSubscription = async (req, res) => {
     res.json({
       success: true,
       data: result,
+      message: 'Subscription, invoice, and payment created successfully',
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

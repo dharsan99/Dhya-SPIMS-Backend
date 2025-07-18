@@ -300,7 +300,7 @@ router.get('/admin/tenants/subscriptions', dashboardController.adminGetAllSubscr
  * @swagger
  * /dashboard/admin/tenants/subscriptions:
  *   post:
- *     summary: Admin - Create a new subscription for a tenant and plan
+ *     summary: Admin - Create a new subscription, billing invoice, and payment for a tenant and plan
  *     tags: [Dashboard]
  *     requestBody:
  *       required: true
@@ -308,17 +308,16 @@ router.get('/admin/tenants/subscriptions', dashboardController.adminGetAllSubscr
  *         application/json:
  *           schema:
  *             type: object
- *             required: [tenantId, planId]
  *             properties:
  *               tenantId:
  *                 type: string
- *                 description: The tenant ID (UUID)
+ *                 description: Tenant ID
  *               planId:
  *                 type: string
- *                 description: The plan ID (UUID)
+ *                 description: Plan ID
  *     responses:
  *       200:
- *         description: Subscription created
+ *         description: Subscription, invoice, and payment created
  *         content:
  *           application/json:
  *             schema:
@@ -328,30 +327,11 @@ router.get('/admin/tenants/subscriptions', dashboardController.adminGetAllSubscr
  *                 data:
  *                   type: object
  *                   properties:
- *                     subscriptions:
- *                       type: array
- *                       items:
- *                         type: object
- *                         properties:
- *                           id: { type: string }
- *                           tenantName: { type: string }
- *                           planName: { type: string }
- *                           description: { type: string }
- *                           price: { type: number }
- *                           billingCycle: { type: string }
- *                           maxUsers: { type: integer }
- *                           maxOrders: { type: integer }
- *                           maxStorage: { type: string }
- *                           status: { type: string, enum: [active, inactive] }
- *                           createdAt: { type: string, format: date-time }
- *                           updatedAt: { type: string, format: date-time }
- *                     pagination:
- *                       type: object
- *                       properties:
- *                         currentPage: { type: integer }
- *                         totalPages: { type: integer }
- *                         totalItems: { type: integer }
- *                         itemsPerPage: { type: integer }
+ *                     subscriptions: { type: array, items: { type: object } }
+ *                     invoice: { type: object }
+ *                     payment: { type: object }
+ *                     pagination: { type: object }
+ *                 message: { type: string }
  */
 router.post('/admin/tenants/subscriptions', dashboardController.adminCreateSubscription);
 
