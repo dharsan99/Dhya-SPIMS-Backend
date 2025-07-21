@@ -469,6 +469,74 @@ router.get('/admin/invoice/download', billingController.downloadInvoice);
  */
 router.post('/admin/invoice/send-email', billingController.sendInvoiceEmail);
 
+/**
+ * @swagger
+ * /billing/admin/invoice/send-bill-email:
+ *   post:
+ *     summary: Send invoice bill email (separate API)
+ *     tags: [Dashboard]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               invoice_number:
+ *                 type: string
+ *                 description: Invoice number to send
+ *     responses:
+ *       200:
+ *         description: Invoice email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 message: { type: string }
+ *       400:
+ *         description: Missing or invalid invoice_number
+ *       500:
+ *         description: Server error
+ */
+router.post('/admin/invoice/send-bill-email', billingController.sendInvoiceBillEmail);
+
+/**
+ * @swagger
+ * /billing/recent-payments:
+ *   get:
+ *     summary: Get the latest 3 payment activities
+ *     tags: [Billing]
+ *     responses:
+ *       200:
+ *         description: List of recent payment activities
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                     description: Tenant name
+ *                   method:
+ *                     type: string
+ *                     description: Payment method
+ *                   txn_id:
+ *                     type: string
+ *                     description: Transaction ID
+ *                   amount:
+ *                     type: number
+ *                     description: Payment amount
+ *                   date:
+ *                     type: string
+ *                     format: date-time
+ *                     description: Payment date
+ */
+router.get('/recent-payments', billingController.getRecentPaymentActivity);
+
 
 // GET /billing/stats
 router.get('/stats', billingController.getBillingStats);

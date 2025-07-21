@@ -215,6 +215,9 @@ async function sendInvoiceEmail(invoice_number) {
   });
 }
 
+// Alias for separate API
+const sendInvoiceBillEmail = sendInvoiceEmail;
+
 async function getPayments({ search = '', status = 'all', plan, page = 1, limit = 20, sortBy = 'paidAt', sortOrder = 'desc', tenantId }) {
   let where = {};
   if (tenantId) {
@@ -513,4 +516,19 @@ async function adminCreateInvoice(tenantId) {
   };
 }
 
-module.exports = { getBillingStats, adminGetInvoices, sendInvoiceEmail, getPayments, getPayment, postPayment, getRevenueTrends, downloadInvoice, adminCreateInvoice }; 
+async function getRecentPaymentActivity() {
+  const payments = await prisma.payment.findMany({
+    orderBy: { paid_at: 'desc' },
+    take: 3,
+    include: { tenants: true },
+  });
+  return payments.map(p => ({
+    name: p.tenants?.name || '',
+    method: p.method,
+    txn_id: p.txn_id,
+    amount: p.amount,
+    date: p.paid_at,
+  }));
+}
+
+module.exports = { getBillingStats, adminGetInvoices, sendInvoiceEmail, sendInvoiceBillEmail, getPayments, getPayment, postPayment, getRevenueTrends, downloadInvoice, adminCreateInvoice, getRecentPaymentActivity }; 

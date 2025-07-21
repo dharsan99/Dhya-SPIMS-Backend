@@ -975,12 +975,10 @@ async function adminCreateSubscription({ tenantId, planId }) {
       amount: plan.price,
       due_date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15),
       paid_date: null,
-      status: 'PAID', // since subscription is_active==true
+      status: 'PENDING',
     },
     include: { tenants: true },
   });
-  // Send the invoice email using the styled template
-  await billingService.sendInvoiceEmail(billing.id);
   // Create payment for this invoice (full amount, creditcard, paid)
   const payment = await billingService.postPayment({
     billingId: billing.id,
@@ -990,6 +988,8 @@ async function adminCreateSubscription({ tenantId, planId }) {
     status: 'paid',
     txnId: null
   });
+  // Send the invoice email immediately (same API)
+  await billingService.sendInvoiceBillEmail(invoiceNumber);
   // Get user for this tenant (prefer Admin, fallback to any user)
   let invoiceUser = await prisma.users.findFirst({
     where: { tenant_id: tenantId, role: 'Admin' },
@@ -1042,6 +1042,7 @@ async function adminCreateSubscription({ tenantId, planId }) {
     subscriptions: mapped,
     invoice: invoiceResponse,
     payment,
+    invoice_number: billing.invoice_number, // for separate email API
     pagination: {
       currentPage: 1,
       totalPages: 1,

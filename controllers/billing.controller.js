@@ -96,4 +96,24 @@ exports.sendInvoiceEmail = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+};
+
+exports.sendInvoiceBillEmail = async (req, res) => {
+  try {
+    const invoice_number = req.body.invoice_number || req.query.invoice_number;
+    if (!invoice_number) return res.status(400).json({ error: 'invoice_number is required' });
+    await billingService.sendInvoiceEmail(invoice_number);
+    res.json({ success: true, message: 'Invoice email sent successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getRecentPaymentActivity = async (req, res) => {
+  try {
+    const result = await billingService.getRecentPaymentActivity();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 }; 
