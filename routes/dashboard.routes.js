@@ -575,22 +575,39 @@ router.put('/admin/tenants/subscriptions/:id', dashboardController.adminUpdateSu
  *         name: tenant_id
  *         schema:
  *           type: string
- *         description: Filter by tenant ID
+ *         required: false
+ *         description: Optional. Filter by tenant ID. If not provided, all users are returned.
+ *       - in: query
+ *         name: tenantname
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Optional. Filter by tenant name (case-insensitive, partial match).
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [active, inactive, all]
+ *         required: false
+ *         description: Optional. Filter by user status (active, inactive, all).
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
- *         description: Page number
+ *         required: false
+ *         description: Optional. Page number for pagination.
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
- *         description: Items per page
+ *         required: false
+ *         description: Optional. Items per page for pagination.
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
- *         description: Search by name or email
+ *         required: false
+ *         description: Optional. Search by name or email.
  *     responses:
  *       200:
  *         description: List of users
@@ -603,7 +620,7 @@ router.put('/admin/tenants/subscriptions/:id', dashboardController.adminUpdateSu
  *                 data:
  *                   type: object
  *                   properties:
- *                     data:
+ *                     users:
  *                       type: array
  *                       items:
  *                         type: object
@@ -621,13 +638,13 @@ router.put('/admin/tenants/subscriptions/:id', dashboardController.adminUpdateSu
  *                               name: { type: string }
  *                               permissions: { type: object }
  *                               tenant_id: { type: string }
- *                     meta:
+ *                     pagination:
  *                       type: object
  *                       properties:
- *                         total: { type: integer }
- *                         page: { type: integer }
- *                         limit: { type: integer }
+ *                         currentPage: { type: integer }
  *                         totalPages: { type: integer }
+ *                         totalItems: { type: integer }
+ *                         itemsPerPage: { type: integer }
  */
 router.get('/admin/users', dashboardController.adminGetAllUsers);
 

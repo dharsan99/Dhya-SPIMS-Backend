@@ -232,7 +232,8 @@ const adminUpdateSubscription = async (req, res) => {
 
 const adminGetAllUsers = async (req, res) => {
   try {
-    const result = await dashboardService.adminGetAllUsers(req.query);
+    const { tenant_id, tenantname, status, page = 1, limit = 10, search = '' } = req.query;
+    const result = await dashboardService.adminGetAllUsers({ tenant_id, tenantname, status, page, limit, search });
     res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

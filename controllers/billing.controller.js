@@ -72,4 +72,28 @@ exports.getRevenueTrends = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+};
+
+exports.downloadInvoice = async (req, res) => {
+  try {
+    const invoice_number = req.query.invoiceId || req.query.invoice_number;
+    if (!invoice_number) return res.status(400).json({ error: 'invoice_number is required' });
+    const { filename, buffer, mimetype } = await billingService.downloadInvoice(invoice_number);
+    res.setHeader('Content-Disposition', `attachment; filename=\"${filename}\"`);
+    res.setHeader('Content-Type', mimetype);
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.sendInvoiceEmail = async (req, res) => {
+  try {
+    const invoice_number = req.body.invoice_number || req.query.invoice_number;
+    if (!invoice_number) return res.status(400).json({ error: 'invoice_number is required' });
+    await billingService.sendInvoiceEmail(invoice_number);
+    res.json({ success: true, message: 'Invoice email sent successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 }; 

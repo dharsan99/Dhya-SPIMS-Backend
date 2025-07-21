@@ -2,6 +2,9 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const nodemailer = require('nodemailer');
 const { startOfMonth, subMonths, format } = require('date-fns');
+const fs = require('fs');
+const path = require('path');
+const pdf = require('html-pdf'); // You may need to install html-pdf or use another PDF lib
 
 async function getBillingStats(tenantId) {
   // Return mock values as requested
@@ -111,10 +114,10 @@ async function adminGetInvoices({ search = '', status = 'all', plan, page = 1, l
   };
 }
 
-async function sendInvoiceEmail(invoiceId) {
+async function sendInvoiceEmail(invoice_number) {
   // Fetch invoice, tenant, and user
   const invoice = await prisma.billing.findUnique({
-    where: { id: invoiceId },
+    where: { invoice_number },
     include: { tenants: true },
   });
   if (!invoice) throw new Error('Invoice not found');
@@ -370,4 +373,144 @@ async function getRevenueTrends(tenantId) {
   };
 }
 
-module.exports = { getBillingStats, adminGetInvoices, sendInvoiceEmail, getPayments, getPayment, postPayment, getRevenueTrends }; 
+async function downloadInvoice(invoice_number) {
+  // Fetch invoice, tenant, and user (reuse logic from sendInvoiceEmail)
+  const invoice = await prisma.billing.findUnique({
+    where: { invoice_number },
+    include: { tenants: true },
+  });
+  if (!invoice) throw new Error('Invoice not found');
+  let invoiceUser = await prisma.users.findFirst({
+    where: { tenant_id: invoice.tenant_id, role: 'Admin' },
+  });
+  if (!invoiceUser) {
+    invoiceUser = await prisma.users.findFirst({
+      where: { tenant_id: invoice.tenant_id },
+    });
+  }
+  if (!invoiceUser) throw new Error('No user found for this tenant');
+
+  // Demo data for line items (same as sendInvoiceEmail)
+  const lineItems = [
+    { description: 'Brand consultation', unitPrice: 100, qty: 1, total: 100 },
+    { description: 'Logo design', unitPrice: 100, qty: 1, total: 100 },
+    { description: 'Website design', unitPrice: 100, qty: 1, total: 100 },
+    { description: 'Social media templates', unitPrice: 100, qty: 1, total: 100 },
+    { description: 'Brand photography', unitPrice: 100, qty: 1, total: 100 },
+    { description: 'Brand guide', unitPrice: 100, qty: 1, total: 100 },
+  ];
+  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const taxRate = 0.10;
+  const tax = subtotal * taxRate;
+  const total = subtotal + tax;
+
+  // Styled HTML invoice (same as sendInvoiceEmail)
+  const html = `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border-radius: 12px; border: 1px solid #eee; padding: 32px; background: #fff;">
+    <h2 style="letter-spacing: 8px; text-align: right; font-weight: 400; margin-bottom: 32px;">INVOICE</h2>
+    <div style="display: flex; justify-content: space-between; margin-bottom: 24px;">
+      <div>
+        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">ISSUED TO:</div>
+        <div style="font-size: 14px; margin-top: 4px;">${invoiceUser.name || ''}<br>${invoice.tenants?.name || ''}<br>${invoice.tenants?.address || ''}</div>
+        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px; margin-top: 16px;">PAY TO:</div>
+        <div style="font-size: 14px; margin-top: 4px;">Borcele Bank<br>Account Name: Adeline Palmerston<br>Account No.: 0123 4567 8901</div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">INVOICE NO:</div>
+        <div style="font-size: 14px; margin-bottom: 8px;">${invoice.invoice_number}</div>
+        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">DATE:</div>
+        <div style="font-size: 14px; margin-bottom: 8px;">${invoice.created_at?.toISOString().split('T')[0] || ''}</div>
+        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">DUE DATE:</div>
+        <div style="font-size: 14px;">${invoice.due_date?.toISOString().split('T')[0] || ''}</div>
+      </div>
+    </div>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
+      <thead>
+        <tr style="border-bottom: 2px solid #222;">
+          <th style="text-align: left; font-size: 12px; letter-spacing: 1px; padding: 8px 0;">DESCRIPTION</th>
+          <th style="text-align: right; font-size: 12px; letter-spacing: 1px; padding: 8px 0;">UNIT PRICE</th>
+          <th style="text-align: right; font-size: 12px; letter-spacing: 1px; padding: 8px 0;">QTY</th>
+          <th style="text-align: right; font-size: 12px; letter-spacing: 1px; padding: 8px 0;">TOTAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lineItems.map(item => `
+          <tr>
+            <td style="padding: 8px 0; border-bottom: 1px solid #eee;">${item.description}</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #eee;">${item.unitPrice}</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #eee;">${item.qty}</td>
+            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #eee;">$${item.total}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 32px;">
+      <div style="font-size: 14px; margin-bottom: 4px;"><strong>SUBTOTAL</strong> <span style="margin-left: 32px;">$${subtotal}</span></div>
+      <div style="font-size: 14px; margin-bottom: 4px;">Tax <span style="margin-left: 64px;">10%</span></div>
+      <div style="font-size: 16px; font-weight: bold;">TOTAL <span style="margin-left: 48px;">$${total}</span></div>
+    </div>
+    <div style="margin-top: 48px; text-align: right;">
+      <span style="font-family: cursive; font-size: 20px;">Adeline Palmerston</span>
+    </div>
+  </div>
+  `;
+
+  // Generate PDF from HTML
+  return new Promise((resolve, reject) => {
+    pdf.create(html).toBuffer((err, buffer) => {
+      if (err) return reject(err);
+      resolve({
+        filename: `Invoice_${invoice.invoice_number}.pdf`,
+        buffer,
+        mimetype: 'application/pdf',
+      });
+    });
+  });
+}
+
+async function adminCreateInvoice(tenantId) {
+  if (!tenantId) throw new Error('tenantId is required');
+  // Generate invoice number: INV+YYYYMMDD+last 3 auto increment
+  const today = new Date();
+  const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+  const count = await prisma.billing.count({ where: { created_at: { gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()) } } });
+  const invoiceNumber = `INV${dateStr}${String(count + 1).padStart(3, '0')}`;
+  // For demo, use a fixed amount and due date
+  const amount = 1000;
+  const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15);
+  const billing = await prisma.billing.create({
+    data: {
+      tenant_id: tenantId,
+      invoice_number: invoiceNumber,
+      amount,
+      due_date: dueDate,
+      paid_date: null,
+      status: 'PENDING',
+    },
+    include: { tenants: true },
+  });
+  // Get user for this tenant (prefer Admin, fallback to any user)
+  let invoiceUser = await prisma.users.findFirst({
+    where: { tenant_id: tenantId, role: 'Admin' },
+  });
+  if (!invoiceUser) {
+    invoiceUser = await prisma.users.findFirst({
+      where: { tenant_id: tenantId },
+    });
+  }
+  // Format invoice response
+  return {
+    id: billing.id,
+    tenantName: billing.tenants?.name || '',
+    tenantEmail: invoiceUser?.email || '',
+    invoiceNumber: billing.invoice_number,
+    amount: billing.amount,
+    currency: 'USD',
+    status: billing.status?.toLowerCase() || '',
+    dueDate: billing.due_date?.toISOString().split('T')[0] || '',
+    issueDate: billing.created_at?.toISOString().split('T')[0] || '',
+    paidDate: billing.paid_date?.toISOString().split('T')[0] || '',
+  };
+}
+
+module.exports = { getBillingStats, adminGetInvoices, sendInvoiceEmail, getPayments, getPayment, postPayment, getRevenueTrends, downloadInvoice, adminCreateInvoice }; 

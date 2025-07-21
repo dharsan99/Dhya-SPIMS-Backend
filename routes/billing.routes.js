@@ -408,6 +408,67 @@ const billingController = require('../controllers/billing.controller');
  *                 changeFromLastMonth: { type: number, example: 0.0 }
  */
 
+/**
+ * @swagger
+ * /billing/admin/invoice/download:
+ *   get:
+ *     summary: Download invoice as PDF (admin)
+ *     tags: [Dashboard]
+ *     parameters:
+ *       - in: query
+ *         name: invoice_number
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Invoice number to download
+ *     responses:
+ *       200:
+ *         description: PDF file of the invoice
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Missing or invalid invoice_number
+ *       500:
+ *         description: Server error
+ */
+router.get('/admin/invoice/download', billingController.downloadInvoice);
+
+/**
+ * @swagger
+ * /billing/admin/invoice/send-email:
+ *   post:
+ *     summary: Send invoice email (admin)
+ *     tags: [Dashboard]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               invoice_number:
+ *                 type: string
+ *                 description: Invoice number to send
+ *     responses:
+ *       200:
+ *         description: Invoice email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 message: { type: string }
+ *       400:
+ *         description: Missing or invalid invoice_number
+ *       500:
+ *         description: Server error
+ */
+router.post('/admin/invoice/send-email', billingController.sendInvoiceEmail);
+
 
 // GET /billing/stats
 router.get('/stats', billingController.getBillingStats);

@@ -1115,17 +1115,23 @@ async function adminUpdateSubscription(id, { status }) {
 }
 
 async function adminGetAllUsers(query) {
-  const { tenant_id, page = 1, limit = 10, search = '' } = query;
+  let { tenant_id, tenantname, status, page = 1, limit = 10, search = '' } = query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
-  const where = {
-    ...(tenant_id && { tenant_id }),
-    ...(search && {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-      ],
-    }),
-  };
+  let where = {};
+  if (tenant_id) {
+    where.tenant_id = tenant_id;
+  } else if (tenantname) {
+    where.tenants = { name: { contains: tenantname, mode: 'insensitive' } };
+  }
+  if (status && status !== 'all') {
+    where.is_active = status === 'active' ? true : false;
+  }
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { email: { contains: search, mode: 'insensitive' } },
+    ];
+  }
   const [users, count] = await prisma.$transaction([
     prisma.users.findMany({
       where,
