@@ -11,54 +11,44 @@ const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    let user = await prisma.Users.findUnique({
+    let user = await prisma.users.findUnique({
       where: { email },
       include: {
-        user_roles: { include: { role: true } },
-        tenants: true
+        userRoles: { include: { role: true } },
+        tenant: true
       }
     });
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const isValid = await bcrypt.compare(password, user.password_hash);
+    const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
-    if (!user.is_verified) return res.status(403).json({ error: 'Please verify your email before logging in.' });
+    if (user.isActive === false) return res.status(403).json({ error: 'User is not active.' });
 
-    if (!user.user_roles || user.user_roles.length === 0) {
-      await prisma.user_roles.create({
-        data: { user_id: user.id, role_id: ADMIN_ROLE_ID }
-      });
-
-      user = await prisma.users.findUnique({
-        where: { email },
-        include: {
-          user_roles: { include: { role: true } },
-          tenants: true
-        }
-      });
+    if (!user.userRoles || user.userRoles.length === 0) {
+      // Optionally assign a default role here if needed
+      // For now, just return an error
+      return res.status(403).json({ error: 'No roles assigned to user.' });
     }
 
-    const roleObj = user.user_roles[0]?.role;
-    const plan = await prisma.plan.findUnique({
-      where: { id: user.tenants?.plan_id || '5020a2db-ac2f-4ddc-b12d-5aa83e3cbcc2' }
-    });
+    const roleObj = user.userRoles[0]?.role;
+    // No plan lookup since there is no plan model in schema
 
     const token = generateToken({
       id: user.id,
       email: user.email,
-      tenant_id: user.tenant_id,
+      tenantId: user.tenantId,
       role: roleObj?.name
     });
 
-    const { password_hash, user_roles, tenants, ...userData } = user;
+    const { passwordHash, userRoles, tenant, ...userData } = user;
 
     res.json({
       user: {
         ...userData,
         role: roleObj,
-        is_verified: user.is_verified,
-        plan
+        isActive: user.isActive,
+        tenant,
       },
       token
     });

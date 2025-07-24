@@ -10,31 +10,25 @@ const authService = {
     const user = await prisma.users.findUnique({
       where: { email },
       include: {
-        user_roles: { include: { role: true } },
-        tenants: true
+        userRoles: { include: { role: true } },
+        tenant: true
       }
     });
 
     if (!user) throw new Error('User not found');
 
-    const isValid = await bcrypt.compare(password, user.password_hash);
+    const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) throw new Error('Invalid credentials');
 
-    if (!user.is_verified) throw new Error('Email not verified');
+    if (user.isActive === false) throw new Error('User is not active');
 
-    const roleObj = user.user_roles?.[0]?.role || null;
-
-    const plan = await prisma.plan.findUnique({
-      where: {
-        id: user.tenants?.plan_id || '5020a2db-ac2f-4ddc-b12d-5aa83e3cbcc2'
-      }
-    });
+    const roleObj = user.userRoles?.[0]?.role || null;
 
     const token = jwt.sign(
       {
         id: user.id,
         email: user.email,
-        tenant_id: user.tenant_id,
+        tenantId: user.tenantId,
         role: roleObj?.name
       },
       JWT_SECRET,
@@ -47,10 +41,10 @@ const authService = {
         id: user.id,
         email: user.email,
         name: user.name,
-        tenant_id: user.tenant_id,
+        tenantId: user.tenantId,
         role: roleObj,
-        is_verified: user.is_verified,
-        plan
+        isActive: user.isActive,
+        tenant: user.tenant
       }
     };
   },
@@ -76,22 +70,22 @@ const authService = {
     const existing = await prisma.users.findUnique({ where: { email } });
     if (existing) throw new Error('User already exists');
 
-    const password_hash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await prisma.users.create({
       data: {
         name,
         email,
-        tenant_id,
-        password_hash,
-        is_verified: true
+        tenantId: tenant_id,
+        passwordHash,
+        isActive: true
       }
     });
 
-    await prisma.user_roles.create({
+    await prisma.userRoles.create({
       data: {
-        user_id: user.id,
-        role_id
+        userId: user.id,
+        roleId: role_id
       }
     });
 
