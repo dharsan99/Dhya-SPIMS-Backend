@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const settingsController = require('../controllers/settings.controller');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-router.use(verifyTokenAndTenant);
-/** 
+const { verifyToken } = require('../middlewares/auth.middleware');
+
+/**
  * @swagger
  * tags:
  *   name: Settings
@@ -16,7 +16,8 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get tenant settings
  *     tags: [Settings]
-
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Settings retrieved successfully
@@ -29,7 +30,7 @@ router.use(verifyTokenAndTenant);
  *       500:
  *         description: Server error
  */
-router.get('/', settingsController.getTenantSettings);
+router.get('/', verifyToken, settingsController.getTenantSettings);
 
 /**
  * @swagger
@@ -55,6 +56,6 @@ router.get('/', settingsController.getTenantSettings);
  *       500:
  *         description: Server error
  */
-router.put('/',  settingsController.updateTenantSettings);
+router.put('/', verifyToken, settingsController.updateTenantSettings);
 
 module.exports = router;

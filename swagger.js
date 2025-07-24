@@ -10,8 +10,9 @@ const options = {
       description: 'Spinning Mills Intelligent Management System API documentation',
     },
     servers: [
-      { url: 'http://localhost:5001' },
-      { url: 'http://192.168.0.2:5001' }, // LAN IP for network access
+      {
+        url: process.env.BASE_URL || 'http://localhost:5001',
+      },
     ],
     components: {
       securitySchemes: {
@@ -19,12 +20,6 @@ const options = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
-        },
-        tenantId: {
-          type: 'apiKey',
-          in: 'header',
-          name: 'x-tenant-id',
-          description: 'Tenant ID required for tenant-based authorization',
         },
       },
       schemas: {
@@ -64,14 +59,9 @@ const options = {
         },
       },
     },
-    security: [
-      {
-        bearerAuth: [],
-        tenantId: [],
-      },
-    ],
+    security: [{ bearerAuth: [] }],
   },
-  apis: ['./routes/*.js', './controllers/*.js'],
+  apis: ['./routes/*.js'],
 };
 
 const swaggerSpec = swaggerJSDoc(options);

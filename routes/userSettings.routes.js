@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/userSettings.controller');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-router.use(verifyTokenAndTenant);
+const { verifyToken } = require('../middlewares/auth.middleware');
+
 /**
  * @swagger
  * tags:
@@ -16,7 +16,8 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get settings for the logged-in user
  *     tags: [UserSettings]
-
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: User settings retrieved
@@ -29,7 +30,7 @@ router.use(verifyTokenAndTenant);
  *       500:
  *         description: Server error
  */
-router.get('/', controller.getUserSettings);
+router.get('/', verifyToken, controller.getUserSettings);
 
 /**
  * @swagger
@@ -55,6 +56,6 @@ router.get('/', controller.getUserSettings);
  *       500:
  *         description: Server error
  */
-router.put('/',  controller.updateUserSettings);
+router.put('/', verifyToken, controller.updateUserSettings);
 
 module.exports = router;

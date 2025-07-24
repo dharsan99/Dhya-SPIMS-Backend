@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/buyers.controller');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+const { verifyToken } = require('../middlewares/auth.middleware');
 
-router.use(verifyTokenAndTenant);
+router.use(verifyToken);
 
 /**
  * @swagger
@@ -18,7 +18,8 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get all buyers
  *     tags: [Buyers]
-
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of buyers

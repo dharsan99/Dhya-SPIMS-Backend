@@ -2,8 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/register.controller');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-router.use(verifyTokenAndTenant);
+
 /**
  * @swagger
  * /register:

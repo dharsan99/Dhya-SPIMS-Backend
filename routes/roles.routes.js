@@ -2,8 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const roleController = require('../controllers/role.controller');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-router.use(verifyTokenAndTenant);
+
 /**
  * @swagger
  * components:
@@ -52,7 +51,8 @@ router.use(verifyTokenAndTenant);
  *         schema:
  *           type: string
  *           format: uuid
- *         description: (Optional) Tenant ID to filter roles
+ *         required: true
+ *         description: Tenant ID to filter roles
  *     responses:
  *       200:
  *         description: List of roles

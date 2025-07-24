@@ -3,20 +3,16 @@ const roleService = require('../services/role.service');
 
 
 
-
 exports.getRoles = async (req, res) => {
   const { tenantId } = req.query;
 
+  if (!tenantId) {
+    return res.status(400).json({ error: 'tenantId is required' });
+  }
+
   try {
     const roles = await roleService.getRolesByTenant(tenantId);
-    // Transform roles to only include id, name, permissions, tenant_id
-    const transformedRoles = roles.map(role => ({
-      id: role.id,
-      name: role.name,
-      permissions: role.permissions,
-      tenant_id: role.tenant_id,
-    }));
-    res.status(200).json(transformedRoles);
+    res.status(200).json(roles);
   } catch (error) {
     console.error('Get Roles Error:', error);
     res.status(500).json({ error: 'Failed to fetch roles' });
@@ -67,9 +63,6 @@ exports.deleteRole = async (req, res) => {
     await roleService.deleteRole(roleId);
     res.status(200).json({ message: 'Role deleted successfully' });
   } catch (error) {
-    if (error.code === 'ROLE_IN_USE') {
-      return res.status(400).json({ error: 'Cannot delete role: users are assigned to this role' });
-    }
     console.error('Delete Role Error:', error);
     res.status(500).json({ error: 'Failed to delete role' });
   }

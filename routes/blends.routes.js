@@ -1,9 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const blendController = require('../controllers/blends.controller');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-
-router.use(verifyTokenAndTenant);
 
 /**
  * @swagger
