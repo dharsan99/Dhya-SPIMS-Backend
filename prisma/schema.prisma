@@ -142,6 +142,8 @@ model Tenant {
 model Subscription {
   id        String    @id @default(uuid()) @db.Uuid
   tenantId  String?   @db.Uuid
+  planId    String?   @db.Uuid
+  plan      Plan?     @relation(fields: [planId], references: [id])
   planType  String?
   startDate DateTime? @db.Date
   endDate   DateTime? @db.Date
@@ -149,6 +151,26 @@ model Subscription {
   tenant    Tenant?   @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("subscriptions")
+}
+
+model Plan {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  price        Float
+  billingCycle String
+  renewalDate DateTime @default(now()) @db.Date
+  expiryDate  DateTime?
+  description  String?
+  features     Json // array of strings
+  maxUsers     Json // can be int or "Unlimited"
+  maxOrders    Json // same
+  maxStorage   String
+  popular      Boolean
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions Subscription[]
 }
 
 model Users {
@@ -159,6 +181,8 @@ model Users {
   passwordHash String
   role         String?
   isActive     Boolean?     @default(true)
+  isVerified  Boolean      @default(false)
+  verificationToken String?  // For email verification
   createdAt    DateTime?    @default(now()) @db.Timestamp(6)
   updatedAt    DateTime?    @updatedAt @db.Timestamp(6)
 

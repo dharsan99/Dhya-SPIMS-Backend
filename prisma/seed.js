@@ -4,6 +4,123 @@ const { v4: uuidv4 } = require('uuid');
 
 const prisma = new PrismaClient();
 
+// Plan seeding data
+const planSeedData = [
+  {
+    name: 'Starter (14-day trial)',
+    price: 0,
+    billingCycle: 'trial',
+    description: 'Perfect for trying out core features of SPIMS for small mills',
+    features: [
+      'Up to 5 employees',
+      'Basic order management',
+      'Production tracking',
+      'Email support',
+      '500MB storage'
+    ],
+    maxUsers: 5,
+    maxOrders: 50,
+    maxStorage: '500MB',
+    popular: false,
+    isActive: true
+  },
+  {
+    name: 'Growth',
+    price: 49,
+    billingCycle: 'month',
+    description: 'Ideal for growing spinning mills with advanced operations',
+    features: [
+      'Up to 50 employees',
+      'Advanced order management',
+      'Inventory control',
+      'Email & chat support',
+      '5GB storage',
+      'Basic analytics dashboard',
+      'API access'
+    ],
+    maxUsers: 50,
+    maxOrders: 500,
+    maxStorage: '5GB',
+    popular: true,
+    isActive: true
+  },
+  {
+    name: 'Enterprise',
+    price: 199,
+    billingCycle: 'month',
+    description: 'For large mills with complex operations and custom needs',
+    features: [
+      'Unlimited employees',
+      'Full order management suite',
+      'Real-time production & inventory',
+      '24/7 phone support',
+      'Unlimited storage',
+      'Custom analytics dashboard',
+      'Full API access',
+      'White-label solutions',
+      'Dedicated account manager',
+      'Custom training sessions'
+    ],
+    maxUsers: 'Unlimited',
+    maxOrders: 'Unlimited',
+    maxStorage: 'Unlimited',
+    popular: false,
+    isActive: true
+  }
+];
+
+// Will hold { planName: uuid }
+const planNameToId = {};
+
+// Utility to calculate expiry and renewal dates
+function getPlanDates(billingCycle, createdAt = new Date()) {
+  let expiryDate, renewalDate;
+  if (billingCycle === 'trial') {
+    expiryDate = new Date(createdAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+  } else if (billingCycle === 'month') {
+    expiryDate = new Date(createdAt);
+    expiryDate.setMonth(expiryDate.getMonth() + 1);
+  } else if (billingCycle === 'year') {
+    expiryDate = new Date(createdAt);
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+  }
+  if (expiryDate) {
+    renewalDate = new Date(expiryDate);
+    renewalDate.setDate(renewalDate.getDate() + 1);
+  } else {
+    renewalDate = createdAt;
+  }
+  return { expiryDate, renewalDate };
+}
+
+async function seedPlans() {
+  console.log('🌱 Seeding Plans...');
+  for (const plan of planSeedData) {
+    let existing = await prisma.plan.findFirst({ where: { name: plan.name } });
+    if (!existing) {
+      const id = uuidv4();
+      const createdAt = new Date();
+      const { expiryDate, renewalDate } = getPlanDates(plan.billingCycle, createdAt);
+      const created = await prisma.plan.create({ 
+        data: { 
+          ...plan, 
+          id, 
+          expiryDate, 
+          renewalDate,
+          createdAt,
+          updatedAt: createdAt
+        } 
+      });
+      planNameToId[plan.name] = created.id;
+      console.log(`✅ Created plan: ${plan.name}`);
+    } else {
+      planNameToId[plan.name] = existing.id;
+      console.log(`⚡ Plan already exists: ${plan.name}`);
+    }
+  }
+  console.log('✅ Plans seeding completed');
+}
+
 async function seedSuperAdmin() {
   console.log('🌱 Seeding Super Admin User...');
   // Check if super admin already exists
@@ -230,6 +347,7 @@ async function seedEmployeesAndAttendance() {
 
 async function enhancedMain() {
   try {
+    await seedPlans(); // Seed plans first
     const { tenantId, userId, roleId } = await seedSuperAdmin();
     let permissions = {
       Orders: ["Add Order", "Update Order", "Delete Order", "View Order"],

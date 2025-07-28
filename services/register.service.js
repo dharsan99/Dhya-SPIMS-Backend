@@ -4,53 +4,61 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function registerTenantWithAdmin({ tenantName, domain, adminName, email, password, roles = [] }) {
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.users.findUnique({ where: { email } });
   if (existing) throw new Error('User already exists with this email');
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const password_hash = await bcrypt.hash(password, 10);
 
   return await prisma.$transaction(async (tx) => {
-    const tenant = await tx.tenant.create({
+    const tenant = await tx.tenants.create({
       data: { name: tenantName, domain }
     });
 
     const createdRoles = await Promise.all(
       roles.map(role =>
-        tx.role.create({
+        tx.roles.create({
           data: {
             name: role.name,
             description: role.description,
             permissions: role.permissions,
-            tenantId: tenant.id,
+            tenant_id: tenant.id,
           },
         })
       )
     );
 
-    const adminUser = await tx.user.create({
+    const adminUser = await tx.users.create({
       data: {
         name: adminName,
         email,
-        passwordHash,
-        tenantId: tenant.id,
-        role: 'admin',
+        password_hash,
+        tenant_id: tenant.id,
+        role: null,
       },
     });
 
     await Promise.all(
       createdRoles.map(role =>
-        tx.userRole.create({
+        tx.user_roles.create({
           data: {
-            userId: adminUser.id,
-            roleId: role.id,
+            user_id: adminUser.id,
+            role_id: role.id,
           },
         })
       )
     );
 
+    const adminRole = createdRoles[0];
+    if (adminRole) {
+      await tx.users.update({
+        where: { id: adminUser.id },
+        data: { role: adminRole.name },
+      });
+    }
+
     return {
-      tenantId: tenant.id,
-      adminUserId: adminUser.id,
+      tenant_id: tenant.id,
+      admin_user_id: adminUser.id,
       roles: createdRoles,
     };
   });

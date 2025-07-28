@@ -25,6 +25,7 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         users: '/users',
         tenants: '/tenants',
         register: '/register',
+        verify: '/', // Mount verify routes at root level for /signup, /verify-email, etc.
         blends: '/blends',
         fibres: '/fibres',
         shades: '/api/shades',
@@ -50,6 +51,15 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
       if (router && typeof router === 'function') {
         console.log(`✅ [LOAD_ROUTES] Mounting route: ${mountPath} from ${file}`);
         app.use(mountPath, router);
+        
+        // Special logging for verify routes
+        if (routeName === 'verify') {
+          console.log('🔐 [LOAD_ROUTES] Verify routes successfully mounted at root level');
+          console.log('🔐 [LOAD_ROUTES] Available verify endpoints:');
+          console.log('   - POST /signup');
+          console.log('   - GET /verify-email');
+          console.log('   - POST /admin/signup');
+        }
         
         // Special logging for webhook routes
         if (routeName === 'webhooks') {

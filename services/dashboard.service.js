@@ -36,7 +36,7 @@ const calculatePendingFiberShortages = async (tenantId) => {
   // Get all pending and in-progress orders
   const activeOrders = await prisma.orders.findMany({
     where: {
-      tenant_id: tenantId,
+      tenantId: tenantId,
       status: {
         in: ['pending', 'in_progress']
       }
@@ -57,14 +57,14 @@ const calculatePendingFiberShortages = async (tenantId) => {
   const shortages = new Set();
 
   for (const order of activeOrders) {
-    const requiredQty = new Decimal(order.quantity_kg).div(order.realisation || 100).mul(100);
+    const requiredQty = new Decimal(order.quantityKg).div(order.realisation || 100).mul(100);
 
     for (const sf of order.shade.shade_fibres) {
       const requiredFibreQty = requiredQty.mul(sf.percentage).div(100);
-      const availableQty = new Decimal(sf.fibre.stock_kg);
+      const availableQty = new Decimal(sf.fibre.stockKg);
 
       if (availableQty.lessThan(requiredFibreQty)) {
-        shortages.add(sf.fibre_id);
+        shortages.add(sf.fibreId);
       }
     }
   }
@@ -77,7 +77,7 @@ const calculateFinancialMetrics = async (tenantId) => {
   // Get all orders with their payments
   const orders = await prisma.orders.findMany({
     where: {
-      tenant_id: tenantId,
+      tenantId: tenantId,
       status: {
         in: ['completed', 'dispatched']
       }
@@ -88,9 +88,9 @@ const calculateFinancialMetrics = async (tenantId) => {
   });
 
   // Get all purchase orders with their payments
-  const purchaseOrders = await prisma.purchase_orders.findMany({
+  const purchaseOrders = await prisma.purchaseOrders.findMany({
     where: {
-      tenant_id: tenantId,
+      tenantId: tenantId,
       status: {
         in: ['verified', 'converted']
       }
@@ -111,10 +111,10 @@ const calculateFinancialMetrics = async (tenantId) => {
   };
 
   for (const order of orders) {
-    const orderValue = new Decimal(order.quantity_kg).mul(order.rate || 0);
+    const orderValue = new Decimal(order.quantityKg).mul(order.rate || 0);
     receivables.total += Number(orderValue);
 
-    if (order.delivery_date < thirtyDaysAgo) {
+    if (order.deliveryDate < thirtyDaysAgo) {
       receivables.overdue += Number(orderValue);
     }
   }
@@ -130,7 +130,7 @@ const calculateFinancialMetrics = async (tenantId) => {
       sum + Number(new Decimal(item.quantity).mul(item.rate)), 0);
     payables.total += poValue;
 
-    if (po.po_date < thirtyDaysAgo) {
+    if (po.poDate < thirtyDaysAgo) {
       payables.overdue += poValue;
     }
   }
@@ -143,7 +143,7 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
   // Get all productions for the tenant
   const productions = await prisma.productions.findMany({
     where: {
-      tenant_id: tenantId,
+      tenantId: tenantId,
       date: {
         gte: startOfMonth
       }
@@ -184,7 +184,7 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
 
       sectionData.forEach(entry => {
         if (entry) {
-          const production = Number(entry.production_kg || 0);
+          const production = Number(entry.productionKg || 0);
           const required = 1000; // Fixed required quantity for other sections
           
           acc[section].totalProduction += production;
@@ -267,7 +267,7 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
             };
           }
           
-          const production = Number(entry.production_kg || 0);
+          const production = Number(entry.productionKg || 0);
           const required = 1000; // Fixed required quantity
           const dateKey = p.date.toISOString().split('T')[0];
           
@@ -357,8 +357,8 @@ const calculateTopBuyers = async (tenantId, startOfMonth) => {
   // Get all orders for the tenant
   const orders = await prisma.orders.findMany({
     where: {
-      tenant_id: tenantId,
-      created_at: {
+      tenantId: tenantId,
+      createdAt: {
         gte: startOfMonth
       }
     },
@@ -369,7 +369,7 @@ const calculateTopBuyers = async (tenantId, startOfMonth) => {
 
   // Group by buyer and calculate totals
   const buyerTotals = orders.reduce((acc, order) => {
-    const buyerId = order.buyer_id;
+    const buyerId = order.buyerId;
     if (!acc[buyerId]) {
       acc[buyerId] = {
         name: order.buyer.name,
@@ -377,7 +377,7 @@ const calculateTopBuyers = async (tenantId, startOfMonth) => {
         orders: 0
       };
     }
-    acc[buyerId].total += Number(order.quantity_kg);
+    acc[buyerId].total += Number(order.quantityKg);
     acc[buyerId].orders += 1;
     return acc;
   }, {});
@@ -385,7 +385,7 @@ const calculateTopBuyers = async (tenantId, startOfMonth) => {
   // Convert to array and sort
   const topBuyers = Object.entries(buyerTotals)
     .map(([id, data]) => ({
-      buyer_id: id || `unknown-${Date.now()}-${Math.random()}`, // Ensure unique ID
+      buyerId: id || `unknown-${Date.now()}-${Math.random()}`, // Ensure unique ID
       name: data.name || 'Unknown Buyer',
       total: data.total,
       orders: data.orders
@@ -400,7 +400,7 @@ const calculateTopBuyers = async (tenantId, startOfMonth) => {
 const calculateOrderMetrics = async (tenantId) => {
   // Get all orders for the tenant
   const orders = await prisma.orders.findMany({
-    where: { tenant_id: tenantId },
+    where: { tenantId: tenantId },
     include: {
       buyer: true,
       shade: true
@@ -422,19 +422,19 @@ const calculateOrderMetrics = async (tenantId) => {
   const overdueOrders = orders.filter(order => {
     return order.status !== 'completed' && 
            order.status !== 'dispatched' && 
-           new Date(order.delivery_date) < now;
+           new Date(order.deliveryDate) < now;
   }).length;
 
   // Calculate recent orders (last 30 days)
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const recentOrders = orders.filter(order => 
-    new Date(order.created_at) >= thirtyDaysAgo
+    new Date(order.createdAt) >= thirtyDaysAgo
   ).length;
 
   // Calculate top buyers by order count
   const buyerStats = orders.reduce((acc, order) => {
-    const buyerId = order.buyer_id;
+    const buyerId = order.buyerId;
     if (!acc[buyerId]) {
       acc[buyerId] = {
         name: order.buyer.name,
@@ -443,13 +443,13 @@ const calculateOrderMetrics = async (tenantId) => {
       };
     }
     acc[buyerId].count++;
-    acc[buyerId].totalQuantity += Number(order.quantity_kg);
+    acc[buyerId].totalQuantity += Number(order.quantityKg);
     return acc;
   }, {});
 
   const topBuyers = Object.entries(buyerStats)
     .map(([id, stats]) => ({
-      buyer_id: id || `unknown-${Date.now()}-${Math.random()}`, // Ensure unique ID
+      buyerId: id || `unknown-${Date.now()}-${Math.random()}`, // Ensure unique ID
       name: stats.name || 'Unknown Buyer',
       order_count: stats.count,
       total_quantity: stats.totalQuantity
@@ -472,8 +472,8 @@ const calculateOrderMetrics = async (tenantId) => {
 // Helper function to calculate purchase order metrics
 const calculatePurchaseOrderMetrics = async (tenantId) => {
   // Get all purchase orders for the tenant
-  const purchaseOrders = await prisma.purchase_orders.findMany({
-    where: { tenant_id: tenantId },
+  const purchaseOrders = await prisma.purchaseOrders.findMany({
+    where: { tenantId: tenantId },
     include: {
       items: true
     }
@@ -584,7 +584,7 @@ const getDefaultDashboardSummary = () => ({
 // Get all historical production data for the tenant
 const getAllHistoricalProductions = async (tenantId) => {
   return await prisma.productions.findMany({
-    where: { tenant_id: tenantId },
+    where: { tenantId: tenantId },
     orderBy: { date: 'asc' }
   });
 };
@@ -608,7 +608,7 @@ async function adminCreateTenant(data) {
       name,
       domain,
       plan: 'TRIAL',
-      is_active: true,
+      isActive: true,
       address,
       industry,
       phone,
@@ -620,11 +620,11 @@ async function adminCreateTenant(data) {
   if (trialPlan) {
     subscription = await prisma.subscriptions.create({
       data: {
-        tenant_id: tenant.id,
-        plan_id: trialPlan.id,
-        plan_type: trialPlan.name,
-        start_date: new Date(),
-        is_active: true,
+        tenantId: tenant.id,
+        planId: trialPlan.id,
+        planType: trialPlan.name,
+        startDate: new Date(),
+        isActive: true,
       }
     });
   }
@@ -642,23 +642,23 @@ async function adminCreateTenant(data) {
     subscription: subscription ? {
       id: subscription.id,
       plan: trialPlan ? trialPlan.name : null,
-      start_date: subscription.start_date,
-      is_active: subscription.is_active
+      startDate: subscription.startDate,
+      isActive: subscription.isActive
     } : null
   };
 }
 
 async function verifyAdminMail(token) {
-  const user = await prisma.users.findFirst({ where: { verification_token: token } });
+  const user = await prisma.users.findFirst({ where: { verificationToken: token } });
   if (!user) throw new Error('Invalid or expired token');
   await prisma.users.update({
     where: { id: user.id },
-    data: { is_verified: true, verification_token: null },
+    data: { isActive: true, verificationToken: null },
   });
   // Fetch the default role for the user's tenant
-  const defaultRole = await prisma.roles.findFirst({
+  const defaultRole = await prisma.role.findFirst({
     where: {
-      tenant_id: user.tenant_id,
+      tenantId: user.tenantId,
       name: 'Admin',
     },
   });
@@ -674,7 +674,7 @@ async function adminGetTenantById(id) {
     include: {
       users: true,
       subscriptions: {
-        orderBy: { start_date: 'desc' },
+        orderBy: { startDate: 'desc' },
         take: 1,
         include: { plan: true },
       },
@@ -684,26 +684,26 @@ async function adminGetTenantById(id) {
   const sub = tenant.subscriptions[0];
   const subscription = sub
     ? {
-        plan: sub.plan_type || tenant.plan,
-        startDate: sub.start_date ? sub.start_date.toISOString() : null,
-        endDate: (sub.plan && sub.plan.expiry_date)
-          ? sub.plan.expiry_date.toISOString()
-          : (sub.end_date ? sub.end_date.toISOString() : null),
-        status: sub.is_active ? 'active' : 'inactive',
+        plan: sub.planType || tenant.plan,
+        startDate: sub.startDate ? sub.startDate.toISOString() : null,
+        endDate: (sub.plan && sub.plan.expiryDate)
+          ? sub.plan.expiryDate.toISOString()
+          : (sub.endDate ? sub.endDate.toISOString() : null),
+        status: sub.isActive ? 'active' : 'inactive',
       }
     : null;
   const users = tenant.users.map(u => ({
     id: u.id,
     name: u.name,
     email: u.email,
-    is_active: u.is_active,
-    is_verified: u.is_verified,
-    created_at: u.created_at,
-    updated_at: u.updated_at,
+    isActive: u.isActive,
+    isVerified: u.isVerified,
+    createdAt: u.createdAt,
+    updatedAt: u.updatedAt,
     role: u.role,
   }));
   const totalUsers = users.length;
-  const activeUsers = users.filter(u => u.is_active).length;
+  const activeUsers = users.filter(u => u.isActive).length;
   const usage = {
     totalUsers,
     activeUsers,
@@ -722,9 +722,9 @@ async function adminGetTenantById(id) {
     name: tenant.name,
     domain: tenant.domain || '',
     plan: tenant.plan,
-    is_active: tenant.is_active,
-    created_at: tenant.created_at,
-    updated_at: tenant.updated_at,
+    isActive: tenant.isActive,
+    createdAt: tenant.createdAt,
+    updatedAt: tenant.updatedAt,
     companyDetails,
     subscription,
     users,
@@ -737,10 +737,10 @@ async function adminUpdateTenant(id, data) {
   const companyDetails = data.companyDetails || {};
   const name = data.name;
   const status = data.status;
-  // Determine is_active from status only
-  let is_active;
-  if (status === 'active') is_active = true;
-  else if (status === 'inactive' || status === 'suspended') is_active = false;
+  // Determine isActive from status only
+  let isActive;
+  if (status === 'active') isActive = true;
+  else if (status === 'inactive' || status === 'suspended') isActive = false;
   // Allow updating address, phone, industry, domain via companyDetails or flat fields
   const address = companyDetails.address || data.address;
   const phone = companyDetails.phone || data.phone;
@@ -748,7 +748,7 @@ async function adminUpdateTenant(id, data) {
   const domain = companyDetails.domain || data.domain;
   const updateData = {
     ...(name && { name }),
-    ...(is_active !== undefined && { is_active }),
+    ...(isActive !== undefined && { isActive }),
     ...(address !== undefined && { address }),
     ...(phone !== undefined && { phone }),
     ...(industry !== undefined && { industry }),
@@ -759,10 +759,10 @@ async function adminUpdateTenant(id, data) {
     data: updateData,
   });
   // If status is inactive or suspended, deactivate all users for this tenant
-  if (status === 'inactive' || status === 'suspended' || is_active === false) {
+  if (status === 'inactive' || status === 'suspended' || isActive === false) {
     await prisma.users.updateMany({
-      where: { tenant_id: id },
-      data: { is_active: false },
+      where: { tenantId: id },
+      data: { isActive: false },
     });
   }
   // Return grouped companyDetails and domain at top level
@@ -774,7 +774,7 @@ async function adminUpdateTenant(id, data) {
   };
   return {
     ...updated,
-    is_active: updated.is_active,
+    isActive: updated.isActive,
     domain: updated.domain || '',
     companyDetails: companyDetailsResp,
   };
@@ -786,15 +786,15 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
       name: { contains: search, mode: 'insensitive' },
     }),
     ...((status !== 'all') && {
-      is_active: status === 'active' ? true : status === 'inactive' ? false : undefined,
+      isActive: status === 'active' ? true : status === 'inactive' ? false : undefined,
     }),
     ...(plan && { plan: { equals: plan, mode: 'insensitive' } }),
   };
   let orderBy = {};
   if (sortBy === 'name') orderBy = { name: sortOrder };
-  else if (sortBy === 'createdAt') orderBy = { created_at: sortOrder };
-  else if (sortBy === 'lastActive') orderBy = { updated_at: sortOrder };
-  else orderBy = { created_at: sortOrder };
+  else if (sortBy === 'createdAt') orderBy = { createdAt: sortOrder };
+  else if (sortBy === 'lastActive') orderBy = { updatedAt: sortOrder };
+  else orderBy = { createdAt: sortOrder };
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
   let tenants = await prisma.tenants.findMany({
@@ -804,7 +804,7 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
     take,
     include: {
       users: {
-        select: { id: true, updated_at: true, is_active: true },
+        select: { id: true, updatedAt: true, isActive: true },
       },
     },
   });
@@ -820,8 +820,8 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
     let lastActive = null;
     if (userCount > 0) {
       lastActive = t.users.reduce((latest, u) => {
-        if (!u.updated_at) return latest;
-        return !latest || u.updated_at > latest ? u.updated_at : latest;
+        if (!u.updatedAt) return latest;
+        return !latest || u.updatedAt > latest ? u.updatedAt : latest;
       }, null);
     }
     return {
@@ -829,10 +829,10 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
       name: t.name,
       domain: t.domain,
       plan: t.plan,
-      is_active: t.is_active,
-      status: t.is_active ? 'active' : 'inactive', // <-- add this
-      created_at: t.created_at,
-      updated_at: t.updated_at,
+      isActive: t.isActive,
+      status: t.isActive ? 'active' : 'inactive', // <-- add this
+      createdAt: t.createdAt,
+      updatedAt: t.updatedAt,
       userCount,
       lastActive,
     };
@@ -857,18 +857,18 @@ async function adminDeleteTenant(id) {
 async function adminGetAllSubscriptions({ search = '', status = 'all', plan, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }) {
   // Build where clause for filtering
   const where = {
-    ...(plan && { plan_type: { equals: plan, mode: 'insensitive' } }),
+    ...(plan && { planType: { equals: plan, mode: 'insensitive' } }),
     ...(status !== 'all' && {
-      is_active: status === 'active' ? true : status === 'inactive' ? false : undefined,
+      isActive: status === 'active' ? true : status === 'inactive' ? false : undefined,
     }),
     // We'll filter by tenant name in-memory after join
   };
   // Sorting
   let orderBy = {};
-  if (sortBy === 'planName') orderBy = { plan_type: sortOrder };
-  else if (sortBy === 'createdAt') orderBy = { start_date: sortOrder };
-  else if (sortBy === 'updatedAt') orderBy = { end_date: sortOrder };
-  else orderBy = { start_date: sortOrder };
+  if (sortBy === 'planName') orderBy = { planType: sortOrder };
+  else if (sortBy === 'createdAt') orderBy = { startDate: sortOrder };
+  else if (sortBy === 'updatedAt') orderBy = { endDate: sortOrder };
+  else orderBy = { startDate: sortOrder };
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
   // Query subscriptions with plan and tenant
@@ -898,16 +898,16 @@ async function adminGetAllSubscriptions({ search = '', status = 'all', plan, pag
   const mapped = paged.map(sub => ({
     id: sub.id,
     tenantName: sub.tenants ? sub.tenants.name : '',
-    planName: sub.plan ? sub.plan.name : sub.plan_type,
+    planName: sub.plan ? sub.plan.name : sub.planType,
     description: sub.plan ? sub.plan.description : '',
     price: sub.plan ? sub.plan.price : null,
     billingCycle: sub.plan ? sub.plan.billingCycle : '',
     maxUsers: sub.plan ? sub.plan.maxUsers : null,
     maxOrders: sub.plan ? sub.plan.maxOrders : null,
     maxStorage: sub.plan ? sub.plan.maxStorage : '',
-    status: sub.is_active ? 'active' : 'inactive',
-    createdAt: sub.start_date,
-    updatedAt: sub.end_date,
+    status: sub.isActive ? 'active' : 'inactive',
+    createdAt: sub.startDate,
+    updatedAt: sub.endDate,
   }));
   const totalPages = Math.ceil(totalItems / take);
   return {
@@ -929,32 +929,32 @@ async function adminCreateSubscription({ tenantId, planId }) {
   if (!tenant) throw new Error('Tenant not found');
   const plan = await prisma.plan.findUnique({ where: { id: planId } });
   if (!plan) throw new Error('Plan not found');
-  // Deactivate all previous subscriptions for this tenant (regardless of is_active)
+  // Deactivate all previous subscriptions for this tenant (regardless of isActive)
   await prisma.subscriptions.updateMany({
-    where: { tenant_id: tenantId },
-    data: { is_active: false },
+    where: { tenantId: tenantId },
+    data: { isActive: false },
   });
   // Create new subscription
   const now = new Date();
-  // Calculate end_date using plan billingCycle
-  let end_date = null;
+  // Calculate endDate using plan billingCycle
+  let endDate = null;
   if (plan.billingCycle === 'trial') {
-    end_date = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
   } else if (plan.billingCycle === 'month') {
-    end_date = new Date(now);
-    end_date.setMonth(end_date.getMonth() + 1);
+    endDate = new Date(now);
+    endDate.setMonth(endDate.getMonth() + 1);
   } else if (plan.billingCycle === 'year') {
-    end_date = new Date(now);
-    end_date.setFullYear(end_date.getFullYear() + 1);
+    endDate = new Date(now);
+    endDate.setFullYear(endDate.getFullYear() + 1);
   }
   const newSubscription = await prisma.subscriptions.create({
     data: {
-      tenant_id: tenantId,
-      plan_id: planId,
-      plan_type: plan.name,
-      start_date: now,
-      end_date,
-      is_active: true,
+      tenantId: tenantId,
+      planId: planId,
+      planType: plan.name,
+      startDate: now,
+      endDate,
+      isActive: true,
     },
     include: {
       plan: true,
@@ -966,15 +966,15 @@ async function adminCreateSubscription({ tenantId, planId }) {
   // Generate invoice number: INV+YYYYMMDD+last 3 auto increment
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-  const count = await prisma.billing.count({ where: { created_at: { gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()) } } });
+  const count = await prisma.billing.count({ where: { createdAt: { gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()) } } });
   const invoiceNumber = `INV${dateStr}${String(count + 1).padStart(3, '0')}`;
   const billing = await prisma.billing.create({
     data: {
-      tenant_id: tenantId,
-      invoice_number: invoiceNumber,
+      tenantId: tenantId,
+      invoiceNumber: invoiceNumber,
       amount: plan.price,
-      due_date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15),
-      paid_date: null,
+      dueDate: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15),
+      paidDate: null,
       status: 'PENDING',
     },
     include: { tenants: true },
@@ -992,11 +992,11 @@ async function adminCreateSubscription({ tenantId, planId }) {
   await billingService.sendInvoiceBillEmail(invoiceNumber);
   // Get user for this tenant (prefer Admin, fallback to any user)
   let invoiceUser = await prisma.users.findFirst({
-    where: { tenant_id: tenantId, role: 'Admin' },
+    where: { tenantId: tenantId, role: 'Admin' },
   });
   if (!invoiceUser) {
     invoiceUser = await prisma.users.findFirst({
-      where: { tenant_id: tenantId },
+      where: { tenantId: tenantId },
     });
   }
   if (!invoiceUser) throw new Error('No user found for this tenant');
@@ -1005,13 +1005,13 @@ async function adminCreateSubscription({ tenantId, planId }) {
     id: billing.id,
     tenantName: billing.tenants?.name || '',
     tenantEmail: invoiceUser?.email || '',
-    invoiceNumber: billing.invoice_number,
+    invoiceNumber: billing.invoiceNumber,
     amount: billing.amount,
     currency: 'USD',
     status: billing.status?.toLowerCase() || '',
-    dueDate: billing.due_date?.toISOString().split('T')[0] || '',
-    issueDate: billing.created_at?.toISOString().split('T')[0] || '',
-    paidDate: billing.paid_date?.toISOString().split('T')[0] || '',
+    dueDate: billing.dueDate?.toISOString().split('T')[0] || '',
+    issueDate: billing.createdAt?.toISOString().split('T')[0] || '',
+    paidDate: billing.paidDate?.toISOString().split('T')[0] || '',
     plan: plan.name,
     billingCycle: plan.billingCycle,
     description: plan.description,
@@ -1019,30 +1019,30 @@ async function adminCreateSubscription({ tenantId, planId }) {
 
   // Fetch all subscriptions for this tenant (most recent first)
   const allSubscriptions = await prisma.subscriptions.findMany({
-    where: { tenant_id: tenantId },
-    orderBy: { start_date: 'desc' },
+    where: { tenantId: tenantId },
+    orderBy: { startDate: 'desc' },
     include: { plan: true, tenants: true },
   });
   // Format response as in adminGetAllSubscriptions
   const mapped = allSubscriptions.map(sub => ({
     id: sub.id,
     tenantName: sub.tenants ? sub.tenants.name : '',
-    planName: sub.plan ? sub.plan.name : sub.plan_type,
+    planName: sub.plan ? sub.plan.name : sub.planType,
     description: sub.plan ? sub.plan.description : '',
     price: sub.plan ? sub.plan.price : null,
     billingCycle: sub.plan ? sub.plan.billingCycle : '',
     maxUsers: sub.plan ? sub.plan.maxUsers : null,
     maxOrders: sub.plan ? sub.plan.maxOrders : null,
     maxStorage: sub.plan ? sub.plan.maxStorage : '',
-    status: sub.is_active ? 'active' : 'inactive',
-    createdAt: sub.start_date,
-    updatedAt: sub.end_date,
+    status: sub.isActive ? 'active' : 'inactive',
+    createdAt: sub.startDate,
+    updatedAt: sub.endDate,
   }));
   return {
     subscriptions: mapped,
     invoice: invoiceResponse,
     payment,
-    invoice_number: billing.invoice_number, // for separate email API
+    invoice_number: billing.invoiceNumber, // for separate email API
     pagination: {
       currentPage: 1,
       totalPages: 1,
@@ -1062,29 +1062,29 @@ async function adminUpdateSubscription(id, { status }) {
   if (status === 'inactive') {
     const updated = await prisma.subscriptions.update({
       where: { id },
-      data: { is_active: false },
+      data: { isActive: false },
       include: { tenants: true, plan: true },
     });
     return {
       id: updated.id,
       tenantName: updated.tenants ? updated.tenants.name : '',
-      planName: updated.plan ? updated.plan.name : updated.plan_type,
+      planName: updated.plan ? updated.plan.name : updated.planType,
       description: updated.plan ? updated.plan.description : '',
       price: updated.plan ? updated.plan.price : null,
       billingCycle: updated.plan ? updated.plan.billingCycle : '',
       maxUsers: updated.plan ? updated.plan.maxUsers : null,
       maxOrders: updated.plan ? updated.plan.maxOrders : null,
       maxStorage: updated.plan ? updated.plan.maxStorage : '',
-      status: updated.is_active ? 'active' : 'inactive',
-      createdAt: updated.start_date,
-      updatedAt: updated.end_date,
+      status: updated.isActive ? 'active' : 'inactive',
+      createdAt: updated.startDate,
+      updatedAt: updated.endDate,
     };
   } else if (status === 'active') {
     // Check if another active subscription exists for this tenant
     const activeCount = await prisma.subscriptions.count({
       where: {
-        tenant_id: sub.tenant_id,
-        is_active: true,
+        tenantId: sub.tenantId,
+        isActive: true,
         NOT: { id },
       },
     });
@@ -1093,22 +1093,22 @@ async function adminUpdateSubscription(id, { status }) {
     }
     const updated = await prisma.subscriptions.update({
       where: { id },
-      data: { is_active: true },
+      data: { isActive: true },
       include: { tenants: true, plan: true },
     });
     return {
       id: updated.id,
       tenantName: updated.tenants ? updated.tenants.name : '',
-      planName: updated.plan ? updated.plan.name : updated.plan_type,
+      planName: updated.plan ? updated.plan.name : updated.planType,
       description: updated.plan ? updated.plan.description : '',
       price: updated.plan ? updated.plan.price : null,
       billingCycle: updated.plan ? updated.plan.billingCycle : '',
       maxUsers: updated.plan ? updated.plan.maxUsers : null,
       maxOrders: updated.plan ? updated.plan.maxOrders : null,
       maxStorage: updated.plan ? updated.plan.maxStorage : '',
-      status: updated.is_active ? 'active' : 'inactive',
-      createdAt: updated.start_date,
-      updatedAt: updated.end_date,
+      status: updated.isActive ? 'active' : 'inactive',
+      createdAt: updated.startDate,
+      updatedAt: updated.endDate,
     };
   } else {
     throw new Error('Invalid status value. Must be "active" or "inactive".');
@@ -1116,16 +1116,16 @@ async function adminUpdateSubscription(id, { status }) {
 }
 
 async function adminGetAllUsers(query) {
-  let { tenant_id, tenantname, status, page = 1, limit = 10, search = '' } = query;
+  let { tenantId, tenantname, status, page = 1, limit = 10, search = '' } = query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
   let where = {};
-  if (tenant_id) {
-    where.tenant_id = tenant_id;
+  if (tenantId) {
+    where.tenantId = tenantId;
   } else if (tenantname) {
     where.tenants = { name: { contains: tenantname, mode: 'insensitive' } };
   }
   if (status && status !== 'all') {
-    where.is_active = status === 'active' ? true : false;
+    where.isActive = status === 'active' ? true : false;
   }
   if (search) {
     where.OR = [
@@ -1140,20 +1140,20 @@ async function adminGetAllUsers(query) {
       take: parseInt(limit),
       include: {
         tenants: true,
-        user_roles: { include: { role: true } },
+        userRoles: { include: { role: true } },
       },
     }),
     prisma.users.count({ where }),
   ]);
   const transformedUsers = users.map(user => {
-    const roleObj = user.user_roles && user.user_roles.length > 0
-      ? user.user_roles[0].role
+    const roleObj = user.userRoles && user.userRoles.length > 0
+      ? user.userRoles[0].role
       : null;
-    const { user_roles, ...rest } = user;
+    const { userRoles, ...rest } = user;
     return {
       ...rest,
       role: roleObj,
-      is_verified: user.is_verified,
+      isVerified: user.isVerified,
     };
   });
   const totalPages = Math.ceil(count / parseInt(limit));
@@ -1169,37 +1169,37 @@ async function adminGetAllUsers(query) {
 }
 
 async function adminUpdateUser(userId, updateData) {
-  if (updateData.role_id) {
-    await prisma.user_roles.deleteMany({ where: { user_id: userId } });
-    await prisma.user_roles.create({
+  if (updateData.roleId) {
+    await prisma.userRole.deleteMany({ where: { userId } });
+    await prisma.userRole.create({
       data: {
-        user_id: userId,
-        role_id: updateData.role_id,
+        userId: userId,
+        roleId: updateData.roleId,
       },
     });
-    const role = await prisma.roles.findUnique({
-      where: { id: updateData.role_id },
-      select: { id: true, name: true, permissions: true, tenant_id: true },
+    const role = await prisma.role.findUnique({
+      where: { id: updateData.roleId },
+      select: { id: true, name: true, permissions: true, tenantId: true },
     });
     await prisma.users.update({
       where: { id: userId },
       data: { role: role.name },
     });
   }
-  // Remove email and is_verified if present
-  const { role_id, email, is_verified, ...otherFields } = updateData;
-  // Only include is_active if present in updateData
+  // Remove email and isVerified if present
+  const { roleId, email, isVerified, ...otherFields } = updateData;
+  // Only include isActive if present in updateData
   const updateObj = { ...otherFields };
-  if (updateData.hasOwnProperty('is_active')) {
-    updateObj.is_active = updateData.is_active;
+  if (updateData.hasOwnProperty('isActive')) {
+    updateObj.isActive = updateData.isActive;
   }
   await prisma.users.update({
     where: { id: userId },
     data: updateObj,
   });
   const user = await prisma.users.findUnique({ where: { id: userId } });
-  const userRole = await prisma.user_roles.findFirst({
-    where: { user_id: userId },
+  const userRole = await prisma.userRole.findFirst({
+    where: { userId },
     include: { role: true },
   });
   return {
@@ -1208,39 +1208,68 @@ async function adminUpdateUser(userId, updateData) {
       id: userRole.role.id,
       name: userRole.role.name,
       permissions: userRole.role.permissions,
-      tenant_id: userRole.role.tenant_id,
+      tenantId: userRole.role.tenantId,
     } : null,
-    is_verified: user.is_verified,
+    isVerified: user.isVerified,
   };
 }
 
-async function adminInviteUser({ email, tenant_id, role_id }) {
-  if (!email || !tenant_id || !role_id) {
-    throw new Error('Missing required fields');
+async function adminInviteUser({ email, tenantId, roleId }) {
+  if (!email || !tenantId || !roleId) {
+    throw new Error('Missing fields: email, tenantId, roleId');
   }
+  // Check if user exists
+  const existing = await prisma.users.findUnique({ where: { email } });
+  if (existing) throw new Error('User already exists');
   // Generate invite token
-  const token = jwt.sign({ email, tenant_id, role_id }, JWT_SECRET, { expiresIn: '72h' });
+  const token = jwt.sign({ email, tenantId, roleId }, JWT_SECRET, { expiresIn: '72h' });
   const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/superadmin/accept-invite?token=${token}`;
-  // Send email
-  const transporter = nodemailer.createTransport({
-    service: 'Gmail',
-    auth: {
-      user: process.env.EMAIL_FROM,
-      pass: process.env.EMAIL_PASS
-    }
-  });
-  await transporter.sendMail({
-    from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
-    to: email,
-    subject: 'You are invited to join TexIntelli',
-    html: `
-      <p>Hello,</p>
-      <p>You have been invited to join TexIntelli. Click below to accept the invitation:</p>
-      <a href="${inviteLink}">${inviteLink}</a>
-      <p>This link will expire in 72 hours.</p>
-    `
-  });
-  return { message: 'Invitation sent, check your email' };
+  
+  // Check if email credentials are configured
+  if (!process.env.EMAIL_FROM || !process.env.EMAIL_PASS) {
+    console.log('⚠️ Email credentials not configured. Skipping invitation email.');
+    console.log('📧 Invitation token:', token);
+    console.log('🔗 Manual invitation URL:', inviteLink);
+    return { 
+      message: 'Invitation created successfully (email not sent due to missing credentials)',
+      inviteLink,
+      token
+    };
+  }
+
+  try {
+    // Send email
+    const transporter = nodemailer.createTransport({
+      service: 'Gmail',
+      auth: {
+        user: process.env.EMAIL_FROM,
+        pass: process.env.EMAIL_PASS
+      }
+    });
+    await transporter.sendMail({
+      from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
+      to: email,
+      subject: 'You are invited to join TexIntelli',
+      html: `
+        <p>Hello,</p>
+        <p>You have been invited to join TexIntelli. Click below to accept the invitation:</p>
+        <a href="${inviteLink}">${inviteLink}</a>
+        <p>This link will expire in 72 hours.</p>
+      `
+    });
+    
+    console.log('✅ Invitation email sent successfully to:', email);
+    return { message: 'Invitation sent, check your email' };
+  } catch (error) {
+    console.error('❌ Failed to send invitation email:', error.message);
+    console.log('📧 Invitation token:', token);
+    console.log('🔗 Manual invitation URL:', inviteLink);
+    return { 
+      message: 'Invitation created but email failed to send',
+      inviteLink,
+      token
+    };
+  }
 }
 
 async function adminAcceptInvite({ token, name, password }) {
@@ -1254,31 +1283,31 @@ async function adminAcceptInvite({ token, name, password }) {
   } catch {
     throw new Error('Invalid or expired token');
   }
-  const { email, tenant_id, role_id } = payload;
+  const { email, tenantId, roleId } = payload;
   // Check if user exists
   const existing = await prisma.users.findUnique({ where: { email } });
   if (existing) throw new Error('User already exists');
   // Hash password
   const bcrypt = require('bcrypt');
-  const password_hash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 10);
   // Create user
   const user = await prisma.users.create({
     data: {
       name,
       email,
-      tenant_id,
-      password_hash,
-      is_verified: true
+      tenantId,
+      passwordHash,
+      isActive: true
     }
   });
   // Assign role
-  await prisma.user_roles.create({
+  await prisma.userRole.create({
     data: {
-      user_id: user.id,
-      role_id
+      userId: user.id,
+      roleId
     }
   });
-  return user;
+  return { message: 'User created successfully from invite' };
 }
 
 async function adminDeleteUser(userId) {
@@ -1286,9 +1315,9 @@ async function adminDeleteUser(userId) {
   if (!user) throw new Error('User not found');
   await prisma.users.update({
     where: { id: userId },
-    data: { is_active: false },
+    data: { isActive: false },
   });
-  return { is_active: false, message: 'This user successfully deactivated' };
+  return { isActive: false, message: 'This user successfully deactivated' };
 }
 
 async function getDashboardSummary(user) {
@@ -1320,7 +1349,7 @@ async function getDashboardSummary(user) {
 
     // Calculate order metrics
     const orders = await prisma.orders.findMany({
-      where: { tenant_id: user.tenantId },
+      where: { tenantId: user.tenantId },
       include: { buyer: true }
     });
 
@@ -1333,7 +1362,7 @@ async function getDashboardSummary(user) {
         }, { pending: 0, in_progress: 0, completed: 0, dispatched: 0 }),
         pendingOrders: orders.filter(o => o.status === 'pending').length,
         overdueOrders: orders.filter(o => {
-          const deliveryDate = new Date(o.delivery_date);
+          const deliveryDate = new Date(o.deliveryDate);
           return o.status !== 'completed' && deliveryDate < new Date();
         }).length,
         topBuyers: Object.entries(
@@ -1349,8 +1378,8 @@ async function getDashboardSummary(user) {
     }
 
     // Calculate purchase order metrics
-    const purchaseOrders = await prisma.purchase_orders.findMany({
-      where: { tenant_id: user.tenantId },
+    const purchaseOrders = await prisma.purchaseOrders.findMany({
+      where: { tenantId: user.tenantId },
       include: { items: true }
     });
 
@@ -1362,7 +1391,7 @@ async function getDashboardSummary(user) {
           acc[po.status] = (acc[po.status] || 0) + 1;
           return acc;
         }, { uploaded: 0, converted: 0, verified: 0 }),
-        totalValue: purchaseOrders.reduce((sum, po) => sum + Number(po.grand_total || 0), 0),
+        totalValue: purchaseOrders.reduce((sum, po) => sum + Number(po.grandTotal || 0), 0),
         conversionRate: (convertedPOs / purchaseOrders.length) * 100,
         convertedPOs
       };
@@ -1371,16 +1400,16 @@ async function getDashboardSummary(user) {
     // Calculate financial metrics
     const receivables = await prisma.orders.findMany({
       where: {
-        tenant_id: user.tenantId,
+        tenantId: user.tenantId,
         status: { in: ['completed', 'dispatched'] }
       }
     });
 
     if (receivables.length > 0) {
       summary.financial.receivables = {
-        total: receivables.reduce((sum, order) => sum + Number(order.quantity_kg || 0), 0),
+        total: receivables.reduce((sum, order) => sum + Number(order.quantityKg || 0), 0),
         overdue: receivables.filter(order => {
-          const deliveryDate = new Date(order.delivery_date);
+          const deliveryDate = new Date(order.deliveryDate);
           return order.status === 'dispatched' && deliveryDate < new Date();
         }).length
       };
@@ -1412,21 +1441,21 @@ async function getAdminDashboardSummary() {
 
     // Tenants
     const currTenants = await prisma.tenants.count({
-      where: { created_at: { gte: currStart, lte: currEnd }, is_active: true }
+      where: { createdAt: { gte: currStart, lte: currEnd }, isActive: true }
     });
     const prevTenants = await prisma.tenants.count({
-      where: { created_at: { gte: prevStart, lte: prevEnd }, is_active: true }
+      where: { createdAt: { gte: prevStart, lte: prevEnd }, isActive: true }
     });
-    const totalTenants = await prisma.tenants.count({ where: { is_active: true } });
+    const totalTenants = await prisma.tenants.count({ where: { isActive: true } });
 
     // Users
     const currUsers = await prisma.users.count({
-      where: { is_active: true, created_at: { gte: currStart, lte: currEnd } }
+      where: { isActive: true, createdAt: { gte: currStart, lte: currEnd } }
     });
     const prevUsers = await prisma.users.count({
-      where: { is_active: true, created_at: { gte: prevStart, lte: prevEnd } }
+      where: { isActive: true, createdAt: { gte: prevStart, lte: prevEnd } }
     });
-    const totalUsers = await prisma.users.count({ where: { is_active: true } });
+    const totalUsers = await prisma.users.count({ where: { isActive: true } });
 
     // For now, orders and revenue are 0
     const currOrders = 0, prevOrders = 0;

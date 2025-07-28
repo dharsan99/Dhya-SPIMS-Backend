@@ -7,11 +7,19 @@ const { body } = require('express-validator');
 router.use(verifyTokenAndTenant);
 
 const createUserValidation = [
-  body('tenant_id').isString().notEmpty(),
-  body('email').isEmail(),
-  body('password').isString().notEmpty(),
-  body('role_id').isString().notEmpty(),
+  body('tenantId').isString().notEmpty().withMessage('Tenant ID is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('password').isString().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('roleId').isString().notEmpty().withMessage('Role ID is required'),
+  body('name').isString().notEmpty().withMessage('Name is required'),
 ];
+
+/**
+ * @swagger
+ * tags:
+ *   name: Users
+ *   description: User management operations
+ */
 
 /**
  * @swagger
@@ -26,32 +34,68 @@ const createUserValidation = [
  *           schema:
  *             type: object
  *             required:
- *               - tenant_id
+ *               - tenantId
  *               - email
  *               - password
- *               - role_id
+ *               - roleId
+ *               - name
  *             properties:
- *               tenant_id:
+ *               tenantId:
  *                 type: string
+ *                 format: uuid
+ *                 description: Tenant ID for the user
  *               name:
  *                 type: string
+ *                 description: User's full name
  *               email:
  *                 type: string
+ *                 format: email
+ *                 description: User's email address
  *               password:
  *                 type: string
- *               role_id:
+ *                 minLength: 6
+ *                 description: User's password
+ *               roleId:
  *                 type: string
+ *                 format: uuid
  *                 description: Role UUID to assign to the user
- *               is_active:
+ *               isActive:
  *                 type: boolean
- *               is_verified:
- *                 type: boolean
- *                 description: Whether the user is verified (optional)
+ *                 default: true
+ *                 description: Whether the user is active
  *     responses:
  *       201:
  *         description: User created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     tenantId:
+ *                       type: string
+ *                     isActive:
+ *                       type: boolean
+ *                     isVerified:
+ *                       type: boolean
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
  *       400:
- *         description: Bad request
+ *         description: Bad request - missing or invalid fields
  *       500:
  *         description: Internal server error
  */
@@ -61,7 +105,7 @@ router.post('/', createUserValidation, userController.createUser);
  * @swagger
  * /users/{id}:
  *   get:
- *     summary: Get user by ID
+ *     summary: Get user by ID with role information
  *     tags: [Users]
  *     parameters:
  *       - in: path
@@ -69,9 +113,47 @@ router.post('/', createUserValidation, userController.createUser);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
+ *         description: User ID
  *     responses:
  *       200:
- *         description: User found
+ *         description: User found with role information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     tenantId:
+ *                       type: string
+ *                     isActive:
+ *                       type: boolean
+ *                     isVerified:
+ *                       type: boolean
+ *                     userRoles:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           role:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                               name:
+ *                                 type: string
+ *                               permissions:
+ *                                 type: object
  *       404:
  *         description: User not found
  *       500:
@@ -83,28 +165,90 @@ router.get('/:id', userController.getUserById);
  * @swagger
  * /users:
  *   get:
- *     summary: Get all users
+ *     summary: Get all users with pagination and search
  *     tags: [Users]
  *     parameters:
  *       - in: query
- *         name: tenant_id
+ *         name: tenantId
+ *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
+ *         description: Tenant ID to filter users
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *         description: Number of items per page
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
+ *         description: Search term for name or email
  *     responses:
  *       200:
- *         description: List of users
+ *         description: List of users with pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       tenantId:
+ *                         type: string
+ *                       isActive:
+ *                         type: boolean
+ *                       isVerified:
+ *                         type: boolean
+ *                       userRoles:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             role:
+ *                               type: object
+ *                               properties:
+ *                                 id:
+ *                                   type: string
+ *                                 name:
+ *                                   type: string
+ *                                 permissions:
+ *                                   type: object
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     currentPage:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     totalItems:
+ *                       type: integer
+ *                     itemsPerPage:
+ *                       type: integer
+ *       400:
+ *         description: Missing tenantId
  *       500:
  *         description: Internal server error
  */
@@ -122,8 +266,9 @@ router.get('/', userController.getAllUsers);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
+ *         description: User ID
  *     requestBody:
- *       required: true
  *       content:
  *         application/json:
  *           schema:
@@ -131,16 +276,22 @@ router.get('/', userController.getAllUsers);
  *             properties:
  *               name:
  *                 type: string
+ *                 description: User's full name
  *               email:
  *                 type: string
- *               role_id:
+ *                 format: email
+ *                 description: User's email address
+ *               password:
  *                 type: string
- *                 description: Role UUID to assign to the user
- *               is_active:
+ *                 minLength: 6
+ *                 description: New password (optional)
+ *               roleId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: New role UUID to assign to the user
+ *               isActive:
  *                 type: boolean
- *               is_verified:
- *                 type: boolean
- *                 description: Whether the user is verified (optional)
+ *                 description: Whether the user is active
  *     responses:
  *       200:
  *         description: User updated successfully
@@ -149,29 +300,26 @@ router.get('/', userController.getAllUsers);
  *             schema:
  *               type: object
  *               properties:
- *                 id:
+ *                 message:
  *                   type: string
- *                 tenant_id:
- *                   type: string
- *                 name:
- *                   type: string
- *                 email:
- *                   type: string
- *                 is_active:
- *                   type: boolean
- *                 is_verified:
- *                   type: boolean
- *                 role:
+ *                 user:
  *                   type: object
  *                   properties:
  *                     id:
  *                       type: string
  *                     name:
  *                       type: string
- *                     permissions:
- *                       type: object
- *                     tenant_id:
+ *                     email:
  *                       type: string
+ *                     tenantId:
+ *                       type: string
+ *                     isActive:
+ *                       type: boolean
+ *                     isVerified:
+ *                       type: boolean
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
  *       404:
  *         description: User not found
  *       500:
@@ -183,7 +331,7 @@ router.put('/:id', userController.updateUser);
  * @swagger
  * /users/{id}:
  *   delete:
- *     summary: Delete a user
+ *     summary: Delete a user and all associated data
  *     tags: [Users]
  *     parameters:
  *       - in: path
@@ -191,9 +339,18 @@ router.put('/:id', userController.updateUser);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
+ *         description: User ID
  *     responses:
  *       200:
  *         description: User deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
  *       404:
  *         description: User not found
  *       500:
@@ -201,28 +358,64 @@ router.put('/:id', userController.updateUser);
  */
 router.delete('/:id', userController.deleteUser);
 
-
 /**
  * @swagger
- * /roles/by-tenant:
+ * /users/roles/by-tenant:
  *   get:
- *     summary: Get all roles and permissions by tenant ID
+ *     summary: Get all roles and their assigned users by tenant ID
  *     tags: [Users]
  *     parameters:
  *       - in: query
- *         name: tenant_id
+ *         name: tenantId
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
- *         description: The ID of the tenant
+ *           format: uuid
+ *         description: Tenant ID to get roles for
  *     responses:
  *       200:
- *         description: List of roles with permissions
+ *         description: List of roles with assigned users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 roles:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       permissions:
+ *                         type: object
+ *                       userRoles:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             user:
+ *                               type: object
+ *                               properties:
+ *                                 id:
+ *                                   type: string
+ *                                 name:
+ *                                   type: string
+ *                                 email:
+ *                                   type: string
+ *                                 isActive:
+ *                                   type: boolean
  *       400:
- *         description: Missing tenant_id
+ *         description: Missing tenantId
  *       500:
  *         description: Internal server error
  */
-router.get('/by-tenant', userController.getAllUsersRoles);
+router.get('/roles/by-tenant', userController.getAllUsersRoles);
 
 module.exports = router;

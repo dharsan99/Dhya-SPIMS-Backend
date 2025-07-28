@@ -115,78 +115,47 @@ async function adminGetInvoices({ search = '', status = 'all', plan, page = 1, l
 }
 
 async function sendInvoiceEmail(invoice_number) {
-  // Fetch invoice, tenant, and user
   const invoice = await prisma.billing.findUnique({
-    where: { invoice_number },
+    where: { invoice_number: invoice_number },
     include: { tenants: true },
   });
-  if (!invoice) throw new Error('Invoice not found');
-  let invoiceUser = await prisma.users.findFirst({
-    where: { tenant_id: invoice.tenant_id, role: 'Admin' },
-  });
-  if (!invoiceUser) {
-    // Fallback: get any user for this tenant
-    invoiceUser = await prisma.users.findFirst({
-      where: { tenant_id: invoice.tenant_id },
-    });
-  }
-  if (!invoiceUser) throw new Error('No user found for this tenant');
 
-  // Demo data for line items (replace with real data if available)
-  const lineItems = [
-    { description: 'Brand consultation', unitPrice: 100, qty: 1, total: 100 },
-    { description: 'Logo design', unitPrice: 100, qty: 1, total: 100 },
-    { description: 'Website design', unitPrice: 100, qty: 1, total: 100 },
-    { description: 'Social media templates', unitPrice: 100, qty: 1, total: 100 },
-    { description: 'Brand photography', unitPrice: 100, qty: 1, total: 100 },
-    { description: 'Brand guide', unitPrice: 100, qty: 1, total: 100 },
-  ];
-  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
-  const taxRate = 0.10;
-  const tax = subtotal * taxRate;
+  if (!invoice) {
+    throw new Error('Invoice not found');
+  }
+
+  const invoiceUser = await prisma.users.findFirst({
+    where: { tenantId: invoice.tenant_id },
+  });
+
+  if (!invoiceUser) {
+    throw new Error('User not found for this invoice');
+  }
+
+  const subtotal = invoice.amount;
+  const tax = subtotal * 0.1;
   const total = subtotal + tax;
 
-  // Styled HTML invoice (email-friendly)
   const html = `
-  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border-radius: 12px; border: 1px solid #eee; padding: 32px; background: #fff;">
-    <h2 style="letter-spacing: 8px; text-align: right; font-weight: 400; margin-bottom: 32px;">INVOICE</h2>
-    <div style="display: flex; justify-content: space-between; margin-bottom: 24px;">
-      <div>
-        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">ISSUED TO:</div>
-        <div style="font-size: 14px; margin-top: 4px;">${invoiceUser.name || ''}<br>${invoice.tenants?.name || ''}<br>${invoice.tenants?.address || ''}</div>
-        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px; margin-top: 16px;">PAY TO:</div>
-        <div style="font-size: 14px; margin-top: 4px;">Borcele Bank<br>Account Name: Adeline Palmerston<br>Account No.: 0123 4567 8901</div>
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd;">
+    <div style="text-align: center; margin-bottom: 30px;">
+      <h1 style="color: #333;">SPIMS Invoice</h1>
+      <p style="color: #666;">Invoice #${invoice.invoice_number}</p>
+    </div>
+    
+    <div style="margin-bottom: 30px;">
+      <div style="margin-bottom: 10px;">
+        <strong>Bill To:</strong><br>
+        ${invoice.tenants?.name || 'N/A'}<br>
+        ${invoice.tenants?.address || 'N/A'}
       </div>
-      <div style="text-align: right;">
-        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">INVOICE NO:</div>
-        <div style="font-size: 14px; margin-bottom: 8px;">${invoice.invoice_number}</div>
-        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">DATE:</div>
-        <div style="font-size: 14px; margin-bottom: 8px;">${invoice.created_at?.toISOString().split('T')[0] || ''}</div>
-        <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">DUE DATE:</div>
-        <div style="font-size: 14px;">${invoice.due_date?.toISOString().split('T')[0] || ''}</div>
+      <div style="margin-bottom: 10px;">
+        <strong>Date:</strong> ${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString() : 'N/A'}<br>
+        <strong>Due Date:</strong> ${invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'N/A'}
       </div>
     </div>
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-      <thead>
-        <tr style="border-bottom: 2px solid #222;">
-          <th style="text-align: left; font-size: 12px; letter-spacing: 1px; padding: 8px 0;">DESCRIPTION</th>
-          <th style="text-align: right; font-size: 12px; letter-spacing: 1px; padding: 8px 0;">UNIT PRICE</th>
-          <th style="text-align: right; font-size: 12px; letter-spacing: 1px; padding: 8px 0;">QTY</th>
-          <th style="text-align: right; font-size: 12px; letter-spacing: 1px; padding: 8px 0;">TOTAL</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${lineItems.map(item => `
-          <tr>
-            <td style="padding: 8px 0; border-bottom: 1px solid #eee;">${item.description}</td>
-            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #eee;">${item.unitPrice}</td>
-            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #eee;">${item.qty}</td>
-            <td style="text-align: right; padding: 8px 0; border-bottom: 1px solid #eee;">$${item.total}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-    <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 32px;">
+    
+    <div style="border-top: 2px solid #333; padding-top: 20px; margin-bottom: 20px;">
       <div style="font-size: 14px; margin-bottom: 4px;"><strong>SUBTOTAL</strong> <span style="margin-left: 32px;">$${subtotal}</span></div>
       <div style="font-size: 14px; margin-bottom: 4px;">Tax <span style="margin-left: 64px;">10%</span></div>
       <div style="font-size: 16px; font-weight: bold;">TOTAL <span style="margin-left: 48px;">$${total}</span></div>
@@ -197,22 +166,38 @@ async function sendInvoiceEmail(invoice_number) {
   </div>
   `;
 
-  // Configure nodemailer
-  const transporter = nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE || 'Gmail',
-    auth: {
-      user: process.env.EMAIL_FROM,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  // Check if email credentials are configured
+  if (!process.env.EMAIL_FROM || !process.env.EMAIL_PASS) {
+    console.log('⚠️ Email credentials not configured. Skipping invoice email.');
+    console.log('📧 Invoice number:', invoice_number);
+    console.log('👤 Recipient:', invoiceUser.email);
+    return;
+  }
 
-  // Send the email
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: invoiceUser.email,
-    subject: `Invoice ${invoice.invoice_number} from SPIMS`,
-    html,
-  });
+  try {
+    // Configure nodemailer
+    const transporter = nodemailer.createTransport({
+      service: process.env.EMAIL_SERVICE || 'Gmail',
+      auth: {
+        user: process.env.EMAIL_FROM,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    // Send the email
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: invoiceUser.email,
+      subject: `Invoice ${invoice.invoice_number} from SPIMS`,
+      html,
+    });
+
+    console.log('✅ Invoice email sent successfully to:', invoiceUser.email);
+  } catch (error) {
+    console.error('❌ Failed to send invoice email:', error.message);
+    console.log('📧 Invoice number:', invoice_number);
+    console.log('👤 Recipient:', invoiceUser.email);
+  }
 }
 
 // Alias for separate API

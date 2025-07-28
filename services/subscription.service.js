@@ -3,19 +3,21 @@ const prisma = new PrismaClient();
 
 const subscriptionService = {
   async create(data, tenantId) {
+    const { planId, planType } = data;
+    
     const plan = await prisma.plan.findUnique({
-      where: { id: data.planId },
+      where: { id: planId },
     });
 
     if (!plan) throw new Error('Plan not found');
 
-    const subscription = await prisma.subscriptions.create({
+    const subscription = await prisma.subscription.create({
       data: {
-        tenant_id: tenantId,
-        plan_id: data.planId,
-        plan_type: data.plan_type || null,
-        start_date: new Date(),
-        is_active: true,
+        tenantId: tenantId,
+        planId: planId,
+        planType: planType || null,
+        startDate: new Date(),
+        isActive: true,
       },
       include: {
         plan: true,
@@ -25,62 +27,116 @@ const subscriptionService = {
     return subscription;
   },
 
-
   async getAll(tenantId) {
-    // is_active is already included by default in the Prisma result
-    return await prisma.subscriptions.findMany({
-      where: tenantId ? { tenant_id: tenantId } : {},
+    return await prisma.subscription.findMany({
+      where: tenantId ? { tenantId: tenantId } : {},
       include: {
         plan: true,
+        tenant: true,
       },
       orderBy: {
-        start_date: 'desc',
+        startDate: 'desc',
       },
     });
   },
 
-
   async update(id, data) {
-    return await prisma.subscriptions.update({
+    // Remove fields that shouldn't be updated
+    const updateData = { ...data };
+    delete updateData.id;
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
+    
+    return await prisma.subscription.update({
       where: { id },
-      data,
+      data: updateData,
+      include: {
+        plan: true,
+        tenant: true,
+      },
     });
   },
 
   async delete(id) {
-    return await prisma.subscriptions.delete({
+    return await prisma.subscription.delete({
       where: { id },
     });
   },
 
   async handleEvent(id, event) {
-    const subscription = await prisma.subscriptions.findUnique({ where: { id } });
+    const subscription = await prisma.subscription.findUnique({ 
+      where: { id },
+      include: { plan: true }
+    });
+    
     if (!subscription) throw new Error('Subscription not found');
 
     switch (event) {
       case 'activated':
-        return await prisma.subscriptions.update({
+        return await prisma.subscription.update({
           where: { id },
-          data: { is_active: true },
+          data: { isActive: true },
+          include: { plan: true }
         });
 
       case 'canceled':
-        return await prisma.subscriptions.update({
+        return await prisma.subscription.update({
           where: { id },
-          data: { is_active: false },
+          data: { isActive: false },
+          include: { plan: true }
         });
 
       case 'renewed':
-        const newEnd = new Date(subscription.end_date || new Date());
+        const newEnd = new Date(subscription.endDate || new Date());
         newEnd.setMonth(newEnd.getMonth() + 1);
-        return await prisma.subscriptions.update({
+        return await prisma.subscription.update({
           where: { id },
-          data: { end_date: newEnd, is_active: true },
+          data: { endDate: newEnd, isActive: true },
+          include: { plan: true }
         });
 
       default:
         throw new Error('Invalid event type');
     }
+  },
+
+  async getSubscriptionById(id) {
+    return await prisma.subscription.findUnique({
+      where: { id },
+      include: {
+        plan: true,
+        tenant: true,
+      },
+    });
+  },
+
+  async getSubscriptionsByTenant(tenantId) {
+    return await prisma.subscription.findMany({
+      where: { tenantId },
+      include: {
+        plan: true,
+        tenant: true,
+      },
+      orderBy: {
+        startDate: 'desc',
+      },
+    });
+  },
+
+  async getActiveSubscription(tenantId) {
+    return await prisma.subscription.findFirst({
+      where: { 
+        tenantId,
+        isActive: true 
+      },
+      include: {
+        plan: true,
+        tenant: true,
+      },
+      orderBy: {
+        startDate: 'desc',
+      },
+    });
   },
 };
 

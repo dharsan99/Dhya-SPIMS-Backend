@@ -3,38 +3,48 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 exports.getRolesByTenant = async (tenantId) => {
-  return prisma.role.findMany({
-    where: { tenantId: tenantId },
+  const where = tenantId ? { tenant_id: tenantId } : {};
+  return prisma.roles.findMany({
+    where,
     include: {
-      userRoles: true,
-      rolePermissions: true,
+      user_roles: true,
+      role_permissions: true,
     },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { created_at: 'desc' },
   });
 };
 
 exports.createRole = async (roleData) => {
-  return prisma.role.create({
+  return prisma.roles.create({
     data: {
-      tenantId: roleData.tenantId,
+      tenant_id: roleData.tenant_id,
       name: roleData.name,
       description: roleData.description,
+      permissions: roleData.permissions,
     },
   });
 };
 exports.updateRole = async (id, data) => {
-  return await prisma.role.update({
+  return await prisma.roles.update({
     where: { id },
     data: {
       name: data.name,
       description: data.description,
-      updatedAt: new Date()
+      permissions: data.permissions,
+      updated_at: new Date()
     }
   });
 };
 
 exports.deleteRole = async (id) => {
-  return prisma.role.delete({
+  // Check if any users are linked to this role
+  const userRoleCount = await prisma.user_roles.count({ where: { role_id: id } });
+  if (userRoleCount > 0) {
+    const error = new Error('Cannot delete role: users are assigned to this role');
+    error.code = 'ROLE_IN_USE';
+    throw error;
+  }
+  return prisma.roles.delete({
     where: { id }
   });
 };

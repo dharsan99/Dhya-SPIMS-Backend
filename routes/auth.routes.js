@@ -1,12 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { login, inviteUser, acceptInvite } = require('../controllers/auth.controller');
+const authController = require('../controllers/auth.controller');
+const authService = require('../services/auth.service');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 /**
  * @swagger
  * tags:
- *   name: Auth
- *   description: Authentication and Invitation APIs
+ *   name: Authentication
+ *   description: User authentication and authorization
  */
 
 /**
@@ -14,7 +17,7 @@ const { login, inviteUser, acceptInvite } = require('../controllers/auth.control
  * /auth/login:
  *   post:
  *     summary: User login
- *     tags: [Auth]
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -27,6 +30,7 @@ const { login, inviteUser, acceptInvite } = require('../controllers/auth.control
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
  *               password:
  *                 type: string
  *     responses:
@@ -44,27 +48,31 @@ const { login, inviteUser, acceptInvite } = require('../controllers/auth.control
  *                       type: string
  *                     email:
  *                       type: string
- *                     tenant_id:
+ *                     tenantId:
  *                       type: string
  *                     role:
  *                       type: object
- *                     is_verified:
+ *                     isActive:
  *                       type: boolean
- *                     plan:
- *                       type: object
  *                 token:
  *                   type: string
  *       401:
  *         description: Invalid credentials
+ *       403:
+ *         description: Account deactivated
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
  */
-router.post('/login', login);
+router.post('/login', authController.login);
 
 /**
  * @swagger
  * /auth/invite:
  *   post:
- *     summary: Admin invites teammate via email
- *     tags: [Auth]
+ *     summary: Invite a user to join the system
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -73,29 +81,31 @@ router.post('/login', login);
  *             type: object
  *             required:
  *               - email
- *               - tenant_id
- *               - role_id
+ *               - tenantId
+ *               - roleId
  *             properties:
  *               email:
  *                 type: string
- *               tenant_id:
+ *               tenantId:
  *                 type: string
- *               role_id:
+ *               roleId:
  *                 type: string
  *     responses:
  *       200:
- *         description: Invite sent
+ *         description: Invitation sent successfully
  *       400:
- *         description: Missing or invalid data
+ *         description: Missing required fields
+ *       500:
+ *         description: Internal server error
  */
-router.post('/invite', inviteUser);
+router.post('/invite', authController.inviteUser);
 
 /**
  * @swagger
  * /auth/accept-invite:
  *   post:
- *     summary: Accept an invite and set password
- *     tags: [Auth]
+ *     summary: Accept invitation and create account
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -103,22 +113,24 @@ router.post('/invite', inviteUser);
  *           schema:
  *             type: object
  *             required:
+ *               - token
  *               - name
  *               - password
- *               - token
  *             properties:
+ *               token:
+ *                 type: string
  *               name:
  *                 type: string
  *               password:
  *                 type: string
- *               token:
- *                 type: string
  *     responses:
- *       200:
- *         description: User registered successfully from invite
+ *       201:
+ *         description: Account created successfully
  *       400:
- *         description: Invalid or expired token
+ *         description: Invalid or missing fields
+ *       500:
+ *         description: Internal server error
  */
-router.post('/accept-invite', acceptInvite);
+router.post('/accept-invite', authController.acceptInvite);
 
 module.exports = router;

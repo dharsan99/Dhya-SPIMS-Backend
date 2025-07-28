@@ -1,27 +1,22 @@
 // middlewares/auth.middleware.js
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 const verifyTokenAndTenant = async (req, res, next) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  const tenantIdHeader = req.headers['x-tenant-id'];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
   try {
-    const authHeader = req.headers.authorization;
-    const tenantIdHeader = req.headers['x-tenant-id'];
-
-    if (!authHeader) {
-      return res.status(401).json({ error: 'Authorization header missing' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'Bearer token missing' });
-    }
-
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    if (!tenantIdHeader || tenantIdHeader !== decoded.tenant_id) {
+    if (!tenantIdHeader || tenantIdHeader !== decoded.tenantId) {
       return res.status(403).json({ error: 'Invalid or missing tenant ID' });
     }
 
@@ -29,34 +24,35 @@ const verifyTokenAndTenant = async (req, res, next) => {
       id: decoded.id,
       email: decoded.email,
       role: decoded.role,
-      tenantId: decoded.tenant_id,
+      tenantId: decoded.tenantId,
     };
 
     const user = await prisma.users.findUnique({
       where: { id: decoded.id },
       include: {
-        user_roles: { include: { role: true } },
+        userRoles: { include: { role: true } },
       },
     });
 
     const mergedPermissions = {};
-    user?.user_roles?.forEach((ur) => {
+    user?.userRoles?.forEach((ur) => {
       const perms = ur.role?.permissions || {};
       for (const module in perms) {
         if (!mergedPermissions[module]) mergedPermissions[module] = new Set();
-        perms[module].forEach((action) => mergedPermissions[module].add(action));
+        perms[module].forEach((perm) => mergedPermissions[module].add(perm));
       }
     });
 
+    // Convert Sets back to arrays
     for (const module in mergedPermissions) {
       mergedPermissions[module] = Array.from(mergedPermissions[module]);
     }
 
     req.user.permissions = mergedPermissions;
     next();
-  } catch (err) {
-    console.error('JWT auth error:', err);
-    return res.status(403).json({ error: 'Invalid or expired token' });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return res.status(401).json({ error: 'Invalid token' });
   }
 };
 

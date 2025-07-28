@@ -1,9 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 const authService = {
   async login(email, password) {
@@ -20,7 +21,7 @@ const authService = {
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) throw new Error('Invalid credentials');
 
-    if (user.isActive === false) throw new Error('User is not active');
+    if (!user.isActive) throw new Error('Account is deactivated');
 
     const roleObj = user.userRoles?.[0]?.role || null;
 
@@ -43,8 +44,7 @@ const authService = {
         name: user.name,
         tenantId: user.tenantId,
         role: roleObj,
-        isActive: user.isActive,
-        tenant: user.tenant
+        isActive: user.isActive
       }
     };
   },
@@ -65,7 +65,7 @@ const authService = {
     const payload = authService.verifyInviteToken(token);
     if (!payload) throw new Error('Invalid or expired token');
 
-    const { email, tenant_id, role_id } = payload;
+    const { email, tenantId, roleId } = payload;
 
     const existing = await prisma.users.findUnique({ where: { email } });
     if (existing) throw new Error('User already exists');
@@ -76,16 +76,16 @@ const authService = {
       data: {
         name,
         email,
-        tenantId: tenant_id,
+        tenantId,
         passwordHash,
         isActive: true
       }
     });
 
-    await prisma.userRoles.create({
+    await prisma.userRole.create({
       data: {
         userId: user.id,
-        roleId: role_id
+        roleId
       }
     });
 

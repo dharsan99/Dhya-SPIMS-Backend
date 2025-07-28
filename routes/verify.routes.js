@@ -2,12 +2,11 @@ const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/verify.controller');
 
-
 /**
  * @swagger
  * tags:
- *   name: sigup process
- *   description: Signup and email verification
+ *   name: Signup Process
+ *   description: User signup and email verification operations
  */
 
 /**
@@ -15,7 +14,7 @@ const controller = require('../controllers/verify.controller');
  * /signup:
  *   post:
  *     summary: Sign up a new user for 14-day trial
- *     tags: [sigup process]
+ *     tags: [Signup Process]
  *     requestBody:
  *       required: true
  *       content:
@@ -26,20 +25,26 @@ const controller = require('../controllers/verify.controller');
  *               - name
  *               - email
  *               - password
- *               - tenant_id
+ *               - tenantId
  *             properties:
  *               name:
  *                 type: string
- *                 example: abi
+ *                 example: John Doe
+ *                 description: User's full name
  *               email:
  *                 type: string
- *                 example: abinayashree@dhya.in
+ *                 format: email
+ *                 example: john.doe@example.com
+ *                 description: User's email address
  *               password:
  *                 type: string
- *                 example: string
- *               tenant_id:
+ *                 example: securePassword123
+ *                 description: User's password (min 8 characters)
+ *               tenantId:
  *                 type: string
+ *                 format: uuid
  *                 example: 40d1df49-463d-4c86-9595-7c88f83d5ef9
+ *                 description: Tenant ID for the user
  *     responses:
  *       201:
  *         description: Signup successful. Verification email sent.
@@ -53,14 +58,14 @@ const controller = require('../controllers/verify.controller');
  *                   example: Signup successful. Please check your email to verify your account.
  *                 email:
  *                   type: string
- *                   example: abinayashree@dhya.in
- *                 tenant_id:
+ *                   example: john.doe@example.com
+ *                 tenantId:
  *                   type: string
  *                   example: 40d1df49-463d-4c86-9595-7c88f83d5ef9
- *                 user_id:
+ *                 userId:
  *                   type: string
  *                   example: c6f974a9-05ec-4f2a-98d5-e965f308d4e9
- *                 assigned_role_id:
+ *                 assignedRoleId:
  *                   type: string
  *                   example: 611e24f3-856f-471e-9d24-959f8b2e3dc1
  *       400:
@@ -75,14 +80,15 @@ router.post('/signup', controller.signup);
  * /verify-email:
  *   get:
  *     summary: Verify user's email using token
- *     tags: [sigup process]
+ *     tags: [Signup Process]
  *     parameters:
  *       - in: query
  *         name: token
  *         required: true
  *         schema:
  *           type: string
- *         description: Token from verification email
+ *         description: Verification token from email
+ *         example: abc123def456ghi789
  *     responses:
  *       200:
  *         description: Email verified successfully
@@ -93,8 +99,15 @@ router.post('/signup', controller.signup);
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: Email verified successfully
+ *                 role:
+ *                   type: object
+ *                   nullable: true
+ *                   description: User's assigned role information
  *       400:
  *         description: Invalid or missing token
+ *       500:
+ *         description: Server error
  */
 router.get('/verify-email', controller.verifyEmail);
 
@@ -102,8 +115,8 @@ router.get('/verify-email', controller.verifyEmail);
  * @swagger
  * /admin/signup:
  *   post:
- *     summary: Admin signup (same as user signup)
- *     tags: [Dashboard]
+ *     summary: Admin signup with superadmin privileges
+ *     tags: [Signup Process]
  *     requestBody:
  *       required: true
  *       content:
@@ -114,23 +127,29 @@ router.get('/verify-email', controller.verifyEmail);
  *               - name
  *               - email
  *               - password
- *               - tenant_id
+ *               - tenantId
  *             properties:
  *               name:
  *                 type: string
  *                 example: Admin User
+ *                 description: Admin's full name
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: admin@example.com
+ *                 description: Admin's email address
  *               password:
  *                 type: string
- *                 example: secret123
- *               tenant_id:
+ *                 example: adminPassword123
+ *                 description: Admin's password (min 8 characters)
+ *               tenantId:
  *                 type: string
+ *                 format: uuid
  *                 example: 40d1df49-463d-4c86-9595-7c88f83d5ef9
+ *                 description: Tenant ID for the admin
  *     responses:
  *       201:
- *         description: Signup successful. Verification email sent.
+ *         description: Admin signup successful. Verification email sent.
  *         content:
  *           application/json:
  *             schema:
@@ -138,17 +157,17 @@ router.get('/verify-email', controller.verifyEmail);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Signup successful. Please check your email to verify your account.
+ *                   example: Admin signup successful. Please check your email to verify your account.
  *                 email:
  *                   type: string
  *                   example: admin@example.com
- *                 tenant_id:
+ *                 tenantId:
  *                   type: string
  *                   example: 40d1df49-463d-4c86-9595-7c88f83d5ef9
- *                 user_id:
+ *                 userId:
  *                   type: string
  *                   example: c6f974a9-05ec-4f2a-98d5-e965f308d4e9
- *                 assigned_role_id:
+ *                 assignedRoleId:
  *                   type: string
  *                   example: 611e24f3-856f-471e-9d24-959f8b2e3dc1
  *       400:

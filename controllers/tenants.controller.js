@@ -2,77 +2,166 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const getAllTenants = async (req, res) => {
-  const tenants = await prisma.tenants.findMany();
-  res.json(tenants);
+  try {
+    const tenants = await prisma.tenant.findMany({
+      include: {
+        subscriptions: {
+          include: {
+            plan: true
+          }
+        },
+        users: {
+          include: {
+            userRoles: {
+              include: {
+                role: true
+              }
+            }
+          }
+        }
+      }
+    });
+    res.json(tenants);
+  } catch (error) {
+    console.error('Error fetching tenants:', error);
+    res.status(500).json({ error: 'Failed to fetch tenants' });
+  }
 };
 
 const getTenantById = async (req, res) => {
-  const tenant = await prisma.tenants.findUnique({ where: { id: req.params.id } });
-  if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
-  res.json(tenant);
+  try {
+    const tenant = await prisma.tenant.findUnique({ 
+      where: { id: req.params.id },
+      include: {
+        subscriptions: {
+          include: {
+            plan: true
+          }
+        },
+        users: {
+          include: {
+            userRoles: {
+              include: {
+                role: true
+              }
+            }
+          }
+        },
+        settings: true
+      }
+    });
+    if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+    res.json(tenant);
+  } catch (error) {
+    console.error('Error fetching tenant:', error);
+    res.status(500).json({ error: 'Failed to fetch tenant' });
+  }
 };
 
 const createTenant = async (req, res) => {
-  const { name, domain, address, industry, phone } = req.body;
+  const { name, domain, address, industry, phone, logo } = req.body;
+  
   if (!name) return res.status(400).json({ error: 'Name is required' });
   if (!address) return res.status(400).json({ error: 'Address is required' });
   if (!industry) return res.status(400).json({ error: 'Industry is required' });
 
-  // Create tenant
-  const tenant = await prisma.tenants.create({
-    data: {
-      name,
-      domain: domain || null,
-      plan: 'TRIAL',
-      is_active: true,
-      address,
-      industry,
-      phone: phone || null,
-    }
-  });
-
-  // Find the plan with name 'Starter (14-day trial)'
-  const trialPlan = await prisma.plan.findFirst({ where: { name: 'Starter (14-day trial)' } });
-  let subscription = null;
-  if (trialPlan) {
-    subscription = await prisma.subscriptions.create({
+  try {
+    // Create tenant
+    const tenant = await prisma.tenant.create({
       data: {
-        tenant_id: tenant.id,
-        plan_id: trialPlan.id,
-        plan_type: trialPlan.name,
-        start_date: new Date(),
-        is_active: true,
+        name,
+        domain: domain || null,
+        plan: 'TRIAL',
+        isActive: true,
+        address,
+        industry,
+        phone: phone || null,
+        logo: logo || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }
     });
-  }
 
-  res.status(201).json({
-    message: 'successfully tenant is created!',
-    id: tenant.id,
-    name: tenant.name,
-    subscription: subscription ? {
-      id: subscription.id,
-      plan: trialPlan ? trialPlan.name : null,
-      start_date: subscription.start_date,
-      is_active: subscription.is_active
-    } : null
-  });
+    // Find the trial plan
+    const trialPlan = await prisma.plan.findFirst({ 
+      where: { name: 'Starter (14-day trial)' } 
+    });
+    
+    let subscription = null;
+    if (trialPlan) {
+      subscription = await prisma.subscription.create({
+        data: {
+          tenantId: tenant.id,
+          planId: trialPlan.id,
+          planType: trialPlan.name,
+          startDate: new Date(),
+          isActive: true,
+        }
+      });
+    }
+
+    res.status(201).json({
+      message: 'Tenant created successfully!',
+      tenant: {
+        id: tenant.id,
+        name: tenant.name,
+        domain: tenant.domain,
+        plan: tenant.plan,
+        isActive: tenant.isActive,
+        address: tenant.address,
+        industry: tenant.industry,
+        phone: tenant.phone,
+        createdAt: tenant.createdAt,
+        updatedAt: tenant.updatedAt
+      },
+      subscription: subscription ? {
+        id: subscription.id,
+        plan: trialPlan ? trialPlan.name : null,
+        startDate: subscription.startDate,
+        isActive: subscription.isActive
+      } : null
+    });
+  } catch (error) {
+    console.error('Error creating tenant:', error);
+    res.status(500).json({ error: 'Failed to create tenant' });
+  }
 };
 
 const updateTenant = async (req, res) => {
-  const updated = await prisma.tenants.update({
-    where: { id: req.params.id },
-    data: req.body
-  });
-  res.json(updated);
+  const { id } = req.params;
+  const updateData = req.body;
+  
+  try {
+    const updated = await prisma.tenant.update({
+      where: { id },
+      data: {
+        ...updateData,
+        updatedAt: new Date()
+      }
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error('Error updating tenant:', error);
+    res.status(500).json({ error: 'Failed to update tenant' });
+  }
 };
 
 const deactivateTenant = async (req, res) => {
-  await prisma.tenants.update({
-    where: { id: req.params.id },
-    data: { is_active: false }
-  });
-  res.json({ message: 'Tenant deactivated' });
+  const { id } = req.params;
+  
+  try {
+    await prisma.tenant.update({
+      where: { id },
+      data: { 
+        isActive: false,
+        updatedAt: new Date()
+      }
+    });
+    res.json({ message: 'Tenant deactivated successfully' });
+  } catch (error) {
+    console.error('Error deactivating tenant:', error);
+    res.status(500).json({ error: 'Failed to deactivate tenant' });
+  }
 };
 
 module.exports = {

@@ -2,8 +2,27 @@ const userService = require('../services/user.service');
 
 exports.createUser = async (req, res) => {
   try {
-    const result = await userService.createUser(req.body);
-    res.status(201).json(result);
+    const { name, email, password, tenantId, roleId, isActive = true } = req.body;
+    
+    if (!name || !email || !password || !tenantId || !roleId) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: name, email, password, tenantId, roleId' 
+      });
+    }
+
+    const result = await userService.createUser({
+      name,
+      email,
+      password,
+      tenantId,
+      roleId,
+      isActive
+    });
+    
+    res.status(201).json({
+      message: 'User created successfully',
+      user: result
+    });
   } catch (error) {
     console.error('User creation error:', error);
     res.status(500).json({ error: 'Failed to create user' });
@@ -12,11 +31,17 @@ exports.createUser = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
-    const result = await userService.getUserById(req.params.id);
+    const { id } = req.params;
+    const result = await userService.getUserById(id);
+    
     if (!result) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(result);
+    
+    res.json({
+      message: 'User retrieved successfully',
+      user: result
+    });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Failed to get user' });
@@ -25,8 +50,23 @@ exports.getUserById = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const result = await userService.getAllUsers(req.query);
-    res.json(result);
+    const { tenantId, page, limit, search } = req.query;
+    
+    if (!tenantId) {
+      return res.status(400).json({ error: 'tenantId is required' });
+    }
+
+    const result = await userService.getAllUsers({
+      tenantId,
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 10,
+      search
+    });
+    
+    res.json({
+      message: 'Users retrieved successfully',
+      ...result
+    });
   } catch (error) {
     console.error('Get all users error:', error);
     res.status(500).json({ error: 'Failed to get users' });
@@ -35,11 +75,23 @@ exports.getAllUsers = async (req, res) => {
 
 exports.updateUser = async (req, res) => {
   try {
-    const result = await userService.updateUser(req.params.id, req.body);
+    const { id } = req.params;
+    const updateData = req.body;
+    
+    // Remove sensitive fields that shouldn't be updated directly
+    delete updateData.passwordHash;
+    delete updateData.verificationToken;
+    
+    const result = await userService.updateUser(id, updateData);
+    
     if (!result) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(result);
+    
+    res.json({
+      message: 'User updated successfully',
+      user: result
+    });
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({ error: 'Failed to update user' });
@@ -48,10 +100,13 @@ exports.updateUser = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
   try {
-    const result = await userService.deleteUser(req.params.id);
+    const { id } = req.params;
+    const result = await userService.deleteUser(id);
+    
     if (!result) {
       return res.status(404).json({ error: 'User not found' });
     }
+    
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Delete user error:', error);
@@ -61,14 +116,18 @@ exports.deleteUser = async (req, res) => {
 
 exports.getAllUsersRoles = async (req, res) => {
   try {
-    const { tenant_id } = req.query;
+    const { tenantId } = req.query;
 
-    if (!tenant_id) {
-      return res.status(400).json({ error: 'Missing tenant_id' });
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Missing tenantId' });
     }
 
-    const result = await userService.getAllUsersRoles({ tenant_id });
-    res.json(result);
+    const result = await userService.getAllUsersRoles({ tenantId });
+    
+    res.json({
+      message: 'User roles retrieved successfully',
+      roles: result
+    });
   } catch (error) {
     console.error('Get all user roles error:', error);
     res.status(500).json({ error: 'Failed to get user roles' });

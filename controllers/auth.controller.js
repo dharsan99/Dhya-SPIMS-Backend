@@ -5,10 +5,11 @@ const { generateToken } = require('../utils/jwt.util');
 const nodemailer = require('nodemailer');
 
 const prisma = new PrismaClient();
-const ADMIN_ROLE_ID = '611e24f3-856f-471e-9d24-959f8b2e3dc1';
+const ADMIN_ROLE_ID = '5020a2db-ac2f-4ddc-b12d-5aa83e3cbcc2';
 
 const login = async (req, res) => {
   const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
 
   try {
     let user = await prisma.users.findUnique({
@@ -23,16 +24,23 @@ const login = async (req, res) => {
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
-    if (user.isActive === false) return res.status(403).json({ error: 'User is not active.' });
+    if (!user.isActive) return res.status(403).json({ error: 'Account is deactivated.' });
 
     if (!user.userRoles || user.userRoles.length === 0) {
-      // Optionally assign a default role here if needed
-      // For now, just return an error
-      return res.status(403).json({ error: 'No roles assigned to user.' });
+      await prisma.userRole.create({
+        data: { userId: user.id, roleId: ADMIN_ROLE_ID }
+      });
+
+      user = await prisma.users.findUnique({
+        where: { email },
+        include: {
+          userRoles: { include: { role: true } },
+          tenant: true
+        }
+      });
     }
 
     const roleObj = user.userRoles[0]?.role;
-    // No plan lookup since there is no plan model in schema
 
     const token = generateToken({
       id: user.id,
@@ -47,50 +55,62 @@ const login = async (req, res) => {
       user: {
         ...userData,
         role: roleObj,
-        isActive: user.isActive,
-        tenant,
+        isActive: user.isActive
       },
       token
     });
-  } catch (err) {
-    console.error('Login Error:', err);
+  } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
 
 const inviteUser = async (req, res) => {
-  const { email, tenant_id, role_id } = req.body;
+  const { email, tenantId, roleId } = req.body;
 
-  if (!email || !tenant_id || !role_id) {
+  if (!email || !tenantId || !roleId) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
-    const token = authService.generateInviteToken({ email, tenant_id, role_id });
+    const token = authService.generateInviteToken({ email, tenantId, roleId });
 
     const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/accept-invite?token=${token}`;
 
+    // Check if email credentials are configured
+    if (!process.env.EMAIL_FROM || !process.env.EMAIL_PASS) {
+      console.log('⚠️ Email credentials not configured. Skipping invitation email.');
+      console.log('📧 Invitation token:', token);
+      console.log('🔗 Manual invitation URL:', inviteLink);
+      return res.json({ 
+        message: 'Invitation created successfully (email not sent due to missing credentials)',
+        inviteLink,
+        token
+      });
+    }
+
+    // Send email
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
       auth: {
         user: process.env.EMAIL_FROM,
-        pass: process.env.EMAIL_PASS
-      }
+        pass: process.env.EMAIL_PASS,
+      },
     });
 
     await transporter.sendMail({
-      from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
+      from: `"TexIntelli SPIMS" <${process.env.EMAIL_FROM}>`,
       to: email,
-      subject: 'You are invited to join TexIntelli',
+      subject: 'You are invited to join TexIntelli SPIMS',
       html: `
         <p>Hello,</p>
-        <p>You have been invited to join TexIntelli. Click below to accept the invitation:</p>
+        <p>You have been invited to join TexIntelli SPIMS. Click below to accept the invitation:</p>
         <a href="${inviteLink}">${inviteLink}</a>
         <p>This link will expire in 72 hours.</p>
       `
     });
 
-    res.status(200).json({ message: 'Invitation sent, check your email' });
+    res.json({ message: 'Invitation sent successfully' });
   } catch (error) {
     console.error('Invite error:', error);
     res.status(500).json({ error: 'Failed to send invitation' });
@@ -99,17 +119,14 @@ const inviteUser = async (req, res) => {
 
 const acceptInvite = async (req, res) => {
   const { token, name, password } = req.body;
-
-  if (!token || !name || !password) {
-    return res.status(400).json({ error: 'Missing fields: token, name, password' });
-  }
+  if (!token || !name || !password) return res.status(400).json({ error: 'Missing required fields' });
 
   try {
     const user = await authService.createUserFromInvite({ token, name, password });
 
     res.status(201).json({
       message: 'Account created and role assigned',
-      user_id: user.id
+      userId: user.id
     });
   } catch (err) {
     console.error('Accept Invite Error:', err);
