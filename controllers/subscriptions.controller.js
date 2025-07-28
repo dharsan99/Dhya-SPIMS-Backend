@@ -151,7 +151,7 @@ exports.getUsageStats = async (req, res) => {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     // Users this month
-    const usersThisMonth = await prisma.users.count({
+    const usersThisMonth = await prisma.user.count({
       where: {
         tenantId: tenantId,
         createdAt: { gte: startOfMonth, lte: endOfMonth }
@@ -159,7 +159,7 @@ exports.getUsageStats = async (req, res) => {
     });
     
     // Users last month
-    const usersLastMonth = await prisma.users.count({
+    const usersLastMonth = await prisma.user.count({
       where: {
         tenantId: tenantId,
         createdAt: { gte: startOfLastMonth, lte: endOfLastMonth }
@@ -167,7 +167,7 @@ exports.getUsageStats = async (req, res) => {
     });
     
     // Total users
-    const totalUsers = await prisma.users.count({ where: { tenantId: tenantId } });
+    const totalUsers = await prisma.user.count({ where: { tenantId: tenantId } });
 
     // User trend
     let userTrend = "0";

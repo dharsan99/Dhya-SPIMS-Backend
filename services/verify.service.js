@@ -173,40 +173,40 @@ async function sendVerificationEmail(email, token, isSuperadmin = false) {
   }
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
-      auth: {
-        user: process.env.EMAIL_FROM,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
+  const transporter = nodemailer.createTransport({
+    service: 'Gmail',
+    auth: {
+      user: process.env.EMAIL_FROM,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
 
-    let verificationUrl;
-    if (isSuperadmin) {
-      verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/superadmin/verify-email?token=${token}`;
-    } else {
+  let verificationUrl;
+  if (isSuperadmin) {
+    verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/superadmin/verify-email?token=${token}`;
+  } else {
       verificationUrl = `${process.env.BASE_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
-    }
+  }
     
-    await transporter.sendMail({
-      from: `"TexIntelli SPIMS Support" <${process.env.EMAIL_FROM}>`,
-      to: email,
-      subject: 'Verify Your Email Address – TexIntelli SPIMS',
-      html: `
-      <p>Dear User,</p>
+  await transporter.sendMail({
+    from: `"TexIntelli SPIMS Support" <${process.env.EMAIL_FROM}>`,
+    to: email,
+    subject: 'Verify Your Email Address – TexIntelli SPIMS',
+    html: `
+    <p>Dear User,</p>
 
       <p>Welcome to <strong>TexIntelli SPIMS</strong> – a smart and reliable information management system tailored for modern spinning mills. We're committed to helping textile operations become more efficient through digital automation and intelligent insights.</p>
 
-      <p>To get started, please verify your email address by clicking the link below:</p>
-      
-      <p style="word-break:break-all;">Or copy and paste this link into your browser:<br><span>${verificationUrl}</span></p>
+    <p>To get started, please verify your email address by clicking the link below:</p>
+    
+    <p style="word-break:break-all;">Or copy and paste this link into your browser:<br><span>${verificationUrl}</span></p>
 
-      <p>If you did not sign up for TexIntelli SPIMS, please ignore this message.</p>
+    <p>If you did not sign up for TexIntelli SPIMS, please ignore this message.</p>
 
-      <br>
-      <p>Thank you,<br>The TexIntelli SPIMS Team</p>
-    `,
-    });
+    <br>
+    <p>Thank you,<br>The TexIntelli SPIMS Team</p>
+  `,
+  });
     
     console.log('✅ Verification email sent successfully to:', email);
   } catch (error) {

@@ -13,6 +13,7 @@ const options = {
       {
         url: process.env.BASE_URL || 'http://localhost:5001',
       },
+      {url: 'http://localhost:5001'}
     ],
     components: {
       securitySchemes: {
@@ -20,6 +21,12 @@ const options = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'JWT',
+        },
+        tenantId: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-tenant-id',
+          description: 'Tenant ID required for tenant-based authorization',
         },
       },
       schemas: {
@@ -59,7 +66,10 @@ const options = {
         },
       },
     },
-    security: [{ bearerAuth: [] }],
+    security: [{
+      bearerAuth: [],
+      tenantId: [],
+     }],
   },
   apis: ['./routes/*.js'],
 };

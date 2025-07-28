@@ -3,84 +3,84 @@ const prisma = new PrismaClient();
 
 // Generate next token like EMP001, EMP002...
 async function generateTokenNumber() {
-  const count = await prisma.employees.count();
+  const count = await prisma.employee.count();
   const nextNum = count + 1;
   return `EMP${nextNum.toString().padStart(3, '0')}`;
 }
 
 exports.createEmployee = async (data) => {
-  const existingEmployee = await prisma.employees.findUnique({
-    where: { aadhar_no: data.aadhar_no },
+  const existingEmployee = await prisma.employee.findUnique({
+    where: { aadharNo: data.aadharNo },
   });
 
   if (existingEmployee) {
     throw new Error('Employee with this Aadhar number already exists.');
   }
 
-  const token_no = await generateTokenNumber();
+  const tokenNo = await generateTokenNumber();
 
-  const newEmployee = await prisma.employees.create({
+  const newEmployee = await prisma.employee.create({
     data: {
       name: data.name,
-      token_no,
-      shift_rate: parseFloat(data.shift_rate), // ✅ use from input
-      aadhar_no: data.aadhar_no,
-      bank_acc_1: data.bank_acc_1,
-      bank_acc_2: data.bank_acc_2,
+      tokenNo,
+      shiftRate: parseFloat(data.shiftRate), // ✅ use from input
+      aadharNo: data.aadharNo,
+      bankAcc1: data.bankAcc1,
+      bankAcc2: data.bankAcc2,
       department: data.department,
-      join_date: data.join_date ? new Date(data.join_date) : undefined,
+      joinDate: data.joinDate ? new Date(data.joinDate) : undefined,
     },
   });
 
   return {
     id: newEmployee.id,
-    token_no: newEmployee.token_no,
+    token_no: newEmployee.tokenNo,
     name: newEmployee.name,
-    shift_rate: newEmployee.shift_rate,
-    join_date: newEmployee.join_date,
-    created_at: newEmployee.created_at,
-    updated_at: newEmployee.updated_at,
+    shift_rate: newEmployee.shiftRate,
+    join_date: newEmployee.joinDate,
+    created_at: newEmployee.createdAt,
+    updated_at: newEmployee.updatedAt,
   };
 };
 
 exports.getAllEmployees = async () => {
-  const employees = await prisma.employees.findMany();
+  const employees = await prisma.employee.findMany();
   return employees.map((emp) => ({
     id: emp.id,
-    token_no: emp.token_no,
+    token_no: emp.tokenNo,
     name: emp.name,
-    shift_rate: emp.shift_rate,
-    aadhar_no: emp.aadhar_no,
-    bank_acc_1: emp.bank_acc_1,
-    bank_acc_2: emp.bank_acc_2,
+    shift_rate: emp.shiftRate,
+    aadhar_no: emp.aadharNo,
+    bank_acc_1: emp.bankAcc1,
+    bank_acc_2: emp.bankAcc2,
     department: emp.department,
-    join_date: emp.join_date,
-    created_at: emp.created_at,
-    updated_at: emp.updated_at,
+    join_date: emp.joinDate,
+    created_at: emp.createdAt,
+    updated_at: emp.updatedAt,
   }));
 };
 
 exports.getEmployeeById = async (id) => {
-  const emp = await prisma.employees.findUnique({ where: { id } });
+  const emp = await prisma.employee.findUnique({ where: { id } });
   if (!emp) return null;
 
   return {
     id: emp.id,
-    token_no: emp.token_no,
+    token_no: emp.tokenNo,
     name: emp.name,
-    shift_rate: emp.shift_rate,
-    aadhar_no: emp.aadhar_no,
-    bank_acc_1: emp.bank_acc_1,
-    bank_acc_2: emp.bank_acc_2,
+    shift_rate: emp.shiftRate,
+    aadhar_no: emp.aadharNo,
+    bank_acc_1: emp.bankAcc1,
+    bank_acc_2: emp.bankAcc2,
     department: emp.department,
-    join_date: emp.join_date,
-    created_at: emp.created_at,
-    updated_at: emp.updated_at,
+    join_date: emp.joinDate,
+    created_at: emp.createdAt,
+    updated_at: emp.updatedAt,
   };
 };
 
 exports.updateEmployee = async (id, data) => {
-  return await prisma.employees.update({
+  return await prisma.employee.update({
     where: { id },
     data,
   });
@@ -89,16 +89,16 @@ exports.updateEmployee = async (id, data) => {
 exports.deleteEmployee = async (id) => {
   return await prisma.$transaction([
     prisma.attendance.deleteMany({
-      where: { employee_id: id },
+      where: { employeeId: id },
     }),
-    prisma.employees.delete({
+    prisma.employee.delete({
       where: { id },
     }),
   ]);
 };
 
 exports.getAllDepartments = async () => {
-  const departments = await prisma.employees.findMany({
+  const departments = await prisma.employee.findMany({
     where: { department: { not: null } },
     select: { department: true },
     distinct: ['department'],

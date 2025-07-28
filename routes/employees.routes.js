@@ -17,22 +17,22 @@ router.use(verifyTokenAndTenant);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, aadhar_no, bank_acc_1, shift_rate]
+ *             required: [name, aadharNo, bankAcc1, shiftRate]
  *             properties:
  *               name:
  *                 type: string
- *               aadhar_no:
+ *               aadharNo:
  *                 type: string
- *               bank_acc_1:
+ *               bankAcc1:
  *                 type: string
- *               bank_acc_2:
+ *               bankAcc2:
  *                 type: string
  *               department:
  *                 type: string
- *               join_date:
+ *               joinDate:
  *                 type: string
  *                 format: date
- *               shift_rate:
+ *               shiftRate:
  *                 type: number
  *                 format: float
  *                 example: 200.50

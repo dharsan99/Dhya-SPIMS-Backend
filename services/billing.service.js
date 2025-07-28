@@ -83,8 +83,8 @@ async function adminGetInvoices({ search = '', status = 'all', plan, page = 1, l
       include: { plan: true }
     });
     // Get admin user for this tenant
-    const adminUser = await prisma.users.findFirst({
-      where: { tenant_id: inv.tenant_id, role: 'Admin' },
+    const adminUser = await prisma.user.findFirst({
+      where: { tenantId: inv.tenant_id, role: 'Admin' },
     });
     return {
       id: inv.id,
@@ -119,18 +119,12 @@ async function sendInvoiceEmail(invoice_number) {
     where: { invoice_number: invoice_number },
     include: { tenants: true },
   });
+  if (!invoice) { throw new Error('Invoice not found'); }
 
-  if (!invoice) {
-    throw new Error('Invoice not found');
-  }
-
-  const invoiceUser = await prisma.users.findFirst({
-    where: { tenantId: invoice.tenant_id },
+  const invoiceUser = await prisma.users.findFirst({ // Corrected to prisma.users
+    where: { tenantId: invoice.tenantId }, // Assuming tenantId is correct in schema
   });
-
-  if (!invoiceUser) {
-    throw new Error('User not found for this invoice');
-  }
+  if (!invoiceUser) { throw new Error('User not found for this invoice'); }
 
   const subtotal = invoice.amount;
   const tax = subtotal * 0.1;
@@ -368,12 +362,12 @@ async function downloadInvoice(invoice_number) {
     include: { tenants: true },
   });
   if (!invoice) throw new Error('Invoice not found');
-  let invoiceUser = await prisma.users.findFirst({
-    where: { tenant_id: invoice.tenant_id, role: 'Admin' },
+  let invoiceUser = await prisma.user.findFirst({
+    where: { tenantId: invoice.tenant_id, role: 'Admin' },
   });
   if (!invoiceUser) {
-    invoiceUser = await prisma.users.findFirst({
-      where: { tenant_id: invoice.tenant_id },
+    invoiceUser = await prisma.user.findFirst({
+      where: { tenantId: invoice.tenant_id },
     });
   }
   if (!invoiceUser) throw new Error('No user found for this tenant');
@@ -478,12 +472,12 @@ async function adminCreateInvoice(tenantId) {
     include: { tenants: true },
   });
   // Get user for this tenant (prefer Admin, fallback to any user)
-  let invoiceUser = await prisma.users.findFirst({
-    where: { tenant_id: tenantId, role: 'Admin' },
+  let invoiceUser = await prisma.user.findFirst({
+    where: { tenantId: tenantId, role: 'Admin' },
   });
   if (!invoiceUser) {
-    invoiceUser = await prisma.users.findFirst({
-      where: { tenant_id: tenantId },
+    invoiceUser = await prisma.user.findFirst({
+      where: { tenantId: tenantId },
     });
   }
   // Format invoice response

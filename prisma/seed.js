@@ -124,7 +124,7 @@ async function seedPlans() {
 async function seedSuperAdmin() {
   console.log('🌱 Seeding Super Admin User...');
   // Check if super admin already exists
-  const existingUser = await prisma.Users.findFirst({ where: { email: 'dharshan@dhya.in' } });
+  const existingUser = await prisma.users.findFirst({ where: { email: 'dharshan@dhya.in' } });
   if (existingUser) {
     console.log('✅ Super Admin user already exists, skipping...');
     // Fetch the existing tenant and role for further seeding

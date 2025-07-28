@@ -6,9 +6,9 @@ const bcrypt = require('bcrypt');
   const email = 'manager@nscspinning.com';
   const newPlainPwd = 'admin@123';              // 🔁 set to whatever you like
   const hash = await bcrypt.hash(newPlainPwd, 10);
-  await prisma.users.update({
+  await prisma.user.update({
     where: { email },
-    data: { password_hash: hash },
+    data: { passwordHash: hash },
   });
   console.log(`🔑 Password reset for ${email}`);
   await prisma.$disconnect();

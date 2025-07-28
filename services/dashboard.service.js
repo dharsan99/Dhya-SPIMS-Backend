@@ -34,7 +34,7 @@ const calculatePercentageChange = (current, previous) => {
 // Helper function to calculate pending fiber shortages
 const calculatePendingFiberShortages = async (tenantId) => {
   // Get all pending and in-progress orders
-  const activeOrders = await prisma.orders.findMany({
+  const activeOrders = await prisma.order.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -44,7 +44,7 @@ const calculatePendingFiberShortages = async (tenantId) => {
     include: {
       shade: {
         include: {
-          shade_fibres: {
+          shadeFibres: {
             include: {
               fibre: true
             }
@@ -57,9 +57,9 @@ const calculatePendingFiberShortages = async (tenantId) => {
   const shortages = new Set();
 
   for (const order of activeOrders) {
-    const requiredQty = new Decimal(order.quantityKg).div(order.realisation || 100).mul(100);
+    const requiredQty = new Decimal(order.quantity).div(order.realisation || 100).mul(100);
 
-    for (const sf of order.shade.shade_fibres) {
+    for (const sf of order.shade.shadeFibres) {
       const requiredFibreQty = requiredQty.mul(sf.percentage).div(100);
       const availableQty = new Decimal(sf.fibre.stockKg);
 
@@ -75,7 +75,7 @@ const calculatePendingFiberShortages = async (tenantId) => {
 // Helper function to calculate financial metrics
 const calculateFinancialMetrics = async (tenantId) => {
   // Get all orders with their payments
-  const orders = await prisma.orders.findMany({
+  const orders = await prisma.order.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -88,7 +88,7 @@ const calculateFinancialMetrics = async (tenantId) => {
   });
 
   // Get all purchase orders with their payments
-  const purchaseOrders = await prisma.purchaseOrders.findMany({
+  const purchaseOrders = await prisma.purchaseOrder.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -111,7 +111,7 @@ const calculateFinancialMetrics = async (tenantId) => {
   };
 
   for (const order of orders) {
-    const orderValue = new Decimal(order.quantityKg).mul(order.rate || 0);
+    const orderValue = new Decimal(order.quantity).mul(order.unitPrice || 0);
     receivables.total += Number(orderValue);
 
     if (order.deliveryDate < thirtyDaysAgo) {
@@ -603,7 +603,7 @@ async function adminCreateTenant(data) {
   if (!address) throw new Error('Address is required');
   if (!industry) throw new Error('Industry is required');
   // Create tenant
-  const tenant = await prisma.tenants.create({
+  const tenant = await prisma.tenant.create({
     data: {
       name,
       domain,
@@ -618,7 +618,7 @@ async function adminCreateTenant(data) {
   const trialPlan = await prisma.plan.findFirst({ where: { name: 'Starter (14-day trial)' } });
   let subscription = null;
   if (trialPlan) {
-    subscription = await prisma.subscriptions.create({
+    subscription = await prisma.subscription.create({
       data: {
         tenantId: tenant.id,
         planId: trialPlan.id,
@@ -649,9 +649,9 @@ async function adminCreateTenant(data) {
 }
 
 async function verifyAdminMail(token) {
-  const user = await prisma.users.findFirst({ where: { verificationToken: token } });
+  const user = await prisma.user.findFirst({ where: { verification_token: token } });
   if (!user) throw new Error('Invalid or expired token');
-  await prisma.users.update({
+  await prisma.user.update({
     where: { id: user.id },
     data: { isActive: true, verificationToken: null },
   });
@@ -669,7 +669,7 @@ async function verifyAdminMail(token) {
 }
 
 async function adminGetTenantById(id) {
-  const tenant = await prisma.tenants.findUnique({
+  const tenant = await prisma.tenant.findUnique({
     where: { id },
     include: {
       users: true,
@@ -686,8 +686,8 @@ async function adminGetTenantById(id) {
     ? {
         plan: sub.planType || tenant.plan,
         startDate: sub.startDate ? sub.startDate.toISOString() : null,
-        endDate: (sub.plan && sub.plan.expiryDate)
-          ? sub.plan.expiryDate.toISOString()
+        endDate: (sub.plan && sub.plan.expiry_date)
+          ? sub.plan.expiry_date.toISOString()
           : (sub.endDate ? sub.endDate.toISOString() : null),
         status: sub.isActive ? 'active' : 'inactive',
       }
@@ -754,13 +754,13 @@ async function adminUpdateTenant(id, data) {
     ...(industry !== undefined && { industry }),
     ...(domain !== undefined && { domain }),
   };
-  const updated = await prisma.tenants.update({
+  const updated = await prisma.tenant.update({
     where: { id },
     data: updateData,
   });
   // If status is inactive or suspended, deactivate all users for this tenant
   if (status === 'inactive' || status === 'suspended' || isActive === false) {
-    await prisma.users.updateMany({
+    await prisma.user.updateMany({
       where: { tenantId: id },
       data: { isActive: false },
     });
@@ -797,7 +797,7 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
   else orderBy = { createdAt: sortOrder };
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
-  let tenants = await prisma.tenants.findMany({
+  let tenants = await prisma.tenant.findMany({
     where,
     orderBy,
     skip,
@@ -837,7 +837,7 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
       lastActive,
     };
   });
-  const totalItems = await prisma.tenants.count({ where });
+  const totalItems = await prisma.tenant.count({ where });
   const totalPages = Math.ceil(totalItems / take);
   return {
     tenants: mappedTenants,
@@ -851,7 +851,7 @@ async function adminGetAllTenants({ search = '', status = 'all', plan, page = 1,
 }
 
 async function adminDeleteTenant(id) {
-  return prisma.tenants.delete({ where: { id } });
+  return prisma.tenant.delete({ where: { id } });
 }
 
 async function adminGetAllSubscriptions({ search = '', status = 'all', plan, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }) {
@@ -925,7 +925,7 @@ async function adminCreateSubscription({ tenantId, planId }) {
   // Validate input
   if (!tenantId || !planId) throw new Error('tenantId and planId are required');
   // Fetch tenant and plan
-  const tenant = await prisma.tenants.findUnique({ where: { id: tenantId } });
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) throw new Error('Tenant not found');
   const plan = await prisma.plan.findUnique({ where: { id: planId } });
   if (!plan) throw new Error('Plan not found');
@@ -991,11 +991,11 @@ async function adminCreateSubscription({ tenantId, planId }) {
   // Send the invoice email immediately (same API)
   await billingService.sendInvoiceBillEmail(invoiceNumber);
   // Get user for this tenant (prefer Admin, fallback to any user)
-  let invoiceUser = await prisma.users.findFirst({
+  let invoiceUser = await prisma.user.findFirst({
     where: { tenantId: tenantId, role: 'Admin' },
   });
   if (!invoiceUser) {
-    invoiceUser = await prisma.users.findFirst({
+    invoiceUser = await prisma.user.findFirst({
       where: { tenantId: tenantId },
     });
   }
@@ -1134,7 +1134,7 @@ async function adminGetAllUsers(query) {
     ];
   }
   const [users, count] = await prisma.$transaction([
-    prisma.users.findMany({
+    prisma.user.findMany({
       where,
       skip,
       take: parseInt(limit),
@@ -1143,7 +1143,7 @@ async function adminGetAllUsers(query) {
         userRoles: { include: { role: true } },
       },
     }),
-    prisma.users.count({ where }),
+    prisma.user.count({ where }),
   ]);
   const transformedUsers = users.map(user => {
     const roleObj = user.userRoles && user.userRoles.length > 0
@@ -1181,7 +1181,7 @@ async function adminUpdateUser(userId, updateData) {
       where: { id: updateData.roleId },
       select: { id: true, name: true, permissions: true, tenantId: true },
     });
-    await prisma.users.update({
+    await prisma.user.update({
       where: { id: userId },
       data: { role: role.name },
     });
@@ -1193,13 +1193,13 @@ async function adminUpdateUser(userId, updateData) {
   if (updateData.hasOwnProperty('isActive')) {
     updateObj.isActive = updateData.isActive;
   }
-  await prisma.users.update({
+  await prisma.user.update({
     where: { id: userId },
     data: updateObj,
   });
-  const user = await prisma.users.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   const userRole = await prisma.userRole.findFirst({
-    where: { userId },
+    where: { userId: userId },
     include: { role: true },
   });
   return {
@@ -1218,33 +1218,26 @@ async function adminInviteUser({ email, tenantId, roleId }) {
   if (!email || !tenantId || !roleId) {
     throw new Error('Missing fields: email, tenantId, roleId');
   }
-  // Check if user exists
   const existing = await prisma.users.findUnique({ where: { email } });
   if (existing) throw new Error('User already exists');
-  // Generate invite token
+
   const token = jwt.sign({ email, tenantId, roleId }, JWT_SECRET, { expiresIn: '72h' });
   const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/superadmin/accept-invite?token=${token}`;
-  
-  // Check if email credentials are configured
+
   if (!process.env.EMAIL_FROM || !process.env.EMAIL_PASS) {
     console.log('⚠️ Email credentials not configured. Skipping invitation email.');
     console.log('📧 Invitation token:', token);
     console.log('🔗 Manual invitation URL:', inviteLink);
-    return { 
+    return {
       message: 'Invitation created successfully (email not sent due to missing credentials)',
       inviteLink,
       token
     };
   }
-
   try {
-    // Send email
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
-      auth: {
-        user: process.env.EMAIL_FROM,
-        pass: process.env.EMAIL_PASS
-      }
+      auth: { user: process.env.EMAIL_FROM, pass: process.env.EMAIL_PASS }
     });
     await transporter.sendMail({
       from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
@@ -1257,14 +1250,13 @@ async function adminInviteUser({ email, tenantId, roleId }) {
         <p>This link will expire in 72 hours.</p>
       `
     });
-    
     console.log('✅ Invitation email sent successfully to:', email);
     return { message: 'Invitation sent, check your email' };
   } catch (error) {
     console.error('❌ Failed to send invitation email:', error.message);
     console.log('📧 Invitation token:', token);
     console.log('🔗 Manual invitation URL:', inviteLink);
-    return { 
+    return {
       message: 'Invitation created but email failed to send',
       inviteLink,
       token
@@ -1285,19 +1277,19 @@ async function adminAcceptInvite({ token, name, password }) {
   }
   const { email, tenantId, roleId } = payload;
   // Check if user exists
-  const existing = await prisma.users.findUnique({ where: { email } });
+  const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw new Error('User already exists');
   // Hash password
   const bcrypt = require('bcrypt');
   const passwordHash = await bcrypt.hash(password, 10);
   // Create user
-  const user = await prisma.users.create({
+  const user = await prisma.user.create({
     data: {
       name,
       email,
       tenantId,
-      passwordHash,
-      isActive: true
+      passwordHash: password_hash,
+      is_verified: true
     }
   });
   // Assign role
@@ -1311,9 +1303,9 @@ async function adminAcceptInvite({ token, name, password }) {
 }
 
 async function adminDeleteUser(userId) {
-  const user = await prisma.users.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error('User not found');
-  await prisma.users.update({
+  await prisma.user.update({
     where: { id: userId },
     data: { isActive: false },
   });
@@ -1440,22 +1432,22 @@ async function getAdminDashboardSummary() {
     const { start: prevStart, end: prevEnd } = getMonthRange(prevMonth);
 
     // Tenants
-    const currTenants = await prisma.tenants.count({
+    const currTenants = await prisma.tenant.count({
       where: { createdAt: { gte: currStart, lte: currEnd }, isActive: true }
     });
-    const prevTenants = await prisma.tenants.count({
+    const prevTenants = await prisma.tenant.count({
       where: { createdAt: { gte: prevStart, lte: prevEnd }, isActive: true }
     });
-    const totalTenants = await prisma.tenants.count({ where: { isActive: true } });
+    const totalTenants = await prisma.tenant.count({ where: { isActive: true } });
 
     // Users
-    const currUsers = await prisma.users.count({
+    const currUsers = await prisma.user.count({
       where: { isActive: true, createdAt: { gte: currStart, lte: currEnd } }
     });
-    const prevUsers = await prisma.users.count({
+    const prevUsers = await prisma.user.count({
       where: { isActive: true, createdAt: { gte: prevStart, lte: prevEnd } }
     });
-    const totalUsers = await prisma.users.count({ where: { isActive: true } });
+    const totalUsers = await prisma.user.count({ where: { isActive: true } });
 
     // For now, orders and revenue are 0
     const currOrders = 0, prevOrders = 0;

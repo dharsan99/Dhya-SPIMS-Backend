@@ -80,7 +80,7 @@ exports.getAllAttendance = async ({ page = 1, limit = 10, empid, date } = {}) =>
     const parsedPage = parseInt(page);
 
     // Get all employees
-    const employees = await prisma.employees.findMany({
+    const employees = await prisma.employee.findMany({
       where: empid ? { id: empid } : {},
       orderBy: { name: 'asc' }
     });
@@ -91,14 +91,14 @@ exports.getAllAttendance = async ({ page = 1, limit = 10, empid, date } = {}) =>
       
       // Get existing attendance records for the date
       const existingAttendance = await prisma.attendance.findMany({
-      where: {
+        where: {
           date: targetDate,
           ...(empid ? { employeeId: empid } : {})
         },
         include: { employee: true }
       });
 
-      // Create a map of existing attendance by employee_id
+      // Create a map of existing attendance by employeeId
       const attendanceMap = new Map();
       existingAttendance.forEach(att => {
         attendanceMap.set(att.employeeId, att);
@@ -108,58 +108,58 @@ exports.getAllAttendance = async ({ page = 1, limit = 10, empid, date } = {}) =>
       const data = employees.map(emp => {
         const existingAtt = attendanceMap.get(emp.id);
         
-                if (existingAtt) {
+        if (existingAtt) {
           // Employee has attendance record
-        return {
-          employeeId: emp.id,
-          name: emp.name,
-          department: emp.department,
-          tokenNo: emp.token_no,
-          shiftRate: emp.shift_rate,
+          return {
+            employee_id: emp.id,
+            name: emp.name,
+            department: emp.department,
+            token_no: emp.tokenNo,
+            shift_rate: emp.shiftRate,
             date: existingAtt.date.toISOString(), // ISO date format
             shift: existingAtt.shift,
-            inTime: formatTime(existingAtt.inTime),
-            outTime: formatTime(existingAtt.outTime),
-            overtimeHours: existingAtt.overtimeHours,
-            totalHours: existingAtt.totalHours,
+            in_time: formatTime(existingAtt.inTime),
+            out_time: formatTime(existingAtt.outTime),
+            overtime_hours: existingAtt.overtimeHours,
+            total_hours: existingAtt.totalHours,
             status: existingAtt.status,
             employee: {
               name: emp.name,
               department: emp.department,
-              tokenNo: emp.token_no,
-              shiftRate: emp.shift_rate
+              token_no: emp.tokenNo,
+              shift_rate: emp.shiftRate
             }
-        };
-      } else {
+          };
+        } else {
           // Employee is absent (default)
-        return {
-          employeeId: emp.id,
-          name: emp.name,
-          department: emp.department,
-          tokenNo: emp.token_no,
-          shiftRate: emp.shift_rate,
+          return {
+            employee_id: emp.id,
+            name: emp.name,
+            department: emp.department,
+            token_no: emp.tokenNo,
+            shift_rate: emp.shiftRate,
             date: targetDate.toISOString(), // ISO date format
             shift: 'NULL',
-            inTime: '00:00:00',
-            outTime: '00:00:00',
-          overtimeHours: 0,
-          totalHours: 0,
+            in_time: '00:00:00',
+            out_time: '00:00:00',
+            overtime_hours: 0,
+            total_hours: 0,
             status: 'ABSENT',
             employee: {
               name: emp.name,
               department: emp.department,
-              tokenNo: emp.token_no,
-              shiftRate: emp.shift_rate
+              token_no: emp.tokenNo,
+              shift_rate: emp.shiftRate
             }
-        };
-      }
-    });
+          };
+        }
+      });
 
       // Apply pagination
       const total = data.length;
       const paginatedData = data.slice(skip, skip + parsedLimit);
 
-    return {
+      return {
         page: parsedPage,
         limit: parsedLimit,
         total,
@@ -180,23 +180,23 @@ exports.getAllAttendance = async ({ page = 1, limit = 10, empid, date } = {}) =>
       });
 
       const data = records.map(rec => ({
-        employeeId: rec.employeeId,
+        employee_id: rec.employeeId,
         name: rec.employee.name,
         department: rec.employee.department,
-        tokenNo: rec.employee.tokenNo,
-        shiftRate: rec.employee.shiftRate,
+        token_no: rec.employee.tokenNo,
+        shift_rate: rec.employee.shiftRate,
         date: rec.date.toISOString(), // ISO date format
         shift: rec.shift,
-        inTime: formatTime(rec.inTime),
-        outTime: formatTime(rec.outTime),
-        overtimeHours: rec.overtimeHours,
-        totalHours: rec.totalHours,
+        in_time: formatTime(rec.inTime),
+        out_time: formatTime(rec.outTime),
+        overtime_hours: rec.overtimeHours,
+        total_hours: rec.totalHours,
         status: rec.status,
         employee: {
           name: rec.employee.name,
           department: rec.employee.department,
-          tokenNo: rec.employee.tokenNo,
-          shiftRate: rec.employee.shiftRate
+          token_no: rec.employee.tokenNo,
+          shift_rate: rec.employee.shiftRate
         }
       }));
 
@@ -215,12 +215,12 @@ exports.getAllAttendance = async ({ page = 1, limit = 10, empid, date } = {}) =>
 
 exports.updateAttendance = async (empid, body) => {
   try {
-    let { date, shift, overtimeHours, status } = body;
+    let { date, shift, overtime_hours, status } = body;
     // If shift is not valid, treat as ABSENT
     if (!isValidShift(shift)) {
       status = 'ABSENT';
       shift = null;
-      overtimeHours = 0;
+      overtime_hours = 0;
     }
     
     // Validate required fields
@@ -239,7 +239,7 @@ exports.updateAttendance = async (empid, body) => {
     }
 
     const targetDate = parseLocalDate(date);
-    const parsedOvertimeHours = parseFloat(overtimeHours) || 0;
+    const parsedOvertimeHours = parseFloat(overtime_hours) || 0;
     const totalHours = calculateTotalHours(status, parsedOvertimeHours);
 
     // Create shift times based on shift type
@@ -255,10 +255,10 @@ exports.updateAttendance = async (empid, body) => {
       },
       update: {
         shift,
-        inTime: inTime,
-        outTime: outTime,
+        inTime,
+        outTime,
         overtimeHours: parsedOvertimeHours,
-        totalHours: totalHours,
+        totalHours,
         status,
         updatedAt: new Date()
       },
@@ -266,10 +266,10 @@ exports.updateAttendance = async (empid, body) => {
         employeeId: empid,
         date: targetDate,
         shift,
-        inTime: inTime,
-        outTime: outTime,
+        inTime,
+        outTime,
         overtimeHours: parsedOvertimeHours,
-        totalHours: totalHours,
+        totalHours,
         status
       }
     });
@@ -278,13 +278,13 @@ exports.updateAttendance = async (empid, body) => {
       message: 'Attendance updated successfully',
       count: 1,
       data: {
-        employeeId: result.employeeId,
+        employee_id: result.employeeId,
         date: formatDate(result.date),
         shift: result.shift,
-        inTime: formatTime(result.inTime),
-        outTime: formatTime(result.outTime),
-        overtimeHours: result.overtimeHours,
-        totalHours: result.totalHours,
+        in_time: formatTime(result.inTime),
+        out_time: formatTime(result.outTime),
+        overtime_hours: result.overtimeHours,
+        total_hours: result.totalHours,
         status: result.status
       }
     };
@@ -320,7 +320,7 @@ exports.getByDate = async (date, { page = 1, limit = 10 } = {}) => {
     const parsedPage = parseInt(page);
 
     // Get all employees
-    const employees = await prisma.employees.findMany({
+    const employees = await prisma.employee.findMany({
       orderBy: { name: 'asc' }
     });
 
@@ -342,44 +342,44 @@ exports.getByDate = async (date, { page = 1, limit = 10 } = {}) => {
       
       if (existingAtt) {
         return {
-            employeeId: emp.id,
-            name: emp.name,
-            department: emp.department,
-            tokenNo: emp.token_no,
-            shiftRate: emp.shift_rate,
+          employee_id: emp.id,
+          name: emp.name,
+          department: emp.department,
+          token_no: emp.tokenNo,
+          shift_rate: emp.shiftRate,
           date: formatDate(existingAtt.date), // <-- FIXED: always YYYY-MM-DD
           shift: existingAtt.shift,
-          inTime: formatTime(existingAtt.inTime),
-          outTime: formatTime(existingAtt.outTime),
-          overtimeHours: existingAtt.overtimeHours,
-          totalHours: existingAtt.totalHours,
+          in_time: formatTime(existingAtt.inTime),
+          out_time: formatTime(existingAtt.outTime),
+          overtime_hours: existingAtt.overtimeHours,
+          total_hours: existingAtt.totalHours,
           status: existingAtt.status,
           employee: {
             name: emp.name,
             department: emp.department,
-            tokenNo: emp.token_no,
-            shiftRate: emp.shift_rate
+            token_no: emp.tokenNo,
+            shift_rate: emp.shiftRate
           }
         };
-        } else {
+      } else {
         return {
-            employeeId: emp.id,
-            name: emp.name,
-            department: emp.department,
-            tokenNo: emp.token_no,
-            shiftRate: emp.shift_rate,
+          employee_id: emp.id,
+          name: emp.name,
+          department: emp.department,
+          token_no: emp.tokenNo,
+          shift_rate: emp.shiftRate,
           date: formatDate(targetDate), // <-- FIXED: always YYYY-MM-DD
           shift: 'NULL',
-          inTime: '00:00:00',
-          outTime: '00:00:00',
-            overtimeHours: 0,
-          totalHours: 0,
+          in_time: '00:00:00',
+          out_time: '00:00:00',
+          overtime_hours: 0,
+          total_hours: 0,
           status: 'ABSENT',
           employee: {
             name: emp.name,
             department: emp.department,
-            tokenNo: emp.token_no,
-            shiftRate: emp.shift_rate
+            token_no: emp.tokenNo,
+            shift_rate: emp.shiftRate
           }
         };
       }
@@ -411,7 +411,7 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
     const endDate = parseLocalDate(end);
 
     // Get all employees
-    const employees = await prisma.employees.findMany({
+    const employees = await prisma.employee.findMany({
       orderBy: { name: 'asc' }
     });
 
@@ -427,7 +427,7 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
       orderBy: { date: 'desc' }
     });
 
-    // Create a map of existing attendance by employee_id and date
+    // Create a map of existing attendance by employeeId and date
     const attendanceMap = new Map();
     existingAttendance.forEach(att => {
       const key = `${att.employeeId}_${formatDate(att.date)}`;
@@ -437,11 +437,11 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
     // Build nested response structure for each employee
     const allRecords = employees.map(emp => {
       const attendanceRecord = {
-        employeeId: emp.id,
+        employee_id: emp.id,
         employee: {
-          tokenNo: emp.token_no,
+          token_no: emp.tokenNo,
           name: emp.name,
-          shiftRate: emp.shift_rate.toString(),
+          shift_rate: emp.shiftRate.toString(),
           department: emp.department
         },
         attendance: {}
@@ -459,19 +459,19 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
           // Employee has attendance record for this date
           attendanceRecord.attendance[currentDateStr] = {
             status: existingAtt.status,
-            inTime: formatTime(existingAtt.inTime),
-            outTime: formatTime(existingAtt.outTime),
-            totalHours: existingAtt.totalHours,
-            overtimeHours: existingAtt.overtimeHours
+            in_time: formatTime(existingAtt.inTime),
+            out_time: formatTime(existingAtt.outTime),
+            total_hours: existingAtt.totalHours,
+            overtime_hours: existingAtt.overtimeHours
           };
         } else {
           // Employee is absent for this date (default)
           attendanceRecord.attendance[currentDateStr] = {
             status: 'ABSENT',
-            inTime: '00:00:00',
-            outTime: '00:00:00',
-          totalHours: 0,
-            overtimeHours: 0
+            in_time: '00:00:00',
+            out_time: '00:00:00',
+            total_hours: 0,
+            overtime_hours: 0
           };
         }
         
@@ -493,7 +493,7 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
       totalPages: Math.ceil(total / parsedLimit),
       data: paginatedData
     };
-    } catch (error) {
+  } catch (error) {
     throw new Error(`Error getting attendance by range: ${error.message}`);
   }
 };
@@ -506,20 +506,20 @@ exports.bulkUpdateAttendance = async (date, body) => {
 
     for (const item of body) {
       try {
-        let { employeeId, shift, overtimeHours, status } = item;
+        let { employee_id, shift, overtime_hours, status } = item;
         // If shift is not valid, treat as ABSENT
         if (!isValidShift(shift)) {
           status = 'ABSENT';
           shift = null;
-          overtimeHours = 0;
+          overtime_hours = 0;
         }
         
-        if (!employeeId || status === undefined) {
+        if (!employee_id || status === undefined) {
           errorCount++;
           continue;
         }
 
-        const parsedOvertimeHours = parseFloat(overtimeHours) || 0;
+        const parsedOvertimeHours = parseFloat(overtime_hours) || 0;
         const totalHours = calculateTotalHours(status, parsedOvertimeHours);
         const { inTime, outTime } = createShiftTimes(shift, date);
 
@@ -527,34 +527,34 @@ exports.bulkUpdateAttendance = async (date, body) => {
           where: {
             date_employeeId: {
               date: targetDate,
-              employeeId
+              employeeId: employee_id
             }
           },
           update: {
             shift,
-            inTime: inTime,
-            outTime: outTime,
+            inTime,
+            outTime,
             overtimeHours: parsedOvertimeHours,
-            totalHours: totalHours,
+            totalHours,
             status,
             updatedAt: new Date()
           },
           create: {
-            employeeId,
+            employeeId: employee_id,
             date: targetDate,
             shift,
-            inTime: inTime,
-            outTime: outTime,
+            inTime,
+            outTime,
             overtimeHours: parsedOvertimeHours,
-            totalHours: totalHours,
+            totalHours,
             status
           }
         });
 
         successCount++;
-    } catch (error) {
+      } catch (error) {
         errorCount++;
-        console.error(`Error updating attendance for employee ${item.employeeId}:`, error.message);
+        console.error(`Error updating attendance for employee ${item.employee_id}:`, error.message);
       }
     }
 
@@ -563,7 +563,7 @@ exports.bulkUpdateAttendance = async (date, body) => {
       successCount,
       errorCount
     };
-    } catch (error) {
+  } catch (error) {
     throw new Error(`Error in bulk update: ${error.message}`);
   }
 };
@@ -603,23 +603,23 @@ exports.getAttendanceSummary = async ({ date, start, end, month, year, page = 1,
     });
 
     const data = records.map(rec => ({
-      employeeId: rec.employeeId,
+      employee_id: rec.employeeId,
       name: rec.employee.name,
       department: rec.employee.department,
-      tokenNo: rec.employee.tokenNo,
-      shiftRate: rec.employee.shiftRate,
+      token_no: rec.employee.tokenNo,
+      shift_rate: rec.employee.shiftRate,
       date: rec.date.toISOString(), // ISO date format
       shift: rec.shift,
-      inTime: formatTime(rec.inTime),
-      outTime: formatTime(rec.outTime),
-      overtimeHours: rec.overtimeHours,
-      totalHours: rec.totalHours,
+      in_time: formatTime(rec.inTime),
+      out_time: formatTime(rec.outTime),
+      overtime_hours: rec.overtimeHours,
+      total_hours: rec.totalHours,
       status: rec.status,
       employee: {
         name: rec.employee.name,
         department: rec.employee.department,
-        tokenNo: rec.employee.tokenNo,
-        shiftRate: rec.employee.shiftRate
+        token_no: rec.employee.tokenNo,
+        shift_rate: rec.employee.shiftRate
       }
     }));
 
@@ -653,7 +653,7 @@ exports.getAttendanceRangeSummary = async ({ date, start, end, month, year }) =>
         gte: rangeStart,
         lte: rangeEnd
       };
-      } else if (month && year) {
+    } else if (month && year) {
       rangeStart = new Date(year, month - 1, 1);
       rangeEnd = new Date(year, month, 0);
       where.date = {
@@ -667,7 +667,7 @@ exports.getAttendanceRangeSummary = async ({ date, start, end, month, year }) =>
       numberOfDays = Math.floor((rangeEnd - rangeStart) / (1000 * 60 * 60 * 24)) + 1;
     }
 
-      const totalEmployees = await prisma.employees.count();
+    const totalEmployees = await prisma.employee.count();
     const attendance = await prisma.attendance.findMany({ where });
 
     const present = attendance.filter(a => a.status === 'PRESENT').length;
@@ -685,16 +685,16 @@ exports.getAttendanceRangeSummary = async ({ date, start, end, month, year }) =>
       ? parseFloat((totalHours / attendance.length).toFixed(2))
       : 0;
 
-      return {
-        total_employees: totalEmployees,
-        present,
-        absent,
+    return {
+      total_employees: totalEmployees,
+      present,
+      absent,
       half_day: halfDay,
       total_overtime: totalOvertime,
       total_hours: totalHours,
       average_hours: averageHours
-      };
-    } catch (error) {
+    };
+  } catch (error) {
     throw new Error(`Error getting attendance range summary: ${error.message}`);
   }
 };
@@ -728,23 +728,23 @@ exports.getFilteredAttendance = async ({ page = 1, limit = 10, shift, status, em
     const data = records
       .filter(rec => !department || rec.employee?.department === department)
       .map(rec => ({
-        employeeId: rec.employeeId,
+        employee_id: rec.employeeId,
         name: rec.employee?.name || '',
         department: rec.employee?.department || '',
-        tokenNo: rec.employee?.tokenNo || '',
-        shiftRate: rec.employee?.shiftRate || 0,
+        token_no: rec.employee?.tokenNo || '',
+        shift_rate: rec.employee?.shiftRate || 0,
         date: rec.date.toISOString(), // ISO date format
         shift: rec.shift,
-        inTime: formatTime(rec.inTime),
-        outTime: formatTime(rec.outTime),
-        overtimeHours: rec.overtimeHours,
-        totalHours: rec.totalHours,
+        in_time: formatTime(rec.inTime),
+        out_time: formatTime(rec.outTime),
+        overtime_hours: rec.overtimeHours,
+        total_hours: rec.totalHours,
         status: rec.status,
         employee: {
           name: rec.employee?.name || '',
           department: rec.employee?.department || '',
-          tokenNo: rec.employee?.tokenNo || '',
-          shiftRate: rec.employee?.shiftRate || 0
+          token_no: rec.employee?.tokenNo || '',
+          shift_rate: rec.employee?.shiftRate || 0
         }
       }));
 
@@ -762,17 +762,17 @@ exports.getFilteredAttendance = async ({ page = 1, limit = 10, shift, status, em
 
 exports.updateAttendanceWithAudit = async (empid, data, updaterId) => {
   try {
-    let { shift, overtimeHours, status } = data;
+    let { shift, overtime_hours, status } = data;
     // If shift is not valid, treat as ABSENT
     if (!isValidShift(shift)) {
       status = 'ABSENT';
       shift = null;
-      overtimeHours = 0;
+      overtime_hours = 0;
     }
     const today = new Date();
     const targetDate = parseLocalDate(today);
     
-    const parsedOvertimeHours = parseFloat(overtimeHours) || 0;
+    const parsedOvertimeHours = parseFloat(overtime_hours) || 0;
     const totalHours = calculateTotalHours(status, parsedOvertimeHours);
     const { inTime, outTime } = createShiftTimes(shift, today);
 
@@ -785,10 +785,10 @@ exports.updateAttendanceWithAudit = async (empid, data, updaterId) => {
       },
       update: {
         shift,
-        inTime: inTime,
-        outTime: outTime,
+        inTime,
+        outTime,
         overtimeHours: parsedOvertimeHours,
-        totalHours: totalHours,
+        totalHours,
         status,
         lastUpdatedBy: updaterId,
         updatedAt: new Date()
@@ -797,10 +797,10 @@ exports.updateAttendanceWithAudit = async (empid, data, updaterId) => {
         employeeId: empid,
         date: targetDate,
         shift,
-        inTime: inTime,
-        outTime: outTime,
+        inTime,
+        outTime,
         overtimeHours: parsedOvertimeHours,
-        totalHours: totalHours,
+        totalHours,
         status,
         lastUpdatedBy: updaterId
       }
@@ -809,15 +809,15 @@ exports.updateAttendanceWithAudit = async (empid, data, updaterId) => {
     return {
       message: 'Attendance updated with audit',
       data: {
-        employeeId: result.employeeId,
+        employee_id: result.employeeId,
         date: formatDate(result.date),
         shift: result.shift,
-        inTime: formatTime(result.inTime),
-        outTime: formatTime(result.outTime),
-        overtimeHours: result.overtimeHours,
-        totalHours: result.totalHours,
+        in_time: formatTime(result.inTime),
+        out_time: formatTime(result.outTime),
+        overtime_hours: result.overtimeHours,
+        total_hours: result.totalHours,
         status: result.status,
-        lastUpdatedBy: result.lastUpdatedBy
+        last_updated_by: result.lastUpdatedBy
       }
     };
   } catch (error) {
@@ -832,17 +832,17 @@ exports.markBulkAttendance = async (date, records) => {
 
   for (const record of records) {
     let {
-      employeeId,
+      employee_id,
       shift,
       status,
-      overtimeHours = 0
+      overtime_hours = 0
     } = record;
 
     let finalShift = shift;
     let inTime = '00:00:00';
     let outTime = '00:00:00';
     let totalHours = 0;
-    let parsedOvertime = parseFloat(overtimeHours) || 0;
+    let parsedOvertime = parseFloat(overtime_hours) || 0;
 
     // If shift is not valid, treat as ABSENT
     if (!isValidShift(shift)) {
@@ -867,7 +867,7 @@ exports.markBulkAttendance = async (date, records) => {
         where: {
           date_employeeId: {
             date: targetDate,
-            employeeId
+            employeeId: employee_id
           }
         },
         update: {
@@ -875,18 +875,18 @@ exports.markBulkAttendance = async (date, records) => {
           inTime: new Date(targetDate.toDateString() + ' ' + inTime),
           outTime: new Date(targetDate.toDateString() + ' ' + outTime),
           overtimeHours: parsedOvertime,
-          totalHours: totalHours,
+          totalHours,
           status,
           updatedAt: new Date()
         },
         create: {
-          employeeId,
+          employeeId: employee_id,
           date: targetDate,
           shift: finalShift,
           inTime: new Date(targetDate.toDateString() + ' ' + inTime),
           outTime: new Date(targetDate.toDateString() + ' ' + outTime),
           overtimeHours: parsedOvertime,
-          totalHours: totalHours,
+          totalHours,
           status
         }
       });
@@ -894,23 +894,23 @@ exports.markBulkAttendance = async (date, records) => {
       // Prepare the result for the controller
       if (status === 'ABSENT') {
         results.push({
-          employeeId,
+          employee_id,
           status,
-          overtimeHours: 0
+          overtime_hours: 0
         });
       } else {
         results.push({
-          employeeId,
+          employee_id,
           shift: finalShift,
           status,
-          overtimeHours: parsedOvertime
+          overtime_hours: parsedOvertime
         });
       }
     } catch (error) {
-      console.error(`Error processing attendance for employee ${employeeId}:`, error);
+      console.error(`Error processing attendance for employee ${employee_id}:`, error);
       // Add error record to results
       results.push({
-        employeeId,
+        employee_id,
         status: 'ERROR',
         error: error.message
       });

@@ -2,10 +2,10 @@ const employeeService = require('../services/employees.service');
 
 exports.createEmployee = async (req, res) => {
   try {
-    const { name, aadhar_no, bank_acc_1, shift_rate } = req.body;
+    const { name, aadharNo, bankAcc1, shiftRate } = req.body;
 
-    if (!name || !aadhar_no || !bank_acc_1 || shift_rate == null) {
-      return res.status(400).json({ error: 'Missing required fields (name, aadhar_no, bank_acc_1, shift_rate)' });
+    if (!name || !aadharNo || !bankAcc1 || shiftRate == null) {
+      return res.status(400).json({ error: 'Missing required fields (name, aadharNo, bankAcc1, shiftRate)' });
     }
 
     const employee = await employeeService.createEmployee(req.body);
