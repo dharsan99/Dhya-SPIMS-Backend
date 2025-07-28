@@ -34,7 +34,7 @@ const calculatePercentageChange = (current, previous) => {
 // Helper function to calculate pending fiber shortages
 const calculatePendingFiberShortages = async (tenantId) => {
   // Get all pending and in-progress orders
-  const activeOrders = await prisma.order.findMany({
+  const activeOrders = await prisma.orders.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -44,7 +44,7 @@ const calculatePendingFiberShortages = async (tenantId) => {
     include: {
       shade: {
         include: {
-          shadeFibres: {
+          shade_fibres: {
             include: {
               fibre: true
             }
@@ -57,9 +57,9 @@ const calculatePendingFiberShortages = async (tenantId) => {
   const shortages = new Set();
 
   for (const order of activeOrders) {
-    const requiredQty = new Decimal(order.quantity).div(order.realisation || 100).mul(100);
+    const requiredQty = new Decimal(order.quantityKg).div(order.realisation || 100).mul(100);
 
-    for (const sf of order.shade.shadeFibres) {
+    for (const sf of order.shade.shade_fibres) {
       const requiredFibreQty = requiredQty.mul(sf.percentage).div(100);
       const availableQty = new Decimal(sf.fibre.stockKg);
 
@@ -75,7 +75,7 @@ const calculatePendingFiberShortages = async (tenantId) => {
 // Helper function to calculate financial metrics
 const calculateFinancialMetrics = async (tenantId) => {
   // Get all orders with their payments
-  const orders = await prisma.order.findMany({
+  const orders = await prisma.orders.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -88,7 +88,7 @@ const calculateFinancialMetrics = async (tenantId) => {
   });
 
   // Get all purchase orders with their payments
-  const purchaseOrders = await prisma.purchaseOrder.findMany({
+  const purchaseOrders = await prisma.purchaseOrders.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -111,7 +111,7 @@ const calculateFinancialMetrics = async (tenantId) => {
   };
 
   for (const order of orders) {
-    const orderValue = new Decimal(order.quantity).mul(order.unitPrice || 0);
+    const orderValue = new Decimal(order.quantityKg).mul(order.rate || 0);
     receivables.total += Number(orderValue);
 
     if (order.deliveryDate < thirtyDaysAgo) {

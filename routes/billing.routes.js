@@ -1,14 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const billingController = require('../controllers/billing.controller');
-//const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-//router.use(verifyTokenAndTenant);
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
  * tags:
  *   name: Billing
- *   description: Billing and invoice statistics
+ *   description: Billing and payment management
  */
 
 /**
@@ -16,40 +15,29 @@ const billingController = require('../controllers/billing.controller');
  * /billing/stats:
  *   get:
  *     summary: Get billing statistics
- *     tags: [Dashboard]
- *     parameters:
- *       - in: query
- *         name: tenantId
- *         schema:
- *           type: string
- *         required: false
- *         description: Optional tenant ID to filter billing stats
+ *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Billing statistics summary
+ *         description: Billing statistics retrieved successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
  *                 totalRevenue:
- *                   type: number
- *                   example: 12345.67
+ *                   type: string
  *                 pendingAmount:
- *                   type: number
- *                   example: 2345.00
+ *                   type: string
  *                 overdueAmount:
- *                   type: number
- *                   example: 1200.00
+ *                   type: string
  *                 paidInvoices:
- *                   type: integer
- *                   example: 89
+ *                   type: string
  *                 totalInvoices:
- *                   type: integer
- *                   example: 100
+ *                   type: string
  *                 paidPercentage:
- *                   type: integer
- *                   example: 89
+ *                   type: string
  *                 stats:
  *                   type: array
  *                   items:
@@ -58,67 +46,72 @@ const billingController = require('../controllers/billing.controller');
  *                       title:
  *                         type: string
  *                       value:
- *                         type: number
+ *                         type: string
  *                       change:
  *                         type: string
  *                       changeType:
  *                         type: string
  *                       description:
  *                         type: string
+ *       500:
+ *         description: Internal server error
  */
+router.get('/stats', verifyTokenAndTenant, billingController.getBillingStats);
 
 /**
  * @swagger
  * /billing/admin/invoices:
  *   get:
- *     summary: Get all invoices (admin)
- *     tags: [Dashboard]
+ *     summary: Admin - Get all invoices with filtering and pagination
+ *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
- *         required: false
- *         description: Search by invoice number or tenant name
+ *         description: Search term for invoice number or tenant name
  *       - in: query
  *         name: status
  *         schema:
  *           type: string
- *         required: false
- *         description: Invoice status (all, paid, pending, overdue)
+ *           enum: [all, pending, paid, overdue]
+ *         description: Filter by invoice status
  *       - in: query
  *         name: plan
  *         schema:
  *           type: string
- *         required: false
- *         description: Plan name
+ *         description: Filter by plan type
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
- *         required: false
+ *           default: 1
  *         description: Page number
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
- *         required: false
+ *           default: 10
  *         description: Items per page
  *       - in: query
  *         name: sortBy
  *         schema:
  *           type: string
- *         required: false
- *         description: Sort by field
+ *           enum: [createdAt, dueDate, amount, status]
+ *           default: createdAt
+ *         description: Sort field
  *       - in: query
  *         name: sortOrder
  *         schema:
  *           type: string
- *         required: false
- *         description: Sort order (asc, desc)
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
  *     responses:
  *       200:
- *         description: List of invoices with pagination
+ *         description: Invoices retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -129,125 +122,148 @@ const billingController = require('../controllers/billing.controller');
  *                   items:
  *                     type: object
  *                     properties:
- *                       id: { type: string }
- *                       tenantName: { type: string }
- *                       tenantEmail: { type: string }
- *                       invoiceNumber: { type: string }
- *                       amount: { type: number }
- *                       currency: { type: string }
- *                       status: { type: string }
- *                       dueDate: { type: string }
- *                       issueDate: { type: string }
- *                       paidDate: { type: string }
- *                       plan: { type: string }
- *                       billingCycle: { type: string }
- *                       description: { type: string }
+ *                       id:
+ *                         type: string
+ *                       tenantName:
+ *                         type: string
+ *                       tenantEmail:
+ *                         type: string
+ *                       invoiceNumber:
+ *                         type: string
+ *                       amount:
+ *                         type: number
+ *                       currency:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       dueDate:
+ *                         type: string
+ *                       issueDate:
+ *                         type: string
+ *                       paidDate:
+ *                         type: string
+ *                       plan:
+ *                         type: string
+ *                       billingCycle:
+ *                         type: string
+ *                       description:
+ *                         type: string
  *                 pagination:
  *                   type: object
  *                   properties:
- *                     currentPage: { type: integer }
- *                     totalPages: { type: integer }
- *                     totalItems: { type: integer }
- *                     itemsPerPage: { type: integer }
+ *                     currentPage:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     totalItems:
+ *                       type: integer
+ *                     itemsPerPage:
+ *                       type: integer
+ *       500:
+ *         description: Internal server error
  */
+router.get('/admin/invoices', verifyTokenAndTenant, billingController.adminGetInvoices);
 
 /**
  * @swagger
- * /billing/admin/invoice:
+ * /billing/invoices/{invoiceNumber}/send-email:
  *   post:
- *     summary: Create a billing invoice for a tenant (admin)
- *     tags: [Dashboard]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               tenantId:
- *                 type: string
- *                 description: Tenant ID
+ *     summary: Send invoice email
+ *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: invoiceNumber
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Invoice number
  *     responses:
- *       201:
- *         description: Created invoice
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id: { type: string }
- *                 tenantName: { type: string }
- *                 tenantEmail: { type: string }
- *                 invoiceNumber: { type: string }
- *                 amount: { type: number }
- *                 currency: { type: string }
- *                 status: { type: string }
- *                 dueDate: { type: string }
- *                 issueDate: { type: string }
- *                 paidDate: { type: string }
- *                 plan: { type: string }
- *                 billingCycle: { type: string }
- *                 description: { type: string }
+ *       200:
+ *         description: Invoice email sent successfully
+ *       500:
+ *         description: Internal server error
  */
+router.post('/invoices/:invoiceNumber/send-email', verifyTokenAndTenant, billingController.sendInvoiceEmail);
+
+/**
+ * @swagger
+ * /billing/invoices/{invoiceNumber}/send-bill:
+ *   post:
+ *     summary: Send invoice bill email
+ *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: invoiceNumber
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Invoice number
+ *     responses:
+ *       200:
+ *         description: Invoice bill email sent successfully
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/invoices/:invoiceNumber/send-bill', verifyTokenAndTenant, billingController.sendInvoiceBillEmail);
 
 /**
  * @swagger
  * /billing/payments:
  *   get:
- *     summary: Get all payments (optionally filtered by tenant, paginated)
+ *     summary: Get payments with filtering and pagination
  *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
- *       - in: query
- *         name: tenantId
- *         schema:
- *           type: string
- *         required: false
- *         description: Optional tenant ID to filter payments. If not provided, returns all payments for all tenants.
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
- *         required: false
- *         description: Search by transaction ID, method, status, invoice number, or tenant name
+ *         description: Search term for transaction ID, method, status, or invoice number
  *       - in: query
  *         name: status
  *         schema:
  *           type: string
- *         required: false
- *         description: Filter by payment status (paid, pending, failed, all)
+ *           enum: [all, paid, pending, failed]
+ *         description: Filter by payment status
  *       - in: query
  *         name: plan
  *         schema:
  *           type: string
- *         required: false
- *         description: "(Reserved for future use: filter by plan)"
+ *         description: Filter by plan type
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
- *         required: false
- *         description: "Page number (default: 1)"
+ *           default: 1
+ *         description: Page number
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
- *         required: false
- *         description: "Items per page (default: 20)"
+ *           default: 20
+ *         description: Items per page
  *       - in: query
  *         name: sortBy
  *         schema:
  *           type: string
- *         required: false
- *         description: "Field to sort by (default: paidAt)"
+ *           enum: [paidAt, billingId, tenantId, amount]
+ *           default: paidAt
+ *         description: Sort field
  *       - in: query
  *         name: sortOrder
  *         schema:
  *           type: string
- *         required: false
- *         description: "Sort order (asc or desc, default: desc)"
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
  *     responses:
  *       200:
- *         description: List of payments and total amount
+ *         description: Payments retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -255,89 +271,127 @@ const billingController = require('../controllers/billing.controller');
  *               properties:
  *                 totalAmount:
  *                   type: number
- *                   example: 1200.00
  *                 Completed:
  *                   type: integer
- *                   example: 5
  *                 Pending:
  *                   type: integer
- *                   example: 2
  *                 Failed:
  *                   type: integer
- *                   example: 1
  *                 payments:
  *                   type: array
  *                   items:
  *                     type: object
  *                     properties:
- *                       id: { type: string }
- *                       billingId: { type: string }
- *                       invoiceNumber: { type: string }
- *                       tenantId: { type: string }
- *                       tenantName: { type: string }
- *                       amount: { type: number }
- *                       method: { type: string }
- *                       status: { type: string }
- *                       paidAt: { type: string, format: date-time }
- *                       txnId: { type: string }
+ *                       id:
+ *                         type: string
+ *                       billingId:
+ *                         type: string
+ *                       invoiceNumber:
+ *                         type: string
+ *                       tenantId:
+ *                         type: string
+ *                       tenantName:
+ *                         type: string
+ *                       amount:
+ *                         type: number
+ *                       method:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       paidAt:
+ *                         type: string
+ *                       txnId:
+ *                         type: string
  *                 pagination:
  *                   type: object
  *                   properties:
- *                     currentPage: { type: integer }
- *                     totalPages: { type: integer }
- *                     totalItems: { type: integer }
- *                     itemsPerPage: { type: integer }
+ *                     currentPage:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     totalItems:
+ *                       type: integer
+ *                     itemsPerPage:
+ *                       type: integer
+ *       500:
+ *         description: Internal server error
  */
+router.get('/payments', verifyTokenAndTenant, billingController.getPayments);
 
 /**
  * @swagger
- * /billing/payment:
+ * /billing/payments/{paymentId}:
  *   get:
- *     summary: Get a single payment by ID
+ *     summary: Get payment by ID
  *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
- *       - in: query
+ *       - in: path
  *         name: paymentId
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
  *         description: Payment ID
  *     responses:
  *       200:
- *         description: Payment details
+ *         description: Payment retrieved successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 id: { type: string }
- *                 billingId: { type: string }
- *                 invoiceNumber: { type: string }
- *                 tenantId: { type: string }
- *                 tenantName: { type: string }
- *                 amount: { type: number }
- *                 method: { type: string }
- *                 status: { type: string }
- *                 paidAt: { type: string, format: date-time }
- *                 txnId: { type: string }
+ *                 id:
+ *                   type: string
+ *                 billingId:
+ *                   type: string
+ *                 invoiceNumber:
+ *                   type: string
+ *                 tenantId:
+ *                   type: string
+ *                 tenantName:
+ *                   type: string
+ *                 amount:
+ *                   type: number
+ *                 method:
+ *                   type: string
+ *                 status:
+ *                   type: string
+ *                 paidAt:
+ *                   type: string
+ *                 txnId:
+ *                   type: string
+ *       404:
+ *         description: Payment not found
+ *       500:
+ *         description: Internal server error
  */
+router.get('/payments/:paymentId', verifyTokenAndTenant, billingController.getPayment);
 
 /**
  * @swagger
- * /billing/payment:
+ * /billing/payments:
  *   post:
- *     summary: Create a new payment
+ *     summary: Create new payment
  *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - billingId
+ *               - tenantId
+ *               - amount
+ *               - method
+ *               - status
  *             properties:
  *               billingId:
  *                 type: string
- *                 description: Billing (invoice) ID
+ *                 description: Billing ID
  *               tenantId:
  *                 type: string
  *                 description: Tenant ID
@@ -346,49 +400,32 @@ const billingController = require('../controllers/billing.controller');
  *                 description: Payment amount
  *               method:
  *                 type: string
- *                 description: Payment method (creditcard, upi, banktransfer, etc.)
+ *                 description: Payment method
  *               status:
  *                 type: string
- *                 description: Payment status (paid, pending, overdue)
+ *                 description: Payment status
  *               txnId:
  *                 type: string
- *                 description: Transaction/reference ID (optional)
+ *                 description: Transaction ID (optional)
  *     responses:
  *       201:
- *         description: Created payment
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id: { type: string }
- *                 billingId: { type: string }
- *                 invoiceNumber: { type: string }
- *                 tenantId: { type: string }
- *                 tenantName: { type: string }
- *                 amount: { type: number }
- *                 method: { type: string }
- *                 status: { type: string }
- *                 paidAt: { type: string, format: date-time }
- *                 txnId: { type: string }
+ *         description: Payment created successfully
+ *       500:
+ *         description: Internal server error
  */
+router.post('/payments', verifyTokenAndTenant, billingController.postPayment);
 
 /**
  * @swagger
  * /billing/revenue-trends:
  *   get:
- *     summary: Get monthly revenue trends (optionally filtered by tenant)
+ *     summary: Get revenue trends
  *     tags: [Billing]
- *     parameters:
- *       - in: query
- *         name: tenantId
- *         schema:
- *           type: string
- *         required: false
- *         description: Optional tenant ID to filter revenue trends
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Revenue trends and summary
+ *         description: Revenue trends retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -399,118 +436,94 @@ const billingController = require('../controllers/billing.controller');
  *                   items:
  *                     type: object
  *                     properties:
- *                       month: { type: string, example: "Jan 2024" }
- *                       revenue: { type: number, example: 1397 }
- *                       invoiceCount: { type: integer, example: 3 }
- *                 totalRevenue: { type: number, example: 3393 }
- *                 averageMonthlyRevenue: { type: number, example: 565.5 }
- *                 totalInvoices: { type: integer, example: 7 }
- *                 changeFromLastMonth: { type: number, example: 0.0 }
+ *                       month:
+ *                         type: string
+ *                       revenue:
+ *                         type: number
+ *                       invoiceCount:
+ *                         type: integer
+ *                 totalRevenue:
+ *                   type: number
+ *                 averageMonthlyRevenue:
+ *                   type: number
+ *                 totalInvoices:
+ *                   type: integer
+ *                 changeFromLastMonth:
+ *                   type: number
+ *       500:
+ *         description: Internal server error
  */
+router.get('/revenue-trends', verifyTokenAndTenant, billingController.getRevenueTrends);
 
 /**
  * @swagger
- * /billing/admin/invoice/download:
+ * /billing/invoices/{invoiceNumber}/download:
  *   get:
- *     summary: Download invoice as PDF (admin)
- *     tags: [Dashboard]
+ *     summary: Download invoice as PDF
+ *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
- *       - in: query
- *         name: invoice_number
+ *       - in: path
+ *         name: invoiceNumber
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
- *         description: Invoice number to download
+ *         description: Invoice number
  *     responses:
  *       200:
- *         description: PDF file of the invoice
+ *         description: Invoice PDF downloaded successfully
  *         content:
  *           application/pdf:
  *             schema:
  *               type: string
  *               format: binary
- *       400:
- *         description: Missing or invalid invoice_number
+ *       404:
+ *         description: Invoice not found
  *       500:
- *         description: Server error
+ *         description: Internal server error
  */
-router.get('/admin/invoice/download', billingController.downloadInvoice);
+router.get('/invoices/:invoiceNumber/download', verifyTokenAndTenant, billingController.downloadInvoice);
 
 /**
  * @swagger
- * /billing/admin/invoice/send-email:
+ * /billing/admin/invoices:
  *   post:
- *     summary: Send invoice email (admin)
- *     tags: [Dashboard]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               invoice_number:
- *                 type: string
- *                 description: Invoice number to send
- *     responses:
- *       200:
- *         description: Invoice email sent successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean }
- *                 message: { type: string }
- *       400:
- *         description: Missing or invalid invoice_number
- *       500:
- *         description: Server error
- */
-router.post('/admin/invoice/send-email', billingController.sendInvoiceEmail);
-
-/**
- * @swagger
- * /billing/admin/invoice/send-bill-email:
- *   post:
- *     summary: Send invoice bill email (separate API)
- *     tags: [Dashboard]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               invoice_number:
- *                 type: string
- *                 description: Invoice number to send
- *     responses:
- *       200:
- *         description: Invoice email sent successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success: { type: boolean }
- *                 message: { type: string }
- *       400:
- *         description: Missing or invalid invoice_number
- *       500:
- *         description: Server error
- */
-router.post('/admin/invoice/send-bill-email', billingController.sendInvoiceBillEmail);
-
-/**
- * @swagger
- * /billing/recent-payments:
- *   get:
- *     summary: Get the latest 3 payment activities
+ *     summary: Admin - Create new invoice
  *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tenantId
+ *             properties:
+ *               tenantId:
+ *                 type: string
+ *                 description: Tenant ID
+ *     responses:
+ *       201:
+ *         description: Invoice created successfully
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/admin/invoices', verifyTokenAndTenant, billingController.adminCreateInvoice);
+
+/**
+ * @swagger
+ * /billing/recent-activity:
+ *   get:
+ *     summary: Get recent payment activity
+ *     tags: [Billing]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of recent payment activities
+ *         description: Recent payment activity retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -520,33 +533,17 @@ router.post('/admin/invoice/send-bill-email', billingController.sendInvoiceBillE
  *                 properties:
  *                   name:
  *                     type: string
- *                     description: Tenant name
  *                   method:
  *                     type: string
- *                     description: Payment method
- *                   txn_id:
+ *                   txnId:
  *                     type: string
- *                     description: Transaction ID
  *                   amount:
  *                     type: number
- *                     description: Payment amount
  *                   date:
  *                     type: string
- *                     format: date-time
- *                     description: Payment date
+ *       500:
+ *         description: Internal server error
  */
-router.get('/recent-payments', billingController.getRecentPaymentActivity);
-
-
-// GET /billing/stats
-router.get('/stats', billingController.getBillingStats);
-// GET /billing/admin/invoices
-router.get('/admin/invoices', billingController.adminGetInvoices);
-// POST /billing/admin/invoice
-router.post('/admin/invoice', billingController.adminCreateInvoice);
-router.get('/payments', billingController.getPayments);
-router.get('/payment', billingController.getPayment);
-router.post('/payment', billingController.postPayment);
-router.get('/revenue-trends', billingController.getRevenueTrends);
+router.get('/recent-activity', verifyTokenAndTenant, billingController.getRecentPaymentActivity);
 
 module.exports = router; 

@@ -1,119 +1,174 @@
 const billingService = require('../services/billing.service');
 
-exports.getBillingStats = async (req, res) => {
+// Get billing statistics
+const getBillingStats = async (req, res) => {
   try {
-    const tenantId = req.query.tenantId;
+    const { tenantId } = req.user;
     const stats = await billingService.getBillingStats(tenantId);
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error getting billing stats:', error);
+    res.status(500).json({ error: 'Failed to get billing statistics' });
   }
 };
 
-exports.adminGetInvoices = async (req, res) => {
+// Admin: Get all invoices with pagination and filtering
+const adminGetInvoices = async (req, res) => {
   try {
-    const result = await billingService.adminGetInvoices(req.query);
+    const { search, status, plan, page, limit, sortBy, sortOrder } = req.query;
+    const result = await billingService.adminGetInvoices({
+      search,
+      status,
+      plan,
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 10,
+      sortBy: sortBy || 'createdAt',
+      sortOrder: sortOrder || 'desc'
+    });
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error getting invoices:', error);
+    res.status(500).json({ error: 'Failed to get invoices' });
   }
 };
 
-exports.adminCreateInvoice = async (req, res) => {
+// Send invoice email
+const sendInvoiceEmail = async (req, res) => {
   try {
-    const { tenantId } = req.body;
-    if (!tenantId) return res.status(400).json({ error: 'tenantId is required' });
-    const result = await billingService.adminCreateInvoice(tenantId);
-    res.status(201).json(result);
+    const { invoiceNumber } = req.params;
+    await billingService.sendInvoiceEmail(invoiceNumber);
+    res.json({ message: 'Invoice email sent successfully' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error sending invoice email:', error);
+    res.status(500).json({ error: 'Failed to send invoice email' });
   }
 };
 
-exports.getPayments = async (req, res) => {
+// Send invoice bill email (alias)
+const sendInvoiceBillEmail = async (req, res) => {
   try {
-    const { tenantId, search = '', status = 'all', plan, page = 1, limit = 20, sortBy = 'paidAt', sortOrder = 'desc' } = req.query;
-    const result = await billingService.getPayments({ tenantId, search, status, plan, page, limit, sortBy, sortOrder });
+    const { invoiceNumber } = req.params;
+    await billingService.sendInvoiceBillEmail(invoiceNumber);
+    res.json({ message: 'Invoice bill email sent successfully' });
+  } catch (error) {
+    console.error('Error sending invoice bill email:', error);
+    res.status(500).json({ error: 'Failed to send invoice bill email' });
+  }
+};
+
+// Get payments with pagination and filtering
+const getPayments = async (req, res) => {
+  try {
+    const { search, status, plan, page, limit, sortBy, sortOrder } = req.query;
+    const { tenantId } = req.user;
+    const result = await billingService.getPayments({
+      search,
+      status,
+      plan,
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 20,
+      sortBy: sortBy || 'paidAt',
+      sortOrder: sortOrder || 'desc',
+      tenantId
+    });
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error getting payments:', error);
+    res.status(500).json({ error: 'Failed to get payments' });
   }
 };
 
-exports.getPayment = async (req, res) => {
+// Get single payment by ID
+const getPayment = async (req, res) => {
   try {
-    const paymentId = req.query.paymentId || req.params.paymentId;
-    if (!paymentId) return res.status(400).json({ error: 'paymentId is required' });
-    const result = await billingService.getPayment(paymentId);
-    res.json(result);
+    const { paymentId } = req.params;
+    const payment = await billingService.getPayment(paymentId);
+    res.json(payment);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error getting payment:', error);
+    res.status(500).json({ error: 'Failed to get payment' });
   }
 };
 
-exports.postPayment = async (req, res) => {
+// Create new payment
+const postPayment = async (req, res) => {
   try {
     const { billingId, tenantId, amount, method, status, txnId } = req.body;
-    if (!billingId || !tenantId || !amount || !method || !status) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    const result = await billingService.postPayment({ billingId, tenantId, amount, method, status, txnId });
-    res.status(201).json(result);
+    const payment = await billingService.postPayment({
+      billingId,
+      tenantId,
+      amount,
+      method,
+      status,
+      txnId
+    });
+    res.status(201).json(payment);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error creating payment:', error);
+    res.status(500).json({ error: 'Failed to create payment' });
   }
 };
 
-exports.getRevenueTrends = async (req, res) => {
+// Get revenue trends
+const getRevenueTrends = async (req, res) => {
   try {
-    const { tenantId } = req.query;
-    const result = await billingService.getRevenueTrends(tenantId);
-    res.json(result);
+    const { tenantId } = req.user;
+    const trends = await billingService.getRevenueTrends(tenantId);
+    res.json(trends);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error getting revenue trends:', error);
+    res.status(500).json({ error: 'Failed to get revenue trends' });
   }
 };
 
-exports.downloadInvoice = async (req, res) => {
+// Download invoice as PDF
+const downloadInvoice = async (req, res) => {
   try {
-    const invoice_number = req.query.invoiceId || req.query.invoice_number;
-    if (!invoice_number) return res.status(400).json({ error: 'invoice_number is required' });
-    const { filename, buffer, mimetype } = await billingService.downloadInvoice(invoice_number);
-    res.setHeader('Content-Disposition', `attachment; filename=\"${filename}\"`);
-    res.setHeader('Content-Type', mimetype);
-    res.send(buffer);
+    const { invoiceNumber } = req.params;
+    const result = await billingService.downloadInvoice(invoiceNumber);
+    
+    res.setHeader('Content-Type', result.mimetype);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.buffer);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error downloading invoice:', error);
+    res.status(500).json({ error: 'Failed to download invoice' });
   }
 };
 
-exports.sendInvoiceEmail = async (req, res) => {
+// Admin: Create new invoice
+const adminCreateInvoice = async (req, res) => {
   try {
-    const invoice_number = req.body.invoice_number || req.query.invoice_number;
-    if (!invoice_number) return res.status(400).json({ error: 'invoice_number is required' });
-    await billingService.sendInvoiceEmail(invoice_number);
-    res.json({ success: true, message: 'Invoice email sent successfully' });
+    const { tenantId } = req.body;
+    const invoice = await billingService.adminCreateInvoice(tenantId);
+    res.status(201).json(invoice);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error creating invoice:', error);
+    res.status(500).json({ error: 'Failed to create invoice' });
   }
 };
 
-exports.sendInvoiceBillEmail = async (req, res) => {
+// Get recent payment activity
+const getRecentPaymentActivity = async (req, res) => {
   try {
-    const invoice_number = req.body.invoice_number || req.query.invoice_number;
-    if (!invoice_number) return res.status(400).json({ error: 'invoice_number is required' });
-    await billingService.sendInvoiceEmail(invoice_number);
-    res.json({ success: true, message: 'Invoice email sent successfully' });
+    const activity = await billingService.getRecentPaymentActivity();
+    res.json(activity);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error getting recent payment activity:', error);
+    res.status(500).json({ error: 'Failed to get recent payment activity' });
   }
 };
 
-exports.getRecentPaymentActivity = async (req, res) => {
-  try {
-    const result = await billingService.getRecentPaymentActivity();
-    res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+module.exports = {
+  getBillingStats,
+  adminGetInvoices,
+  sendInvoiceEmail,
+  sendInvoiceBillEmail,
+  getPayments,
+  getPayment,
+  postPayment,
+  getRevenueTrends,
+  downloadInvoice,
+  adminCreateInvoice,
+  getRecentPaymentActivity
 }; 

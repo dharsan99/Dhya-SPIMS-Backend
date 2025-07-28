@@ -123,10 +123,10 @@ async function seedPlans() {
 
 async function seedSuperAdmin() {
   console.log('🌱 Seeding Super Admin User...');
-  // Check if super admin already exists
+    // Check if super admin already exists
   const existingUser = await prisma.users.findFirst({ where: { email: 'dharshan@dhya.in' } });
-  if (existingUser) {
-    console.log('✅ Super Admin user already exists, skipping...');
+    if (existingUser) {
+      console.log('✅ Super Admin user already exists, skipping...');
     // Fetch the existing tenant and role for further seeding
     const userRole = await prisma.userRole.findFirst({ where: { userId: existingUser.id } });
     return { tenantId: existingUser.tenantId, userId: existingUser.id, roleId: userRole ? userRole.roleId : null };
@@ -135,26 +135,26 @@ async function seedSuperAdmin() {
   const userId = uuidv4();
   const roleId = uuidv4();
   const passwordHash = await bcrypt.hash('admin123', 10);
-  const permissions = {
-    Orders: ["Add Order", "Update Order", "Delete Order", "View Order"],
-    Shades: ["Add Shade", "Update Shade", "Delete Shade", "View Shade"],
-    Fibres: ["Add Fibre", "Update Fibre", "Delete Fibre", "View Fibre"],
-    Production: ["Add Production", "Update Production", "Delete Production", "View Production"],
-    Buyers: ["Add Buyer", "Update Buyer", "Delete Buyer", "View Buyer"],
-    Employees: ["Add Employee", "Update Employee", "Delete Employee", "View Employee"],
-    Attendance: ["Add Attendance", "Update Attendance", "Delete Attendance", "View Attendance"],
-    Suppliers: ["Add Supplier", "Update Supplier", "Delete Supplier", "View Supplier"],
-    Settings: ["Add Settings", "Update Setting", "Delete Settings", "View Settings"],
-    Roles: ["Add Role", "Update Role", "Delete Role", "View Role"],
-    Users: ["Add User", "Update User", "Delete User", "View User"],
-    Stocks: ["Add Stock", "Update Stock", "Delete Stock", "View Stock"]
-  };
+    const permissions = {
+      Orders: ["Add Order", "Update Order", "Delete Order", "View Order"],
+      Shades: ["Add Shade", "Update Shade", "Delete Shade", "View Shade"],
+      Fibres: ["Add Fibre", "Update Fibre", "Delete Fibre", "View Fibre"],
+      Production: ["Add Production", "Update Production", "Delete Production", "View Production"],
+      Buyers: ["Add Buyer", "Update Buyer", "Delete Buyer", "View Buyer"],
+      Employees: ["Add Employee", "Update Employee", "Delete Employee", "View Employee"],
+      Attendance: ["Add Attendance", "Update Attendance", "Delete Attendance", "View Attendance"],
+      Suppliers: ["Add Supplier", "Update Supplier", "Delete Supplier", "View Supplier"],
+      Settings: ["Add Settings", "Update Setting", "Delete Settings", "View Settings"],
+      Roles: ["Add Role", "Update Role", "Delete Role", "View Role"],
+      Users: ["Add User", "Update User", "Delete User", "View User"],
+      Stocks: ["Add Stock", "Update Stock", "Delete Stock", "View Stock"]
+    };
   await prisma.tenant.create({
-    data: {
-      id: tenantId,
+        data: {
+          id: tenantId,
       name: 'SuperTenant',
       domain: 'supertenant.com',
-      plan: 'TRIAL',
+          plan: 'TRIAL',
       isActive: true,
       storage_path: '/mnt/storage',
       address: '123 Super St',
@@ -164,40 +164,40 @@ async function seedSuperAdmin() {
       logo: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
-  });
+        },
+      });
   await prisma.role.create({
-    data: {
-      id: roleId,
+        data: {
+          id: roleId,
       tenantId: tenantId,
       name: 'superadmin',
       description: 'Superadmin role',
-      permissions,
+          permissions,
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
-  });
+        },
+      });
   await prisma.users.create({
-    data: {
-      id: userId,
+        data: {
+          id: userId,
       tenantId: tenantId,
-      name: 'Dharshan',
-      email: 'dharshan@dhya.in',
+          name: 'Dharshan',
+          email: 'dharshan@dhya.in',
       passwordHash,
       role: 'superadmin',
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
-  });
+        },
+      });
   await prisma.userRole.create({
-    data: {
+        data: {
       id: uuidv4(),
       userId: userId,
       roleId: roleId,
-    },
-  });
-  return { tenantId, userId, roleId };
+        },
+      });
+    return { tenantId, userId, roleId };
 }
 
 async function seedAdminRoleAndUser(tenantId, permissions) {
@@ -266,10 +266,10 @@ async function seedFibres() {
       description: 'High quality cotton',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
-  });
+          },
+        });
   await prisma.fibre.create({
-    data: {
+                  data: {
       id: uuidv4(),
       fibreName: 'Polyester',
       fibreCode: 'POLY001',
@@ -277,8 +277,8 @@ async function seedFibres() {
       description: 'Durable polyester',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
-  });
+          },
+        });
 }
 
 async function seedEmployeesAndAttendance() {

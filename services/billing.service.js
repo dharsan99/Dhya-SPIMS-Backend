@@ -51,52 +51,47 @@ async function getBillingStats(tenantId) {
 async function adminGetInvoices({ search = '', status = 'all', plan, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' }) {
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
-  // Build where clause for billing
   let where = {};
   if (status !== 'all') {
     where.status = status.toUpperCase();
   }
   if (search) {
     where.OR = [
-      { invoice_number: { contains: search, mode: 'insensitive' } },
-      { tenants: { name: { contains: search, mode: 'insensitive' } } },
+      { invoiceNumber: { contains: search, mode: 'insensitive' } },
+      { tenant: { name: { contains: search, mode: 'insensitive' } } },
     ];
   }
-  // Join with tenant, subscription, plan
   const [invoices, totalItems] = await Promise.all([
     prisma.billing.findMany({
       where,
       skip,
       take,
-      orderBy: { created_at: sortOrder },
+      orderBy: { createdAt: sortOrder },
       include: {
-        tenants: true,
+        tenant: true,
       },
     }),
     prisma.billing.count({ where }),
   ]);
-  // Map to response format
   const mapped = await Promise.all(invoices.map(async (inv) => {
-    // Get subscription and plan for this tenant
-    const subscription = await prisma.subscriptions.findFirst({
-      where: { tenant_id: inv.tenant_id, is_active: true },
+    const subscription = await prisma.subscription.findFirst({
+      where: { tenantId: inv.tenantId, isActive: true },
       include: { plan: true }
     });
-    // Get admin user for this tenant
-    const adminUser = await prisma.user.findFirst({
-      where: { tenantId: inv.tenant_id, role: 'Admin' },
+    const adminUser = await prisma.users.findFirst({
+      where: { tenantId: inv.tenantId, role: 'Admin' },
     });
     return {
       id: inv.id,
-      tenantName: inv.tenants?.name || '',
+      tenantName: inv.tenant?.name || '',
       tenantEmail: adminUser?.email || '',
-      invoiceNumber: inv.invoice_number,
+      invoiceNumber: inv.invoiceNumber,
       amount: inv.amount,
       currency: 'USD',
       status: inv.status?.toLowerCase() || '',
-      dueDate: inv.due_date?.toISOString().split('T')[0] || '',
-      issueDate: inv.created_at?.toISOString().split('T')[0] || '',
-      paidDate: inv.paid_date?.toISOString().split('T')[0] || '',
+      dueDate: inv.dueDate?.toISOString().split('T')[0] || '',
+      issueDate: inv.createdAt?.toISOString().split('T')[0] || '',
+      paidDate: inv.paidDate?.toISOString().split('T')[0] || '',
       plan: subscription?.plan?.name || '',
       billingCycle: subscription?.plan?.billingCycle || '',
       description: subscription?.plan?.description || '',
@@ -114,15 +109,15 @@ async function adminGetInvoices({ search = '', status = 'all', plan, page = 1, l
   };
 }
 
-async function sendInvoiceEmail(invoice_number) {
+async function sendInvoiceEmail(invoiceNumber) {
   const invoice = await prisma.billing.findUnique({
-    where: { invoice_number: invoice_number },
-    include: { tenants: true },
+    where: { invoiceNumber },
+    include: { tenant: true },
   });
   if (!invoice) { throw new Error('Invoice not found'); }
 
-  const invoiceUser = await prisma.users.findFirst({ // Corrected to prisma.users
-    where: { tenantId: invoice.tenantId }, // Assuming tenantId is correct in schema
+  const invoiceUser = await prisma.users.findFirst({
+    where: { tenantId: invoice.tenantId },
   });
   if (!invoiceUser) { throw new Error('User not found for this invoice'); }
 
@@ -134,21 +129,19 @@ async function sendInvoiceEmail(invoice_number) {
   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd;">
     <div style="text-align: center; margin-bottom: 30px;">
       <h1 style="color: #333;">SPIMS Invoice</h1>
-      <p style="color: #666;">Invoice #${invoice.invoice_number}</p>
+      <p style="color: #666;">Invoice #${invoice.invoiceNumber}</p>
     </div>
-    
     <div style="margin-bottom: 30px;">
       <div style="margin-bottom: 10px;">
         <strong>Bill To:</strong><br>
-        ${invoice.tenants?.name || 'N/A'}<br>
-        ${invoice.tenants?.address || 'N/A'}
+        ${invoice.tenant?.name || 'N/A'}<br>
+        ${invoice.tenant?.address || 'N/A'}
       </div>
       <div style="margin-bottom: 10px;">
-        <strong>Date:</strong> ${invoice.created_at ? new Date(invoice.created_at).toLocaleDateString() : 'N/A'}<br>
-        <strong>Due Date:</strong> ${invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'N/A'}
+        <strong>Date:</strong> ${invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : 'N/A'}<br>
+        <strong>Due Date:</strong> ${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A'}
       </div>
     </div>
-    
     <div style="border-top: 2px solid #333; padding-top: 20px; margin-bottom: 20px;">
       <div style="font-size: 14px; margin-bottom: 4px;"><strong>SUBTOTAL</strong> <span style="margin-left: 32px;">$${subtotal}</span></div>
       <div style="font-size: 14px; margin-bottom: 4px;">Tax <span style="margin-left: 64px;">10%</span></div>
@@ -160,16 +153,14 @@ async function sendInvoiceEmail(invoice_number) {
   </div>
   `;
 
-  // Check if email credentials are configured
   if (!process.env.EMAIL_FROM || !process.env.EMAIL_PASS) {
     console.log('⚠️ Email credentials not configured. Skipping invoice email.');
-    console.log('📧 Invoice number:', invoice_number);
+    console.log('📧 Invoice number:', invoiceNumber);
     console.log('👤 Recipient:', invoiceUser.email);
     return;
   }
 
   try {
-    // Configure nodemailer
     const transporter = nodemailer.createTransport({
       service: process.env.EMAIL_SERVICE || 'Gmail',
       auth: {
@@ -178,60 +169,56 @@ async function sendInvoiceEmail(invoice_number) {
       },
     });
 
-    // Send the email
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: invoiceUser.email,
-      subject: `Invoice ${invoice.invoice_number} from SPIMS`,
+      subject: `Invoice ${invoice.invoiceNumber} from SPIMS`,
       html,
     });
 
     console.log('✅ Invoice email sent successfully to:', invoiceUser.email);
   } catch (error) {
     console.error('❌ Failed to send invoice email:', error.message);
-    console.log('📧 Invoice number:', invoice_number);
+    console.log('📧 Invoice number:', invoiceNumber);
     console.log('👤 Recipient:', invoiceUser.email);
   }
 }
 
-// Alias for separate API
 const sendInvoiceBillEmail = sendInvoiceEmail;
 
 async function getPayments({ search = '', status = 'all', plan, page = 1, limit = 20, sortBy = 'paidAt', sortOrder = 'desc', tenantId }) {
   let where = {};
   if (tenantId) {
-    where.tenant_id = tenantId;
+    where.tenantId = tenantId;
   }
   if (status && status !== 'all') {
     where.status = { equals: status, mode: 'insensitive' };
   }
   if (search) {
     where.OR = [
-      { txn_id: { contains: search, mode: 'insensitive' } },
+      { txnId: { contains: search, mode: 'insensitive' } },
       { method: { contains: search, mode: 'insensitive' } },
       { status: { contains: search, mode: 'insensitive' } },
-      { billing: { invoice_number: { contains: search, mode: 'insensitive' } } },
-      { tenants: { name: { contains: search, mode: 'insensitive' } } },
+      { billing: { invoiceNumber: { contains: search, mode: 'insensitive' } } },
+      { tenant: { name: { contains: search, mode: 'insensitive' } } },
     ];
   }
-  // Map sortBy to actual DB field
   let sortField = sortBy;
-  if (sortBy === 'paidAt') sortField = 'paid_at';
-  if (sortBy === 'billingId') sortField = 'billing_id';
-  if (sortBy === 'tenantId') sortField = 'tenant_id';
-  // Add more mappings as needed
+  if (sortBy === 'paidAt') sortField = 'paidAt';
+  if (sortBy === 'billingId') sortField = 'billingId';
+  if (sortBy === 'tenantId') sortField = 'tenantId';
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const take = parseInt(limit);
   const [payments, totalItems, allPayments] = await Promise.all([
     prisma.payment.findMany({
       where,
-      include: { billing: true, tenants: true },
+      include: { billing: true, tenant: true },
       orderBy: { [sortField]: sortOrder },
       skip,
       take,
     }),
     prisma.payment.count({ where }),
-    prisma.payment.findMany({ where, include: { billing: true, tenants: true } }),
+    prisma.payment.findMany({ where, include: { billing: true, tenant: true } }),
   ]);
   const totalAmount = allPayments.reduce((sum, p) => sum + p.amount, 0);
   const Completed = allPayments.filter(p => p.status && p.status.toLowerCase() === 'paid').length;
@@ -245,15 +232,15 @@ async function getPayments({ search = '', status = 'all', plan, page = 1, limit 
     Failed,
     payments: payments.map(p => ({
       id: p.id,
-      billingId: p.billing_id,
-      invoiceNumber: p.billing?.invoice_number || '',
-      tenantId: p.tenant_id,
-      tenantName: p.tenants?.name || '',
+      billingId: p.billingId,
+      invoiceNumber: p.billing?.invoiceNumber || '',
+      tenantId: p.tenantId,
+      tenantName: p.tenant?.name || '',
       amount: p.amount,
       method: p.method,
       status: p.status,
-      paidAt: p.paid_at,
-      txnId: p.txn_id,
+      paidAt: p.paidAt,
+      txnId: p.txnId,
     })),
     pagination: {
       currentPage: parseInt(page),
@@ -268,20 +255,20 @@ async function getPayment(paymentId) {
   if (!paymentId) throw new Error('paymentId is required');
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
-    include: { billing: true, tenants: true },
+    include: { billing: true, tenant: true },
   });
   if (!payment) throw new Error('Payment not found');
   return {
     id: payment.id,
-    billingId: payment.billing_id,
-    invoiceNumber: payment.billing?.invoice_number || '',
-    tenantId: payment.tenant_id,
-    tenantName: payment.tenants?.name || '',
+    billingId: payment.billingId,
+    invoiceNumber: payment.billing?.invoiceNumber || '',
+    tenantId: payment.tenantId,
+    tenantName: payment.tenant?.name || '',
     amount: payment.amount,
     method: payment.method,
     status: payment.status,
-    paidAt: payment.paid_at,
-    txnId: payment.txn_id,
+    paidAt: payment.paidAt,
+    txnId: payment.txnId,
   };
 }
 
@@ -289,31 +276,30 @@ async function postPayment({ billingId, tenantId, amount, method, status, txnId 
   if (!billingId || !tenantId || !amount || !method || !status) throw new Error('Missing required fields');
   const payment = await prisma.payment.create({
     data: {
-      billing_id: billingId,
-      tenant_id: tenantId,
+      billingId,
+      tenantId,
       amount,
       method,
       status,
-      txn_id: txnId || null,
+      txnId: txnId || null,
     },
-    include: { billing: true, tenants: true },
+    include: { billing: true, tenant: true },
   });
   return {
     id: payment.id,
-    billingId: payment.billing_id,
-    invoiceNumber: payment.billing?.invoice_number || '',
-    tenantId: payment.tenant_id,
-    tenantName: payment.tenants?.name || '',
+    billingId: payment.billingId,
+    invoiceNumber: payment.billing?.invoiceNumber || '',
+    tenantId: payment.tenantId,
+    tenantName: payment.tenant?.name || '',
     amount: payment.amount,
     method: payment.method,
     status: payment.status,
-    paidAt: payment.paid_at,
-    txnId: payment.txn_id,
+    paidAt: payment.paidAt,
+    txnId: payment.txnId,
   };
 }
 
 async function getRevenueTrends(tenantId) {
-  // Get the last 6 months (including current)
   const now = new Date();
   const months = [];
   for (let i = 5; i >= 0; i--) {
@@ -325,13 +311,11 @@ async function getRevenueTrends(tenantId) {
       end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999)
     });
   }
-  // Query paid invoices from billing table
   let where = { status: { in: ['PAID', 'paid'] } };
-  if (tenantId) where.tenant_id = tenantId;
+  if (tenantId) where.tenantId = tenantId;
   const invoices = await prisma.billing.findMany({ where });
-  // Aggregate by month
   const trends = months.map(({ key, label, start, end }) => {
-    const monthInvoices = invoices.filter(inv => inv.created_at >= start && inv.created_at <= end);
+    const monthInvoices = invoices.filter(inv => inv.createdAt >= start && inv.createdAt <= end);
     const revenue = monthInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
     return {
       month: label,
@@ -342,7 +326,6 @@ async function getRevenueTrends(tenantId) {
   const totalRevenue = trends.reduce((sum, t) => sum + t.revenue, 0);
   const totalInvoices = trends.reduce((sum, t) => sum + t.invoiceCount, 0);
   const averageMonthlyRevenue = trends.length > 0 ? totalRevenue / trends.length : 0;
-  // Calculate percent change from last month
   const last = trends[trends.length - 1]?.revenue || 0;
   const prev = trends[trends.length - 2]?.revenue || 0;
   const changeFromLastMonth = prev === 0 ? 0 : ((last - prev) / prev) * 100;
@@ -355,24 +338,22 @@ async function getRevenueTrends(tenantId) {
   };
 }
 
-async function downloadInvoice(invoice_number) {
-  // Fetch invoice, tenant, and user (reuse logic from sendInvoiceEmail)
+async function downloadInvoice(invoiceNumber) {
   const invoice = await prisma.billing.findUnique({
-    where: { invoice_number },
-    include: { tenants: true },
+    where: { invoiceNumber },
+    include: { tenant: true },
   });
   if (!invoice) throw new Error('Invoice not found');
-  let invoiceUser = await prisma.user.findFirst({
-    where: { tenantId: invoice.tenant_id, role: 'Admin' },
+  let invoiceUser = await prisma.users.findFirst({
+    where: { tenantId: invoice.tenantId, role: 'Admin' },
   });
   if (!invoiceUser) {
-    invoiceUser = await prisma.user.findFirst({
-      where: { tenantId: invoice.tenant_id },
+    invoiceUser = await prisma.users.findFirst({
+      where: { tenantId: invoice.tenantId },
     });
   }
   if (!invoiceUser) throw new Error('No user found for this tenant');
 
-  // Demo data for line items (same as sendInvoiceEmail)
   const lineItems = [
     { description: 'Brand consultation', unitPrice: 100, qty: 1, total: 100 },
     { description: 'Logo design', unitPrice: 100, qty: 1, total: 100 },
@@ -386,24 +367,23 @@ async function downloadInvoice(invoice_number) {
   const tax = subtotal * taxRate;
   const total = subtotal + tax;
 
-  // Styled HTML invoice (same as sendInvoiceEmail)
   const html = `
   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border-radius: 12px; border: 1px solid #eee; padding: 32px; background: #fff;">
     <h2 style="letter-spacing: 8px; text-align: right; font-weight: 400; margin-bottom: 32px;">INVOICE</h2>
     <div style="display: flex; justify-content: space-between; margin-bottom: 24px;">
       <div>
         <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">ISSUED TO:</div>
-        <div style="font-size: 14px; margin-top: 4px;">${invoiceUser.name || ''}<br>${invoice.tenants?.name || ''}<br>${invoice.tenants?.address || ''}</div>
+        <div style="font-size: 14px; margin-top: 4px;">${invoiceUser.name || ''}<br>${invoice.tenant?.name || ''}<br>${invoice.tenant?.address || ''}</div>
         <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px; margin-top: 16px;">PAY TO:</div>
         <div style="font-size: 14px; margin-top: 4px;">Borcele Bank<br>Account Name: Adeline Palmerston<br>Account No.: 0123 4567 8901</div>
       </div>
       <div style="text-align: right;">
         <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">INVOICE NO:</div>
-        <div style="font-size: 14px; margin-bottom: 8px;">${invoice.invoice_number}</div>
+        <div style="font-size: 14px; margin-bottom: 8px;">${invoice.invoiceNumber}</div>
         <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">DATE:</div>
-        <div style="font-size: 14px; margin-bottom: 8px;">${invoice.created_at?.toISOString().split('T')[0] || ''}</div>
+        <div style="font-size: 14px; margin-bottom: 8px;">${invoice.createdAt?.toISOString().split('T')[0] || ''}</div>
         <div style="font-size: 12px; font-weight: bold; letter-spacing: 1px;">DUE DATE:</div>
-        <div style="font-size: 14px;">${invoice.due_date?.toISOString().split('T')[0] || ''}</div>
+        <div style="font-size: 14px;">${invoice.dueDate?.toISOString().split('T')[0] || ''}</div>
       </div>
     </div>
     <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
@@ -437,12 +417,11 @@ async function downloadInvoice(invoice_number) {
   </div>
   `;
 
-  // Generate PDF from HTML
   return new Promise((resolve, reject) => {
     pdf.create(html).toBuffer((err, buffer) => {
       if (err) return reject(err);
       resolve({
-        filename: `Invoice_${invoice.invoice_number}.pdf`,
+        filename: `Invoice_${invoice.invoiceNumber}.pdf`,
         buffer,
         mimetype: 'application/pdf',
       });
@@ -452,61 +431,57 @@ async function downloadInvoice(invoice_number) {
 
 async function adminCreateInvoice(tenantId) {
   if (!tenantId) throw new Error('tenantId is required');
-  // Generate invoice number: INV+YYYYMMDD+last 3 auto increment
   const today = new Date();
   const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
-  const count = await prisma.billing.count({ where: { created_at: { gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()) } } });
+  const count = await prisma.billing.count({ where: { createdAt: { gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()) } } });
   const invoiceNumber = `INV${dateStr}${String(count + 1).padStart(3, '0')}`;
-  // For demo, use a fixed amount and due date
   const amount = 1000;
   const dueDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 15);
   const billing = await prisma.billing.create({
     data: {
-      tenant_id: tenantId,
-      invoice_number: invoiceNumber,
+      tenantId,
+      invoiceNumber,
       amount,
-      due_date: dueDate,
-      paid_date: null,
+      dueDate,
+      paidDate: null,
       status: 'PENDING',
     },
-    include: { tenants: true },
+    include: { tenant: true },
   });
-  // Get user for this tenant (prefer Admin, fallback to any user)
-  let invoiceUser = await prisma.user.findFirst({
-    where: { tenantId: tenantId, role: 'Admin' },
+  let invoiceUser = await prisma.users.findFirst({
+    where: { tenantId, role: 'Admin' },
   });
   if (!invoiceUser) {
-    invoiceUser = await prisma.user.findFirst({
-      where: { tenantId: tenantId },
+    invoiceUser = await prisma.users.findFirst({
+      where: { tenantId },
     });
   }
-  // Format invoice response
   return {
     id: billing.id,
-    tenantName: billing.tenants?.name || '',
+    tenantName: billing.tenant?.name || '',
     tenantEmail: invoiceUser?.email || '',
-    invoiceNumber: billing.invoice_number,
+    invoiceNumber: billing.invoiceNumber,
     amount: billing.amount,
     currency: 'USD',
     status: billing.status?.toLowerCase() || '',
-    dueDate: billing.due_date?.toISOString().split('T')[0] || '',
-    issueDate: billing.created_at?.toISOString().split('T')[0] || '',
-    paidDate: billing.paid_date?.toISOString().split('T')[0] || '',
+    dueDate: billing.dueDate?.toISOString().split('T')[0] || '',
+    issueDate: billing.createdAt?.toISOString().split('T')[0] || '',
+    paidDate: billing.paidDate?.toISOString().split('T')[0] || '',
   };
 }
 
 async function getRecentPaymentActivity() {
   const payments = await prisma.payment.findMany({
-    orderBy: { paid_at: 'desc' },
+    orderBy: { paidAt: 'desc' },
     take: 3,
-    include: { tenants: true },
+    include: { tenant: true },
   });
   return payments.map(p => ({
-    name: p.tenants?.name || '',
+    name: p.tenant?.name || '',
     method: p.method,
-    txn_id: p.txn_id,
+    txnId: p.txnId,
     amount: p.amount,
-    date: p.paid_at,
+    date: p.paidAt,
   }));
 }
 
