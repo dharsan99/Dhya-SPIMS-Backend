@@ -421,10 +421,8 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
     const startDate = parseLocalDate(start);
     const endDate = parseLocalDate(end);
 
-    // Get all employees
-    const employees = await prisma.employee.findMany({
-      orderBy: { name: 'asc' }
-    });
+    // Get all employees (always include all)
+    const employees = await prisma.employee.findMany({ orderBy: { name: 'asc' } });
 
     // Get all attendance records in the date range
     const existingAttendance = await prisma.attendance.findMany({
@@ -434,7 +432,6 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
           lte: endDate
         }
       },
-      include: { employee: true },
       orderBy: { date: 'desc' }
     });
 
@@ -460,14 +457,11 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
 
       // Generate attendance data for each date in the range
       const currentDate = new Date(startDate);
-      
       while (currentDate <= endDate) {
         const currentDateStr = formatDate(currentDate);
         const key = `${emp.id}_${currentDateStr}`;
         const existingAtt = attendanceMap.get(key);
-        
         if (existingAtt) {
-          // Employee has attendance record for this date
           attendanceRecord.attendance[currentDateStr] = {
             status: existingAtt.status,
             inTime: formatTime(existingAtt.inTime),
@@ -476,7 +470,6 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
             overtimeHours: existingAtt.overtimeHours
           };
         } else {
-          // Employee is absent for this date (default)
           attendanceRecord.attendance[currentDateStr] = {
             status: 'ABSENT',
             inTime: '00:00:00',
@@ -485,11 +478,8 @@ exports.getByRange = async ({ start, end, page = 1, limit = 10 }) => {
             overtimeHours: 0
           };
         }
-        
-        // Move to next date
         currentDate.setDate(currentDate.getDate() + 1);
       }
-      
       return attendanceRecord;
     });
 
