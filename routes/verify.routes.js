@@ -116,7 +116,7 @@ router.get('/verify-email', controller.verifyEmail);
  * /admin/signup:
  *   post:
  *     summary: Admin signup with superadmin privileges
- *     tags: [Signup Process]
+ *     tags: [Dashboard]
  *     requestBody:
  *       required: true
  *       content:

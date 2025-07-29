@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const billingController = require('../controllers/billing.controller');
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 
 /**
  * @swagger
@@ -16,8 +17,7 @@ const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
  *   get:
  *     summary: Get billing statistics
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: Billing statistics retrieved successfully
@@ -56,7 +56,7 @@ const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
  *       500:
  *         description: Internal server error
  */
-router.get('/stats', verifyTokenAndTenant, billingController.getBillingStats);
+router.get('/stats', billingController.getBillingStats);
 
 /**
  * @swagger
@@ -64,8 +64,7 @@ router.get('/stats', verifyTokenAndTenant, billingController.getBillingStats);
  *   get:
  *     summary: Admin - Get all invoices with filtering and pagination
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: query
  *         name: search
@@ -162,7 +161,7 @@ router.get('/stats', verifyTokenAndTenant, billingController.getBillingStats);
  *       500:
  *         description: Internal server error
  */
-router.get('/admin/invoices', verifyTokenAndTenant, billingController.adminGetInvoices);
+router.get('/admin/invoices', billingController.adminGetInvoices);
 
 /**
  * @swagger
@@ -170,8 +169,7 @@ router.get('/admin/invoices', verifyTokenAndTenant, billingController.adminGetIn
  *   post:
  *     summary: Send invoice email
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: invoiceNumber
@@ -185,7 +183,7 @@ router.get('/admin/invoices', verifyTokenAndTenant, billingController.adminGetIn
  *       500:
  *         description: Internal server error
  */
-router.post('/invoices/:invoiceNumber/send-email', verifyTokenAndTenant, billingController.sendInvoiceEmail);
+router.post('/invoices/:invoiceNumber/send-email', billingController.sendInvoiceEmail);
 
 /**
  * @swagger
@@ -193,8 +191,7 @@ router.post('/invoices/:invoiceNumber/send-email', verifyTokenAndTenant, billing
  *   post:
  *     summary: Send invoice bill email
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: invoiceNumber
@@ -208,7 +205,7 @@ router.post('/invoices/:invoiceNumber/send-email', verifyTokenAndTenant, billing
  *       500:
  *         description: Internal server error
  */
-router.post('/invoices/:invoiceNumber/send-bill', verifyTokenAndTenant, billingController.sendInvoiceBillEmail);
+router.post('/invoices/:invoiceNumber/send-bill', billingController.sendInvoiceBillEmail);
 
 /**
  * @swagger
@@ -216,8 +213,7 @@ router.post('/invoices/:invoiceNumber/send-bill', verifyTokenAndTenant, billingC
  *   get:
  *     summary: Get payments with filtering and pagination
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: query
  *         name: search
@@ -316,7 +312,7 @@ router.post('/invoices/:invoiceNumber/send-bill', verifyTokenAndTenant, billingC
  *       500:
  *         description: Internal server error
  */
-router.get('/payments', verifyTokenAndTenant, billingController.getPayments);
+router.get('/payments', billingController.getPayments);
 
 /**
  * @swagger
@@ -324,8 +320,7 @@ router.get('/payments', verifyTokenAndTenant, billingController.getPayments);
  *   get:
  *     summary: Get payment by ID
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: paymentId
@@ -366,7 +361,7 @@ router.get('/payments', verifyTokenAndTenant, billingController.getPayments);
  *       500:
  *         description: Internal server error
  */
-router.get('/payments/:paymentId', verifyTokenAndTenant, billingController.getPayment);
+router.get('/payments/:paymentId', billingController.getPayment);
 
 /**
  * @swagger
@@ -374,8 +369,7 @@ router.get('/payments/:paymentId', verifyTokenAndTenant, billingController.getPa
  *   post:
  *     summary: Create new payment
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
+
  *     requestBody:
  *       required: true
  *       content:
@@ -413,7 +407,7 @@ router.get('/payments/:paymentId', verifyTokenAndTenant, billingController.getPa
  *       500:
  *         description: Internal server error
  */
-router.post('/payments', verifyTokenAndTenant, billingController.postPayment);
+router.post('/payments', billingController.postPayment);
 
 /**
  * @swagger
@@ -421,8 +415,6 @@ router.post('/payments', verifyTokenAndTenant, billingController.postPayment);
  *   get:
  *     summary: Get revenue trends
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Revenue trends retrieved successfully
@@ -453,7 +445,7 @@ router.post('/payments', verifyTokenAndTenant, billingController.postPayment);
  *       500:
  *         description: Internal server error
  */
-router.get('/revenue-trends', verifyTokenAndTenant, billingController.getRevenueTrends);
+router.get('/revenue-trends', billingController.getRevenueTrends);
 
 /**
  * @swagger
@@ -461,8 +453,6 @@ router.get('/revenue-trends', verifyTokenAndTenant, billingController.getRevenue
  *   get:
  *     summary: Download invoice as PDF
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: invoiceNumber
@@ -483,7 +473,7 @@ router.get('/revenue-trends', verifyTokenAndTenant, billingController.getRevenue
  *       500:
  *         description: Internal server error
  */
-router.get('/invoices/:invoiceNumber/download', verifyTokenAndTenant, billingController.downloadInvoice);
+router.get('/invoices/:invoiceNumber/download', billingController.downloadInvoice);
 
 /**
  * @swagger
@@ -491,8 +481,6 @@ router.get('/invoices/:invoiceNumber/download', verifyTokenAndTenant, billingCon
  *   post:
  *     summary: Admin - Create new invoice
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -511,7 +499,7 @@ router.get('/invoices/:invoiceNumber/download', verifyTokenAndTenant, billingCon
  *       500:
  *         description: Internal server error
  */
-router.post('/admin/invoices', verifyTokenAndTenant, billingController.adminCreateInvoice);
+router.post('/admin/invoices',  billingController.adminCreateInvoice);
 
 /**
  * @swagger
@@ -519,8 +507,6 @@ router.post('/admin/invoices', verifyTokenAndTenant, billingController.adminCrea
  *   get:
  *     summary: Get recent payment activity
  *     tags: [Billing]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Recent payment activity retrieved successfully
@@ -543,7 +529,6 @@ router.post('/admin/invoices', verifyTokenAndTenant, billingController.adminCrea
  *                     type: string
  *       500:
  *         description: Internal server error
- */
-router.get('/recent-activity', verifyTokenAndTenant, billingController.getRecentPaymentActivity);
+ */router.get('/recent-activity',  billingController.getRecentPaymentActivity);
 
 module.exports = router; 

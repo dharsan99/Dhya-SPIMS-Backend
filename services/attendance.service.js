@@ -900,11 +900,11 @@ exports.markBulkAttendance = async (date, records) => {
     // If shift is not valid, treat as ABSENT
     if (!isValidShift(shift)) {
       status = 'ABSENT';
-      finalShift = null;
+      finalShift = 'N/A';
       parsedOvertime = 0;
       totalHours = 0;
     } else if (status === 'ABSENT') {
-      finalShift = null;
+      finalShift = 'N/A';
       parsedOvertime = 0;
       totalHours = 0;
     } else {
@@ -933,14 +933,18 @@ exports.markBulkAttendance = async (date, records) => {
           updatedAt: new Date()
         },
         create: {
-          employeeId: employeeId,
           date: targetDate,
           shift: finalShift,
           inTime: new Date(targetDate.toDateString() + ' ' + inTime),
           outTime: new Date(targetDate.toDateString() + ' ' + outTime),
           overtimeHours: parsedOvertime,
           totalHours,
-          status
+          status,
+          employee: {
+            connect: {
+              id: employeeId
+            }
+          }
         }
       });
 
