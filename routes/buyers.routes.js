@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/buyers.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
+const buyersController = require('../controllers/buyers.controller');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 
-router.use(verifyToken);
+router.use(verifyTokenAndTenant);
 
 /**
  * @swagger
@@ -28,7 +28,7 @@ router.use(verifyToken);
  *       500:
  *         description: Server error
  */
-router.get('/', controller.getAllBuyers);
+router.get('/', buyersController.getAllBuyers);
 
 /**
  * @swagger
@@ -53,7 +53,7 @@ router.get('/', controller.getAllBuyers);
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id', controller.getBuyerById);
+router.get('/:id', buyersController.getBuyerById);
 
 /**
  * @swagger
@@ -88,7 +88,7 @@ router.get('/:id', controller.getBuyerById);
  *       500:
  *         description: Failed to create buyer
  */
-router.post('/', controller.createBuyer);
+router.post('/', buyersController.createBuyer);
 
 /**
  * @swagger
@@ -129,7 +129,7 @@ router.post('/', controller.createBuyer);
  *       500:
  *         description: Server error
  */
-router.put('/:id', controller.updateBuyer);
+router.put('/:id', buyersController.updateBuyer);
 
 /**
  * @swagger
@@ -156,6 +156,6 @@ router.put('/:id', controller.updateBuyer);
  *       500:
  *         description: Server error
  */
-router.delete('/:id', controller.deleteBuyer);
+router.delete('/:id', buyersController.deleteBuyer);
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const growthController = require('../controllers/growth.controller');
-const { verifyToken, flexibleAuthMiddleware, n8nAuthMiddleware } = require('../middlewares/auth.middleware');
+const { verifyTokenAndTenant, flexibleAuthMiddleware, n8nAuthMiddleware } = require('../middlewares/auth.middleware');
 
 // Destructure the new controller functions
 const { getOutreachEmail, updateEmailAsSent } = growthController;
@@ -51,7 +51,7 @@ router.use((req, res, next) => {
  *       500:
  *         description: Server error
  */
-router.get('/persona', verifyToken, growthController.getCompanyPersona);
+router.get('/persona', verifyTokenAndTenant, growthController.getCompanyPersona);
 
 /**
  * @swagger
@@ -126,7 +126,7 @@ router.post('/persona', flexibleAuthMiddleware, growthController.upsertCompanyPe
  *       408:
  *         description: Request timeout
  */
-router.post('/persona/generate', verifyToken, growthController.triggerPersonaGeneration);
+router.post('/persona/generate', verifyTokenAndTenant, growthController.triggerPersonaGeneration);
 
 /**
  * @swagger
@@ -144,7 +144,7 @@ router.post('/persona/generate', verifyToken, growthController.triggerPersonaGen
  *       500:
  *         description: Server error
  */
-router.get('/campaigns', verifyToken, growthController.getGrowthCampaigns);
+router.get('/campaigns', verifyTokenAndTenant, growthController.getGrowthCampaigns);
 
 /**
  * @swagger
@@ -185,7 +185,7 @@ router.get('/campaigns', verifyToken, growthController.getGrowthCampaigns);
  *       500:
  *         description: Server error
  */
-router.post('/campaigns', verifyToken, growthController.createGrowthCampaign);
+router.post('/campaigns', verifyTokenAndTenant, growthController.createGrowthCampaign);
 
 /**
  * @swagger
@@ -212,7 +212,7 @@ router.post('/campaigns', verifyToken, growthController.createGrowthCampaign);
  *       500:
  *         description: Server error
  */
-router.get('/campaigns/:campaignId', verifyToken, growthController.getCampaignDetails);
+router.get('/campaigns/:campaignId', verifyTokenAndTenant, growthController.getCampaignDetails);
 
 /**
  * @swagger
@@ -253,7 +253,7 @@ router.get('/campaigns/:campaignId', verifyToken, growthController.getCampaignDe
  *       500:
  *         description: Server error
  */
-router.put('/campaigns/:campaignId/status', verifyToken, growthController.updateCampaignStatus);
+router.put('/campaigns/:campaignId/status', verifyTokenAndTenant, growthController.updateCampaignStatus);
 
 /**
  * @swagger
@@ -280,7 +280,7 @@ router.put('/campaigns/:campaignId/status', verifyToken, growthController.update
  *       500:
  *         description: Server error
  */
-router.get('/campaigns/:campaignId/brands', verifyToken, growthController.getDiscoveredBrands);
+router.get('/campaigns/:campaignId/brands', verifyTokenAndTenant, growthController.getDiscoveredBrands);
 
 /**
  * @swagger
@@ -321,7 +321,7 @@ router.get('/campaigns/:campaignId/brands', verifyToken, growthController.getDis
  *       500:
  *         description: Server error
  */
-router.put('/brands/:brandId/status', verifyToken, growthController.updateBrandStatus);
+router.put('/brands/:brandId/status', verifyTokenAndTenant, growthController.updateBrandStatus);
 
 // --- SUPPLIER DISCOVERY ROUTES ---
 
@@ -352,7 +352,7 @@ router.put('/brands/:brandId/status', verifyToken, growthController.updateBrandS
  *       500:
  *         description: Server error
  */
-router.post('/brands/:brandId/find-suppliers', verifyToken, growthController.findSuppliersForBrand);
+router.post('/brands/:brandId/find-suppliers', verifyTokenAndTenant, growthController.findSuppliersForBrand);
 
 /**
  * @swagger
@@ -433,7 +433,7 @@ router.post('/brands/:brandId/find-suppliers', verifyToken, growthController.fin
  *       500:
  *         description: Server error
  */
-router.get('/brands/:brandId/suppliers', verifyToken, growthController.getDiscoveredSuppliers);
+router.get('/brands/:brandId/suppliers', verifyTokenAndTenant, growthController.getDiscoveredSuppliers);
 router.post('/brands/:brandId/suppliers', n8nAuthMiddleware, growthController.saveDiscoveredSuppliers);
 
 /**
@@ -515,7 +515,7 @@ router.post('/brands/:brandId/suppliers', n8nAuthMiddleware, growthController.sa
  *       500:
  *         description: Server error
  */
-router.get('/suppliers/:supplierId/contacts', verifyToken, growthController.getTargetContacts);
+router.get('/suppliers/:supplierId/contacts', verifyTokenAndTenant, growthController.getTargetContacts);
 router.post('/suppliers/:supplierId/contacts', n8nAuthMiddleware, growthController.saveTargetContacts);
 
 // --- OUTREACH ROUTES ---
@@ -547,7 +547,7 @@ router.post('/suppliers/:supplierId/contacts', n8nAuthMiddleware, growthControll
  *       500:
  *         description: Server error
  */
-router.post('/contacts/:contactId/generate-draft', verifyToken, growthController.generateOutreachDraft);
+router.post('/contacts/:contactId/generate-draft', verifyTokenAndTenant, growthController.generateOutreachDraft);
 
 /**
  * @swagger
@@ -608,7 +608,7 @@ router.post('/contacts/:contactId/generate-draft', verifyToken, growthController
  *       500:
  *         description: Internal server error
  */
-router.get('/contacts/:contactId/outreach-emails', verifyToken, growthController.getOutreachEmails);
+router.get('/contacts/:contactId/outreach-emails', verifyTokenAndTenant, growthController.getOutreachEmails);
 
 /**
  * @swagger
@@ -890,7 +890,7 @@ router.post('/email-events', n8nAuthMiddleware, growthController.processEmailEve
  *       503:
  *         description: Email service unavailable
  */
-router.post('/outreach-emails/:emailId/send', verifyToken, growthController.triggerEmailSend);
+router.post('/outreach-emails/:emailId/send', verifyTokenAndTenant, growthController.triggerEmailSend);
 
 /**
  * @swagger
@@ -1210,8 +1210,8 @@ router.post('/tasks/create-from-reply', n8nAuthMiddleware, growthController.crea
  *       500:
  *         description: Server error
  */
-router.get('/tasks', verifyToken, growthController.getGrowthTasks);
-router.post('/tasks', verifyToken, growthController.createGrowthTask);
+router.get('/tasks', verifyTokenAndTenant, growthController.getGrowthTasks);
+router.post('/tasks', verifyTokenAndTenant, growthController.createGrowthTask);
 
 /**
  * @swagger
@@ -1308,9 +1308,9 @@ router.post('/tasks', verifyToken, growthController.createGrowthTask);
  *       500:
  *         description: Server error
  */
-router.get('/tasks/:taskId', verifyToken, growthController.getGrowthTask);
-router.put('/tasks/:taskId', verifyToken, growthController.updateGrowthTask);
-router.delete('/tasks/:taskId', verifyToken, growthController.deleteGrowthTask);
+router.get('/tasks/:taskId', verifyTokenAndTenant, growthController.getGrowthTask);
+router.put('/tasks/:taskId', verifyTokenAndTenant, growthController.updateGrowthTask);
+router.delete('/tasks/:taskId', verifyTokenAndTenant, growthController.deleteGrowthTask);
 
 /**
  * @swagger
@@ -1369,7 +1369,7 @@ router.delete('/tasks/:taskId', verifyToken, growthController.deleteGrowthTask);
  *         description: AI generation failed or configuration error
  */
 // AI Reply Generation Route
-router.post('/tasks/:taskId/generate-reply', verifyToken, growthController.generateAIReply);
+router.post('/tasks/:taskId/generate-reply', verifyTokenAndTenant, growthController.generateAIReply);
 
 /**
  * @swagger
@@ -1426,7 +1426,7 @@ router.post('/tasks/:taskId/generate-reply', verifyToken, growthController.gener
  *       500:
  *         description: Server error
  */
-router.get('/tasks/:taskId/ai-draft', verifyToken, growthController.getAIDraft);
+router.get('/tasks/:taskId/ai-draft', verifyTokenAndTenant, growthController.getAIDraft);
 
 /**
  * @swagger
@@ -1486,7 +1486,7 @@ router.get('/tasks/:taskId/ai-draft', verifyToken, growthController.getAIDraft);
  *       500:
  *         description: Server error - Email service not configured or sending failed
  */
-router.post('/tasks/:taskId/send-reply', verifyToken, growthController.sendAIReply);
+router.post('/tasks/:taskId/send-reply', verifyTokenAndTenant, growthController.sendAIReply);
 
 /**
  * @swagger
@@ -1613,7 +1613,7 @@ router.post('/ai-reply-callback', growthController.handleAIReplyCallback);
  *       500:
  *         description: Server error
  */
-router.post('/outreach-emails/:emailId/resend', verifyToken, growthController.resendEmail);
+router.post('/outreach-emails/:emailId/resend', verifyTokenAndTenant, growthController.resendEmail);
 
 /**
  * @swagger
@@ -1711,7 +1711,7 @@ router.post('/outreach-emails/:emailId/resend', verifyToken, growthController.re
  *       500:
  *         description: Server error
  */
-router.get('/outreach-emails/:emailId/engagement-stats', verifyToken, growthController.getEmailEngagementStats);
+router.get('/outreach-emails/:emailId/engagement-stats', verifyTokenAndTenant, growthController.getEmailEngagementStats);
 
 /**
  * @swagger
@@ -1768,7 +1768,7 @@ router.get('/outreach-emails/:emailId/engagement-stats', verifyToken, growthCont
  *       500:
  *         description: Server error
  */
-router.get('/contacts/:contactId/suppression-status', verifyToken, growthController.checkContactSuppression);
+router.get('/contacts/:contactId/suppression-status', verifyTokenAndTenant, growthController.checkContactSuppression);
 
 /**
  * @swagger
@@ -1850,7 +1850,7 @@ router.get('/contacts/:contactId/suppression-status', verifyToken, growthControl
  *       500:
  *         description: Server error
  */
-router.get('/analytics/dashboard', verifyToken, growthController.getAnalyticsDashboard);
+router.get('/analytics/dashboard', verifyTokenAndTenant, growthController.getAnalyticsDashboard);
 
 /**
  * @swagger
@@ -1900,7 +1900,7 @@ router.get('/analytics/dashboard', verifyToken, growthController.getAnalyticsDas
  *       500:
  *         description: Server error
  */
-router.get('/analytics/campaigns', verifyToken, growthController.getCampaignAnalytics);
+router.get('/analytics/campaigns', verifyTokenAndTenant, growthController.getCampaignAnalytics);
 
 /**
  * @swagger
@@ -1961,7 +1961,7 @@ router.get('/analytics/campaigns', verifyToken, growthController.getCampaignAnal
  *       500:
  *         description: Server error
  */
-router.get('/analytics/growth-metrics', verifyToken, growthController.getGrowthMetrics);
+router.get('/analytics/growth-metrics', verifyTokenAndTenant, growthController.getGrowthMetrics);
 
 /**
  * @swagger
@@ -2122,6 +2122,6 @@ router.get('/internal/persona/:tenantId', n8nAuthMiddleware, growthController.ge
  *       500:
  *         description: Server error - Email service not configured or sending failed
  */
-router.post('/tasks/:taskId/send-reply', verifyToken, growthController.sendAIReply);
+router.post('/tasks/:taskId/send-reply', verifyTokenAndTenant, growthController.sendAIReply);
 
 module.exports = router; 

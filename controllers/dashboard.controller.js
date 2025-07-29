@@ -1,6 +1,6 @@
 const dashboardService = require('../services/dashboard.service');
 const purchaseOrdersService = require('../services/purchaseOrders.service');
-const productionsService = require('../services/productions.service');
+const productionService = require('../services/production.service');
 const fibreTransfersService = require('../services/fibreTransfers.service');
 const tenantService = require('../services/tenant.service');
 const { validate: isUuid } = require('uuid');
@@ -38,8 +38,8 @@ exports.getSummary = async (req, res) => {
   try {
     // Get counts from various services
     const [purchaseOrders, productions, fibreTransfers] = await Promise.all([
-      purchaseOrdersService.getAllPurchaseOrders({ page: 1, limit: 1 }),
-      productionsService.getAllProductions({ page: 1, limit: 1 }),
+      purchaseOrdersService.getAll(req.user, { page: 1, limit: 1 }),
+      productionService.getAllProductions(req.user.tenantId),
       fibreTransfersService.getPendingTransfers()
     ]);
 
@@ -47,8 +47,8 @@ exports.getSummary = async (req, res) => {
     const recentActivities = await getRecentActivities();
 
     res.json({
-      totalPurchaseOrders: purchaseOrders.pagination.total,
-      totalProductionOrders: productions.pagination.total,
+      totalPurchaseOrders: purchaseOrders.pagination?.total || 0,
+      totalProductionOrders: productions?.length || 0,
       pendingFibreTransfers: fibreTransfers.length,
       recentActivities
     });
@@ -132,7 +132,7 @@ const adminUpdateTenant = async (req, res) => {
   try {
     const updated = await dashboardService.adminUpdateTenant(req.params.id, req.body);
     let message = 'Tenant updated successfully';
-    if (req.body.status === 'inactive' || req.body.status === 'suspended' || updated.is_active === false) {
+    if (req.body.status === 'inactive' || req.body.status === 'suspended' || updated.isActive === false) {
       message += '. All users for this tenant have been deactivated and cannot login.';
     }
     res.json({
@@ -243,8 +243,8 @@ const adminGetAllUsers = async (req, res) => {
 const adminUpdateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    // Remove is_verified if present in req.body
-    const { is_verified, ...updateData } = req.body;
+    // Remove isVerified if present in req.body
+    const { isVerified, ...updateData } = req.body;
     if (!id) {
       return res.status(400).json({ success: false, message: 'User id is required' });
     }

@@ -34,7 +34,7 @@ const calculatePercentageChange = (current, previous) => {
 // Helper function to calculate pending fiber shortages
 const calculatePendingFiberShortages = async (tenantId) => {
   // Get all pending and in-progress orders
-  const activeOrders = await prisma.orders.findMany({
+  const activeOrders = await prisma.order.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -57,7 +57,7 @@ const calculatePendingFiberShortages = async (tenantId) => {
   const shortages = new Set();
 
   for (const order of activeOrders) {
-    const requiredQty = new Decimal(order.quantityKg).div(order.realisation || 100).mul(100);
+    const requiredQty = new Decimal(order.quantity).div(order.realisation || 100).mul(100);
 
     for (const sf of order.shade.shade_fibres) {
       const requiredFibreQty = requiredQty.mul(sf.percentage).div(100);
@@ -75,7 +75,7 @@ const calculatePendingFiberShortages = async (tenantId) => {
 // Helper function to calculate financial metrics
 const calculateFinancialMetrics = async (tenantId) => {
   // Get all orders with their payments
-  const orders = await prisma.orders.findMany({
+  const orders = await prisma.order.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -88,7 +88,7 @@ const calculateFinancialMetrics = async (tenantId) => {
   });
 
   // Get all purchase orders with their payments
-  const purchaseOrders = await prisma.purchaseOrders.findMany({
+  const purchaseOrders = await prisma.purchaseOrder.findMany({
     where: {
       tenantId: tenantId,
       status: {
@@ -111,7 +111,7 @@ const calculateFinancialMetrics = async (tenantId) => {
   };
 
   for (const order of orders) {
-    const orderValue = new Decimal(order.quantityKg).mul(order.rate || 0);
+    const orderValue = new Decimal(order.quantity).mul(order.unitPrice || 0);
     receivables.total += Number(orderValue);
 
     if (order.deliveryDate < thirtyDaysAgo) {
@@ -141,7 +141,7 @@ const calculateFinancialMetrics = async (tenantId) => {
 // Helper function to calculate production metrics
 const calculateProductionMetrics = async (tenantId, startOfMonth) => {
   // Get all productions for the tenant
-  const productions = await prisma.productions.findMany({
+  const productions = await prisma.production.findMany({
     where: {
       tenantId: tenantId,
       date: {
@@ -150,6 +150,9 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
     },
     orderBy: {
       date: 'desc'
+    },
+    include: {
+      logs: true
     }
   });
 
@@ -177,32 +180,28 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
         };
       }
 
-      const sectionData = p[section];
-      if (!sectionData) {
-        return;
-      }
-
-      sectionData.forEach(entry => {
-        if (entry) {
-          const production = Number(entry.productionKg || 0);
+      // Get logs for this section
+      const sectionLogs = p.logs.filter(log => log.section.toLowerCase() === section);
+      
+      sectionLogs.forEach(log => {
+        const production = Number(log.outputKg || 0);
           const required = 1000; // Fixed required quantity for other sections
           
           acc[section].totalProduction += production;
           acc[section].totalRequired += required;
-          acc[section].entries.push(entry);
+        acc[section].entries.push(log);
 
           // Calculate efficiency for this entry
           const efficiency = (production / required) * 100;
           acc[section].totalEfficiency += efficiency;
           acc[section].efficiencyCount++;
 
-          if (entry.remarks?.toLowerCase().includes('downtime')) {
+        if (log.remarks?.toLowerCase().includes('downtime')) {
             acc[section].downtime++;
           }
-          if (entry.remarks?.toLowerCase().includes('quality') || 
-              entry.remarks?.toLowerCase().includes('defect')) {
+        if (log.remarks?.toLowerCase().includes('quality') || 
+            log.remarks?.toLowerCase().includes('defect')) {
             acc[section].qualityIssues++;
-          }
         }
       });
     });
@@ -247,12 +246,10 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
   const machineMetrics = productions.reduce((acc, p) => {
     const sections = ['carding', 'drawing', 'framing', 'simplex', 'spinning', 'autoconer'];
     sections.forEach(section => {
-      const sectionData = p[section];
-      if (!sectionData || !Array.isArray(sectionData)) return;
+      const sectionLogs = p.logs.filter(log => log.section.toLowerCase() === section);
 
-      sectionData.forEach(entry => {
-        if (entry && entry.machine) {
-          const machine = entry.machine;
+      sectionLogs.forEach(log => {
+        const machine = log.machineId;
           if (!acc[machine]) {
             acc[machine] = {
               totalProduction: 0,
@@ -267,14 +264,14 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
             };
           }
           
-          const production = Number(entry.productionKg || 0);
+        const production = Number(log.outputKg || 0);
           const required = 1000; // Fixed required quantity
           const dateKey = p.date.toISOString().split('T')[0];
           
           acc[machine].totalProduction += production;
           acc[machine].totalRequired += required;
           acc[machine].days.add(dateKey);
-          acc[machine].shifts.add(entry.shift);
+        acc[machine].shifts.add(log.shift);
           
           // Track daily production
           if (!acc[machine].dailyProduction[dateKey]) {
@@ -287,13 +284,12 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
           acc[machine].totalEfficiency += efficiency;
           acc[machine].efficiencyCount++;
           
-          if (entry.remarks?.toLowerCase().includes('downtime')) {
+        if (log.remarks?.toLowerCase().includes('downtime')) {
             acc[machine].downtime++;
           }
-          if (entry.remarks?.toLowerCase().includes('quality') || 
-              entry.remarks?.toLowerCase().includes('defect')) {
+        if (log.remarks?.toLowerCase().includes('quality') || 
+            log.remarks?.toLowerCase().includes('defect')) {
             acc[machine].qualityIssues++;
-          }
         }
       });
     });
@@ -355,7 +351,7 @@ const calculateProductionMetrics = async (tenantId, startOfMonth) => {
 // Helper function to calculate top buyers
 const calculateTopBuyers = async (tenantId, startOfMonth) => {
   // Get all orders for the tenant
-  const orders = await prisma.orders.findMany({
+  const orders = await prisma.order.findMany({
     where: {
       tenantId: tenantId,
       createdAt: {
@@ -377,7 +373,7 @@ const calculateTopBuyers = async (tenantId, startOfMonth) => {
         orders: 0
       };
     }
-    acc[buyerId].total += Number(order.quantityKg);
+    acc[buyerId].total += Number(order.quantity);
     acc[buyerId].orders += 1;
     return acc;
   }, {});
@@ -399,7 +395,7 @@ const calculateTopBuyers = async (tenantId, startOfMonth) => {
 // Helper function to calculate order metrics
 const calculateOrderMetrics = async (tenantId) => {
   // Get all orders for the tenant
-  const orders = await prisma.orders.findMany({
+  const orders = await prisma.order.findMany({
     where: { tenantId: tenantId },
     include: {
       buyer: true,
@@ -443,7 +439,7 @@ const calculateOrderMetrics = async (tenantId) => {
       };
     }
     acc[buyerId].count++;
-    acc[buyerId].totalQuantity += Number(order.quantityKg);
+    acc[buyerId].totalQuantity += Number(order.quantity);
     return acc;
   }, {});
 
@@ -472,7 +468,7 @@ const calculateOrderMetrics = async (tenantId) => {
 // Helper function to calculate purchase order metrics
 const calculatePurchaseOrderMetrics = async (tenantId) => {
   // Get all purchase orders for the tenant
-  const purchaseOrders = await prisma.purchaseOrders.findMany({
+  const purchaseOrders = await prisma.purchaseOrder.findMany({
     where: { tenantId: tenantId },
     include: {
       items: true
@@ -583,7 +579,7 @@ const getDefaultDashboardSummary = () => ({
 
 // Get all historical production data for the tenant
 const getAllHistoricalProductions = async (tenantId) => {
-  return await prisma.productions.findMany({
+  return await prisma.production.findMany({
     where: { tenantId: tenantId },
     orderBy: { date: 'asc' }
   });
@@ -649,9 +645,9 @@ async function adminCreateTenant(data) {
 }
 
 async function verifyAdminMail(token) {
-  const user = await prisma.user.findFirst({ where: { verification_token: token } });
+  const user = await prisma.users.findFirst({ where: { verificationToken: token } });
   if (!user) throw new Error('Invalid or expired token');
-  await prisma.user.update({
+  await prisma.users.update({
     where: { id: user.id },
     data: { isActive: true, verificationToken: null },
   });
@@ -760,7 +756,7 @@ async function adminUpdateTenant(id, data) {
   });
   // If status is inactive or suspended, deactivate all users for this tenant
   if (status === 'inactive' || status === 'suspended' || isActive === false) {
-    await prisma.user.updateMany({
+    await prisma.users.updateMany({
       where: { tenantId: id },
       data: { isActive: false },
     });
@@ -873,23 +869,23 @@ async function adminGetAllSubscriptions({ search = '', status = 'all', plan, pag
   const take = parseInt(limit);
   // Query subscriptions with plan and tenant
   const [subscriptions, totalItems] = await Promise.all([
-    prisma.subscriptions.findMany({
+    prisma.subscription.findMany({
       where,
       orderBy,
       skip,
       take,
       include: {
         plan: true,
-        tenants: true,
+        tenant: true,
       },
     }),
-    prisma.subscriptions.count({ where }),
+    prisma.subscription.count({ where }),
   ]);
   // Filter by tenant name if search is provided
   let filtered = subscriptions;
   if (search) {
     filtered = subscriptions.filter(sub =>
-      sub.tenants && sub.tenants.name && sub.tenants.name.toLowerCase().includes(search.toLowerCase())
+      sub.tenant && sub.tenant.name && sub.tenant.name.toLowerCase().includes(search.toLowerCase())
     );
   }
   // Pagination after filtering
@@ -897,7 +893,7 @@ async function adminGetAllSubscriptions({ search = '', status = 'all', plan, pag
   // Map to output format
   const mapped = paged.map(sub => ({
     id: sub.id,
-    tenantName: sub.tenants ? sub.tenants.name : '',
+    tenantName: sub.tenant ? sub.tenant.name : '',
     planName: sub.plan ? sub.plan.name : sub.planType,
     description: sub.plan ? sub.plan.description : '',
     price: sub.plan ? sub.plan.price : null,
@@ -930,7 +926,7 @@ async function adminCreateSubscription({ tenantId, planId }) {
   const plan = await prisma.plan.findUnique({ where: { id: planId } });
   if (!plan) throw new Error('Plan not found');
   // Deactivate all previous subscriptions for this tenant (regardless of isActive)
-  await prisma.subscriptions.updateMany({
+  await prisma.subscription.updateMany({
     where: { tenantId: tenantId },
     data: { isActive: false },
   });
@@ -947,7 +943,7 @@ async function adminCreateSubscription({ tenantId, planId }) {
     endDate = new Date(now);
     endDate.setFullYear(endDate.getFullYear() + 1);
   }
-  const newSubscription = await prisma.subscriptions.create({
+  const newSubscription = await prisma.subscription.create({
     data: {
       tenantId: tenantId,
       planId: planId,
@@ -958,7 +954,7 @@ async function adminCreateSubscription({ tenantId, planId }) {
     },
     include: {
       plan: true,
-      tenants: true,
+      tenant: true,
     },
   });
 
@@ -977,7 +973,7 @@ async function adminCreateSubscription({ tenantId, planId }) {
       paidDate: null,
       status: 'PENDING',
     },
-    include: { tenants: true },
+    include: { tenant: true },
   });
   // Create payment for this invoice (full amount, creditcard, paid)
   const payment = await billingService.postPayment({
@@ -991,11 +987,11 @@ async function adminCreateSubscription({ tenantId, planId }) {
   // Send the invoice email immediately (same API)
   await billingService.sendInvoiceBillEmail(invoiceNumber);
   // Get user for this tenant (prefer Admin, fallback to any user)
-  let invoiceUser = await prisma.user.findFirst({
+  let invoiceUser = await prisma.users.findFirst({
     where: { tenantId: tenantId, role: 'Admin' },
   });
   if (!invoiceUser) {
-    invoiceUser = await prisma.user.findFirst({
+    invoiceUser = await prisma.users.findFirst({
       where: { tenantId: tenantId },
     });
   }
@@ -1003,7 +999,7 @@ async function adminCreateSubscription({ tenantId, planId }) {
   // Format invoice response as in adminGetInvoices
   const invoiceResponse = {
     id: billing.id,
-    tenantName: billing.tenants?.name || '',
+    tenantName: billing.tenant?.name || '',
     tenantEmail: invoiceUser?.email || '',
     invoiceNumber: billing.invoiceNumber,
     amount: billing.amount,
@@ -1018,15 +1014,15 @@ async function adminCreateSubscription({ tenantId, planId }) {
   };
 
   // Fetch all subscriptions for this tenant (most recent first)
-  const allSubscriptions = await prisma.subscriptions.findMany({
+  const allSubscriptions = await prisma.subscription.findMany({
     where: { tenantId: tenantId },
     orderBy: { startDate: 'desc' },
-    include: { plan: true, tenants: true },
+    include: { plan: true, tenant: true },
   });
   // Format response as in adminGetAllSubscriptions
   const mapped = allSubscriptions.map(sub => ({
     id: sub.id,
-    tenantName: sub.tenants ? sub.tenants.name : '',
+    tenantName: sub.tenant ? sub.tenant.name : '',
     planName: sub.plan ? sub.plan.name : sub.planType,
     description: sub.plan ? sub.plan.description : '',
     price: sub.plan ? sub.plan.price : null,
@@ -1054,20 +1050,20 @@ async function adminCreateSubscription({ tenantId, planId }) {
 
 async function adminUpdateSubscription(id, { status }) {
   if (!id || !status) throw new Error('subscription id and status are required');
-  const sub = await prisma.subscriptions.findUnique({
+  const sub = await prisma.subscription.findUnique({
     where: { id },
-    include: { tenants: true, plan: true },
+    include: { tenant: true, plan: true },
   });
   if (!sub) throw new Error('Subscription not found');
   if (status === 'inactive') {
-    const updated = await prisma.subscriptions.update({
+    const updated = await prisma.subscription.update({
       where: { id },
       data: { isActive: false },
-      include: { tenants: true, plan: true },
+      include: { tenant: true, plan: true },
     });
     return {
       id: updated.id,
-      tenantName: updated.tenants ? updated.tenants.name : '',
+      tenantName: updated.tenant ? updated.tenant.name : '',
       planName: updated.plan ? updated.plan.name : updated.planType,
       description: updated.plan ? updated.plan.description : '',
       price: updated.plan ? updated.plan.price : null,
@@ -1081,7 +1077,7 @@ async function adminUpdateSubscription(id, { status }) {
     };
   } else if (status === 'active') {
     // Check if another active subscription exists for this tenant
-    const activeCount = await prisma.subscriptions.count({
+    const activeCount = await prisma.subscription.count({
       where: {
         tenantId: sub.tenantId,
         isActive: true,
@@ -1091,14 +1087,14 @@ async function adminUpdateSubscription(id, { status }) {
     if (activeCount > 0) {
       throw new Error('Another active subscription already exists for this tenant.');
     }
-    const updated = await prisma.subscriptions.update({
+    const updated = await prisma.subscription.update({
       where: { id },
       data: { isActive: true },
-      include: { tenants: true, plan: true },
+      include: { tenant: true, plan: true },
     });
     return {
       id: updated.id,
-      tenantName: updated.tenants ? updated.tenants.name : '',
+      tenantName: updated.tenant ? updated.tenant.name : '',
       planName: updated.plan ? updated.plan.name : updated.planType,
       description: updated.plan ? updated.plan.description : '',
       price: updated.plan ? updated.plan.price : null,
@@ -1134,7 +1130,7 @@ async function adminGetAllUsers(query) {
     ];
   }
   const [users, count] = await prisma.$transaction([
-    prisma.user.findMany({
+    prisma.users.findMany({
       where,
       skip,
       take: parseInt(limit),
@@ -1143,7 +1139,7 @@ async function adminGetAllUsers(query) {
         userRoles: { include: { role: true } },
       },
     }),
-    prisma.user.count({ where }),
+    prisma.users.count({ where }),
   ]);
   const transformedUsers = users.map(user => {
     const roleObj = user.userRoles && user.userRoles.length > 0
@@ -1181,7 +1177,7 @@ async function adminUpdateUser(userId, updateData) {
       where: { id: updateData.roleId },
       select: { id: true, name: true, permissions: true, tenantId: true },
     });
-    await prisma.user.update({
+    await prisma.users.update({
       where: { id: userId },
       data: { role: role.name },
     });
@@ -1193,11 +1189,11 @@ async function adminUpdateUser(userId, updateData) {
   if (updateData.hasOwnProperty('isActive')) {
     updateObj.isActive = updateData.isActive;
   }
-  await prisma.user.update({
+  await prisma.users.update({
     where: { id: userId },
     data: updateObj,
   });
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.users.findUnique({ where: { id: userId } });
   const userRole = await prisma.userRole.findFirst({
     where: { userId: userId },
     include: { role: true },
@@ -1235,23 +1231,23 @@ async function adminInviteUser({ email, tenantId, roleId }) {
     };
   }
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
+  const transporter = nodemailer.createTransport({
+    service: 'Gmail',
       auth: { user: process.env.EMAIL_FROM, pass: process.env.EMAIL_PASS }
-    });
-    await transporter.sendMail({
-      from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
-      to: email,
-      subject: 'You are invited to join TexIntelli',
-      html: `
-        <p>Hello,</p>
-        <p>You have been invited to join TexIntelli. Click below to accept the invitation:</p>
-        <a href="${inviteLink}">${inviteLink}</a>
-        <p>This link will expire in 72 hours.</p>
-      `
-    });
+  });
+  await transporter.sendMail({
+    from: `"TexIntelli" <${process.env.EMAIL_FROM}>`,
+    to: email,
+    subject: 'You are invited to join TexIntelli',
+    html: `
+      <p>Hello,</p>
+      <p>You have been invited to join TexIntelli. Click below to accept the invitation:</p>
+      <a href="${inviteLink}">${inviteLink}</a>
+      <p>This link will expire in 72 hours.</p>
+    `
+  });
     console.log('✅ Invitation email sent successfully to:', email);
-    return { message: 'Invitation sent, check your email' };
+  return { message: 'Invitation sent, check your email' };
   } catch (error) {
     console.error('❌ Failed to send invitation email:', error.message);
     console.log('📧 Invitation token:', token);
@@ -1277,19 +1273,19 @@ async function adminAcceptInvite({ token, name, password }) {
   }
   const { email, tenantId, roleId } = payload;
   // Check if user exists
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.users.findUnique({ where: { email } });
   if (existing) throw new Error('User already exists');
   // Hash password
   const bcrypt = require('bcrypt');
   const passwordHash = await bcrypt.hash(password, 10);
   // Create user
-  const user = await prisma.user.create({
+  const user = await prisma.users.create({
     data: {
       name,
       email,
       tenantId,
-      passwordHash: password_hash,
-      is_verified: true
+      passwordHash: passwordHash,
+      isVerified: true
     }
   });
   // Assign role
@@ -1303,9 +1299,9 @@ async function adminAcceptInvite({ token, name, password }) {
 }
 
 async function adminDeleteUser(userId) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.users.findUnique({ where: { id: userId } });
   if (!user) throw new Error('User not found');
-  await prisma.user.update({
+  await prisma.users.update({
     where: { id: userId },
     data: { isActive: false },
   });
@@ -1340,7 +1336,7 @@ async function getDashboardSummary(user) {
     }
 
     // Calculate order metrics
-    const orders = await prisma.orders.findMany({
+    const orders = await prisma.order.findMany({
       where: { tenantId: user.tenantId },
       include: { buyer: true }
     });
@@ -1370,7 +1366,7 @@ async function getDashboardSummary(user) {
     }
 
     // Calculate purchase order metrics
-    const purchaseOrders = await prisma.purchaseOrders.findMany({
+    const purchaseOrders = await prisma.purchaseOrder.findMany({
       where: { tenantId: user.tenantId },
       include: { items: true }
     });
@@ -1390,7 +1386,7 @@ async function getDashboardSummary(user) {
     }
 
     // Calculate financial metrics
-    const receivables = await prisma.orders.findMany({
+    const receivables = await prisma.order.findMany({
       where: {
         tenantId: user.tenantId,
         status: { in: ['completed', 'dispatched'] }
@@ -1399,7 +1395,7 @@ async function getDashboardSummary(user) {
 
     if (receivables.length > 0) {
       summary.financial.receivables = {
-        total: receivables.reduce((sum, order) => sum + Number(order.quantityKg || 0), 0),
+        total: receivables.reduce((sum, order) => sum + Number(order.quantity || 0), 0),
         overdue: receivables.filter(order => {
           const deliveryDate = new Date(order.deliveryDate);
           return order.status === 'dispatched' && deliveryDate < new Date();
@@ -1441,13 +1437,13 @@ async function getAdminDashboardSummary() {
     const totalTenants = await prisma.tenant.count({ where: { isActive: true } });
 
     // Users
-    const currUsers = await prisma.user.count({
+    const currUsers = await prisma.users.count({
       where: { isActive: true, createdAt: { gte: currStart, lte: currEnd } }
     });
-    const prevUsers = await prisma.user.count({
+    const prevUsers = await prisma.users.count({
       where: { isActive: true, createdAt: { gte: prevStart, lte: prevEnd } }
     });
-    const totalUsers = await prisma.user.count({ where: { isActive: true } });
+    const totalUsers = await prisma.users.count({ where: { isActive: true } });
 
     // For now, orders and revenue are 0
     const currOrders = 0, prevOrders = 0;

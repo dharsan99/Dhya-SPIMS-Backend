@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { assignRoleToUser, getUserRole } = require('../controllers/userRoleAssignments.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 
 /**
  * @swagger
@@ -65,7 +65,7 @@ const { verifyToken } = require('../middlewares/auth.middleware');
  *         description: Server error
  */
 
-router.post('/assign', verifyToken, assignRoleToUser);
-router.get('/:userId', verifyToken, getUserRole);
+router.post('/assign', verifyTokenAndTenant, assignRoleToUser);
+router.get('/:userId', verifyTokenAndTenant, getUserRole);
 
 module.exports = router;

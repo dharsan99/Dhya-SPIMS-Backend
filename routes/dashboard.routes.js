@@ -40,7 +40,7 @@ router.use(verifyTokenAndTenant);
  *       403:
  *         description: Forbidden
  */
-router.get('/summary', dashboardController.getSummary);
+router.get('/summary', dashboardController.getDashboardSummary);
 
 /**
  * @swagger
@@ -206,9 +206,9 @@ router.post('/admin/createTenant', dashboardController.adminCreateTenant);
  *                           name: { type: string }
  *                           domain: { type: string }
  *                           plan: { type: string }
- *                           is_active: { type: boolean }
- *                           created_at: { type: string, format: date-time }
- *                           updated_at: { type: string, format: date-time }
+ *                           isActive: { type: boolean }
+ *                           createdAt: { type: string, format: date-time }
+ *                           updatedAt: { type: string, format: date-time }
  *                           userCount: { type: integer }
  *                           lastActive: { type: string, format: date-time, nullable: true }
  *                     pagination:
@@ -362,9 +362,9 @@ router.post('/admin/tenants/subscriptions', dashboardController.adminCreateSubsc
  *                     name: { type: string }
  *                     domain: { type: string }
  *                     plan: { type: string }
- *                     is_active: { type: boolean }
- *                     created_at: { type: string, format: date-time }
- *                     updated_at: { type: string, format: date-time }
+ *                     isActive: { type: boolean }
+ *                     createdAt: { type: string, format: date-time }
+ *                     updatedAt: { type: string, format: date-time }
  *                     companyDetails:
  *                       type: object
  *                       properties:
@@ -387,10 +387,10 @@ router.post('/admin/tenants/subscriptions', dashboardController.adminCreateSubsc
  *                           id: { type: string }
  *                           name: { type: string }
  *                           email: { type: string }
- *                           is_active: { type: boolean }
- *                           is_verified: { type: boolean }
- *                           created_at: { type: string, format: date-time }
- *                           updated_at: { type: string, format: date-time }
+ *                           isActive: { type: boolean }
+ *                           isVerified: { type: boolean }
+ *                           createdAt: { type: string, format: date-time }
+ *                           updatedAt: { type: string, format: date-time }
  *                           role: { type: string }
  *                     usage:
  *                       type: object
@@ -440,7 +440,7 @@ router.get('/admin/tenants/:id', dashboardController.adminGetTenantById);
  *                 data:
  *                   type: object
  *                   properties:
- *                     is_active: { type: boolean, description: 'Current active status of the tenant' }
+ *                     isActive: { type: boolean, description: 'Current active status of the tenant' }
  *                     #/components/schemas/Tenant
  *                 message: { type: string, example: 'Tenant updated successfully. All users for this tenant have been deactivated and cannot login.' }
  */
@@ -498,7 +498,7 @@ router.delete('/admin/tenants/:id', dashboardController.adminDeleteTenant);
  *                   type: object
  *                   properties:
  *                     id: { type: string, example: 123e4567-e89b-12d3-a456-426614174002 }
- *                     tenant_id: { type: string, example: 123e4567-e89b-12d3-a456-426614174000 }
+ *                     tenantId: { type: string, example: 123e4567-e89b-12d3-a456-426614174000 }
  *                     name: { type: string, example: Admin }
  *                     description: { type: string, example: Default admin role for new tenant }
  *                     permissions: { type: object, example: {} }
@@ -626,18 +626,18 @@ router.put('/admin/tenants/subscriptions/:id', dashboardController.adminUpdateSu
  *                         type: object
  *                         properties:
  *                           id: { type: string }
- *                           tenant_id: { type: string }
+ *                           tenantId: { type: string }
  *                           name: { type: string }
  *                           email: { type: string }
- *                           is_active: { type: boolean }
- *                           is_verified: { type: boolean }
+ *                           isActive: { type: boolean }
+ *                           isVerified: { type: boolean }
  *                           role:
  *                             type: object
  *                             properties:
  *                               id: { type: string }
  *                               name: { type: string }
  *                               permissions: { type: object }
- *                               tenant_id: { type: string }
+ *                               tenantId: { type: string }
  *                     pagination:
  *                       type: object
  *                       properties:
@@ -669,8 +669,8 @@ router.get('/admin/users', dashboardController.adminGetAllUsers);
  *             properties:
  *               name: { type: string }
  *               email: { type: string }
- *               role_id: { type: string, description: 'Role UUID to assign to the user' }
- *               is_active: { type: boolean, description: 'Set to true or false to activate/deactivate user (optional)' }
+ *               roleId: { type: string, description: 'Role UUID to assign to the user' }
+ *               isActive: { type: boolean, description: 'Set to true or false to activate/deactivate user (optional)' }
  *               
  *     responses:
  *       200:
@@ -685,18 +685,18 @@ router.get('/admin/users', dashboardController.adminGetAllUsers);
  *                   type: object
  *                   properties:
  *                     id: { type: string }
- *                     tenant_id: { type: string }
+ *                     tenantId: { type: string }
  *                     name: { type: string }
  *                     email: { type: string }
- *                     is_active: { type: boolean }
- *                     is_verified: { type: boolean }
+ *                     isActive: { type: boolean }
+ *                     isVerified: { type: boolean }
  *                     role:
  *                       type: object
  *                       properties:
  *                         id: { type: string }
  *                         name: { type: string }
  *                         permissions: { type: object }
- *                         tenant_id: { type: string }
+ *                         tenantId: { type: string }
  *                 message: { type: string }
  *       404:
  *         description: User not found
@@ -717,14 +717,14 @@ router.put('/admin/users/:id', dashboardController.adminUpdateUser);
  *             type: object
  *             required:
  *               - email
- *               - tenant_id
- *               - role_id
+ *               - tenantId
+ *               - roleId
  *             properties:
  *               email:
  *                 type: string
- *               tenant_id:
+ *               tenantId:
  *                 type: string
- *               role_id:
+ *               roleId:
  *                 type: string
  *               isSuperadmin:
  *                 type: boolean
@@ -790,7 +790,7 @@ router.post('/admin/accept-invite', dashboardController.adminAcceptInvite);
  *               type: object
  *               properties:
  *                 success: { type: boolean }
- *                 is_active: { type: boolean, example: false }
+ *                 isActive: { type: boolean, example: false }
  *                 message: { type: string, example: 'This user successfully deactivated' }
  *       404:
  *         description: User not found
