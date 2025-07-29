@@ -34,12 +34,16 @@ exports.createEmployee = async (data) => {
 
   return {
     id: newEmployee.id,
-    token_no: newEmployee.tokenNo,
+    tokenNo: newEmployee.tokenNo,
     name: newEmployee.name,
-    shift_rate: newEmployee.shiftRate,
-    join_date: newEmployee.joinDate,
-    created_at: newEmployee.createdAt,
-    updated_at: newEmployee.updatedAt,
+    shiftRate: newEmployee.shiftRate,
+    aadharNo: newEmployee.aadharNo,
+    bankAcc1: newEmployee.bankAcc1,
+    bankAcc2: newEmployee.bankAcc2,
+    department: newEmployee.department,
+    joinDate: newEmployee.joinDate,
+    createdAt: newEmployee.createdAt,
+    updatedAt: newEmployee.updatedAt,
   };
 };
 
@@ -47,16 +51,16 @@ exports.getAllEmployees = async () => {
   const employees = await prisma.employee.findMany();
   return employees.map((emp) => ({
     id: emp.id,
-    token_no: emp.tokenNo,
+    tokenNo: emp.tokenNo,
     name: emp.name,
-    shift_rate: emp.shiftRate,
-    aadhar_no: emp.aadharNo,
-    bank_acc_1: emp.bankAcc1,
-    bank_acc_2: emp.bankAcc2,
+    shiftRate: emp.shiftRate,
+    aadharNo: emp.aadharNo,
+    bankAcc1: emp.bankAcc1,
+    bankAcc2: emp.bankAcc2,
     department: emp.department,
-    join_date: emp.joinDate,
-    created_at: emp.createdAt,
-    updated_at: emp.updatedAt,
+    joinDate: emp.joinDate,
+    createdAt: emp.createdAt,
+    updatedAt: emp.updatedAt,
   }));
 };
 
@@ -66,24 +70,46 @@ exports.getEmployeeById = async (id) => {
 
   return {
     id: emp.id,
-    token_no: emp.tokenNo,
+    tokenNo: emp.tokenNo,
     name: emp.name,
-    shift_rate: emp.shiftRate,
-    aadhar_no: emp.aadharNo,
-    bank_acc_1: emp.bankAcc1,
-    bank_acc_2: emp.bankAcc2,
+    shiftRate: emp.shiftRate,
+    aadharNo: emp.aadharNo,
+    bankAcc1: emp.bankAcc1,
+    bankAcc2: emp.bankAcc2,
     department: emp.department,
-    join_date: emp.joinDate,
-    created_at: emp.createdAt,
-    updated_at: emp.updatedAt,
+    joinDate: emp.joinDate,
+    createdAt: emp.createdAt,
+    updatedAt: emp.updatedAt,
   };
 };
 
 exports.updateEmployee = async (id, data) => {
-  return await prisma.employee.update({
+  const updatedEmployee = await prisma.employee.update({
     where: { id },
-    data,
+    data: {
+      name: data.name,
+      shiftRate: data.shiftRate ? parseFloat(data.shiftRate) : undefined,
+      aadharNo: data.aadharNo,
+      bankAcc1: data.bankAcc1,
+      bankAcc2: data.bankAcc2,
+      department: data.department,
+      joinDate: data.joinDate ? new Date(data.joinDate) : undefined,
+    },
   });
+
+  return {
+    id: updatedEmployee.id,
+    tokenNo: updatedEmployee.tokenNo,
+    name: updatedEmployee.name,
+    shiftRate: updatedEmployee.shiftRate,
+    aadharNo: updatedEmployee.aadharNo,
+    bankAcc1: updatedEmployee.bankAcc1,
+    bankAcc2: updatedEmployee.bankAcc2,
+    department: updatedEmployee.department,
+    joinDate: updatedEmployee.joinDate,
+    createdAt: updatedEmployee.createdAt,
+    updatedAt: updatedEmployee.updatedAt,
+  };
 };
 
 exports.deleteEmployee = async (id) => {

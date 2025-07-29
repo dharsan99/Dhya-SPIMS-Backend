@@ -25,52 +25,52 @@ const bulkImportOrders = async (req, res) => {
       const rowIndex = i + 2;
 
       const {
-        order_number,
-        buyer_id,
-        shade_id,
-        quantity_kg,
-        delivery_date,
+        orderNumber,
+        buyerId,
+        shadeId,
+        quantity,
+        deliveryDate,
         status = 'pending',
-        tenant_id,
+        tenantId,
         realisation,
         count
       } = row;
 
       // ✅ Validate required fields
-      if (!order_number || !buyer_id || !shade_id || !tenant_id || !quantity_kg || !delivery_date) {
+      if (!orderNumber || !buyerId || !shadeId || !tenantId || !quantity || !deliveryDate) {
         errors.push({ row: rowIndex, reason: 'Missing required fields' });
         continue;
       }
 
-      if (!isUUID(buyer_id)) {
-        errors.push({ row: rowIndex, reason: 'Invalid buyer_id UUID' });
+      if (!isUUID(buyerId)) {
+        errors.push({ row: rowIndex, reason: 'Invalid buyerId UUID' });
         continue;
       }
 
-      if (!isUUID(shade_id)) {
-        errors.push({ row: rowIndex, reason: 'Invalid shade_id UUID' });
+      if (!isUUID(shadeId)) {
+        errors.push({ row: rowIndex, reason: 'Invalid shadeId UUID' });
         continue;
       }
 
-      if (!isUUID(tenant_id)) {
-        errors.push({ row: rowIndex, reason: 'Invalid tenant_id UUID' });
+      if (!isUUID(tenantId)) {
+        errors.push({ row: rowIndex, reason: 'Invalid tenantId UUID' });
         continue;
       }
 
-      if (isNaN(quantity_kg) || Number(quantity_kg) <= 0) {
-        errors.push({ row: rowIndex, reason: 'Invalid quantity_kg' });
+      if (isNaN(quantity) || Number(quantity) <= 0) {
+        errors.push({ row: rowIndex, reason: 'Invalid quantity' });
         continue;
       }
 
-      if (isNaN(Date.parse(delivery_date))) {
-        errors.push({ row: rowIndex, reason: 'Invalid delivery_date' });
+      if (isNaN(Date.parse(deliveryDate))) {
+        errors.push({ row: rowIndex, reason: 'Invalid deliveryDate' });
         continue;
       }
 
       // ✅ Ensure buyer and shade exist
       const [buyer, shade] = await Promise.all([
-        prisma.buyers.findUnique({ where: { id: buyer_id } }),
-        prisma.shades.findUnique({ where: { id: shade_id } }),
+        prisma.buyers.findUnique({ where: { id: buyerId } }),
+        prisma.shades.findUnique({ where: { id: shadeId } }),
       ]);
 
       if (!buyer) {
@@ -85,13 +85,13 @@ const bulkImportOrders = async (req, res) => {
 
       try {
         const order = await orderService.createOrder({
-          order_number,
-          buyer_id,
-          shade_id,
-          quantity_kg: Number(quantity_kg),
-          delivery_date: new Date(delivery_date),
+          orderNumber,
+          buyerId,
+          shadeId,
+          quantity: Number(quantity),
+          deliveryDate: new Date(deliveryDate),
           status,
-          tenant_id,
+          tenantId,
           realisation: realisation ? parseFloat(realisation) : undefined,
           count: count ? parseInt(count) : undefined
         });

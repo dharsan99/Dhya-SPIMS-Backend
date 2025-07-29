@@ -104,7 +104,7 @@ router.get('/', validate.validateQueryParams, attendanceController.getAllAttenda
  *                 type: string
  *                 enum: [SHIFT_1, SHIFT_2, SHIFT_3]
  *                 description: Shift type (not required if status is ABSENT)
- *               overtime_hours:
+ *               overtimeHours:
  *                 type: number
  *                 minimum: 0
  *                 maximum: 24
@@ -129,19 +129,19 @@ router.get('/', validate.validateQueryParams, attendanceController.getAllAttenda
  *                 data:
  *                   type: object
  *                   properties:
- *                     employee_id:
+ *                     employeeId:
  *                       type: string
  *                     date:
  *                       type: string
  *                     shift:
  *                       type: string
- *                     in_time:
+ *                     inTime:
  *                       type: string
- *                     out_time:
+ *                     outTime:
  *                       type: string
- *                     overtime_hours:
+ *                     overtimeHours:
  *                       type: number
- *                     total_hours:
+ *                     totalHours:
  *                       type: number
  *                     status:
  *                       type: string
@@ -176,10 +176,10 @@ router.get('/', validate.validateQueryParams, attendanceController.getAllAttenda
  *                 items:
  *                   type: object
  *                   required:
- *                     - employee_id
+ *                     - employeeId
  *                     - status
  *                   properties:
- *                     employee_id:
+ *                     employeeId:
  *                       type: string
  *                       format: uuid
  *                     shift:
@@ -189,7 +189,7 @@ router.get('/', validate.validateQueryParams, attendanceController.getAllAttenda
  *                     status:
  *                       type: string
  *                       enum: [PRESENT, ABSENT, HALF_DAY]
- *                     overtime_hours:
+ *                     overtimeHours:
  *                       type: number
  *                       default: 0
  *     responses:
@@ -207,14 +207,14 @@ router.get('/', validate.validateQueryParams, attendanceController.getAllAttenda
  *                   items:
  *                     type: object
  *                     properties:
- *                       employee_id:
+ *                       employeeId:
  *                         type: string
  *                       shift:
  *                         type: string
  *                         nullable: true
  *                       status:
  *                         type: string
- *                       overtime_hours:
+ *                       overtimeHours:
  *                         type: number
  */
 router.put('/mark-bulk', validate.bulkUpdateAttendance, attendanceController.markBulkAttendance);
@@ -290,18 +290,18 @@ router.delete('/:empid', attendanceController.deleteAttendance);
  *                   items:
  *                     type: object
  *                     properties:
- *                       employee_id:
+ *                       employeeId:
  *                         type: string
  *                       employee:
  *                         type: object
  *                         properties:
- *                           token_no:
+ *                           tokenNo:
  *                             type: string
  *                           name:
  *                             type: string
  *                           department:
  *                             type: string
- *                           shift_rate:
+ *                           shiftRate:
  *                             type: string
  *                       attendance:
  *                         type: object
@@ -311,15 +311,15 @@ router.delete('/:empid', attendanceController.deleteAttendance);
  *                             status:
  *                               type: string
  *                               enum: [PRESENT, ABSENT, HALF_DAY]
- *                             in_time:
+ *                             inTime:
  *                               type: string
  *                               format: time
- *                             out_time:
+ *                             outTime:
  *                               type: string
  *                               format: time
- *                             total_hours:
+ *                             totalHours:
  *                               type: number
- *                             overtime_hours:
+ *                             overtimeHours:
  *                               type: number
  */
 router.get('/by-date', attendanceController.getByDate);
@@ -381,16 +381,16 @@ router.get('/by-date', attendanceController.getByDate);
  *                   items:
  *                     type: object
  *                     properties:
- *                       employee_id:
+ *                       employeeId:
  *                         type: string
  *                       employee:
  *                         type: object
  *                         properties:
- *                           token_no:
+ *                           tokenNo:
  *                             type: string
  *                           name:
  *                             type: string
- *                           shift_rate:
+ *                           shiftRate:
  *                             type: string
  *                           department:
  *                             type: string
@@ -402,15 +402,15 @@ router.get('/by-date', attendanceController.getByDate);
  *                             status:
  *                               type: string
  *                               enum: [PRESENT, ABSENT, HALF_DAY]
- *                             in_time:
+ *                             inTime:
  *                               type: string
  *                               format: time
- *                             out_time:
+ *                             outTime:
  *                               type: string
  *                               format: time
- *                             total_hours:
+ *                             totalHours:
  *                               type: number
- *                             overtime_hours:
+ *                             overtimeHours:
  *                               type: number
  */
 router.get('/range', validate.validateQueryParams, attendanceController.getByRange);
@@ -541,7 +541,7 @@ router.get('/summary', validate.validateQueryParams, attendanceController.getAtt
  *                       type: string
  *                       format: date
  *                       example: "2025-06-15"
- *                 total_employees:
+ *                 totalEmployees:
  *                   type: integer
  *                   example: 10
  *                 present:
@@ -550,11 +550,11 @@ router.get('/summary', validate.validateQueryParams, attendanceController.getAtt
  *                 absent:
  *                   type: integer
  *                   example: 2
- *                 total_overtime:
+ *                 totalOvertime:
  *                   type: number
  *                   format: float
  *                   example: 12.5
- *                 average_shift_hours:
+ *                 averageHours:
  *                   type: number
  *                   format: float
  *                   example: 7.75
@@ -638,7 +638,7 @@ router.get('/filter', validate.validateQueryParams, attendanceController.getFilt
  *               shift:
  *                 type: string
  *                 enum: [SHIFT_1, SHIFT_2, SHIFT_3]
- *               overtime_hours:
+ *               overtimeHours:
  *                 type: number
  *                 minimum: 0
  *                 maximum: 24

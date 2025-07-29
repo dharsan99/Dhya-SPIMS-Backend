@@ -5,7 +5,7 @@ const { generateToken } = require('../utils/jwt.util');
 const nodemailer = require('nodemailer');
 
 const prisma = new PrismaClient();
-const ADMIN_ROLE_ID = '5020a2db-ac2f-4ddc-b12d-5aa83e3cbcc2';
+//const ADMIN_ROLE_ID = '5020a2db-ac2f-4ddc-b12d-5aa83e3cbcc2';
 
 const login = async (req, res) => {
   const { email, password } = req.body;

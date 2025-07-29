@@ -285,3 +285,82 @@ exports.getOrderStatistics = async () => {
     throw new Error('Failed to fetch order statistics');
   }
 };
+
+// 10. Get order progress details
+exports.getProgressDetails = async (orderId) => {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        productions: {
+          include: {
+            logs: true
+          }
+        }
+      }
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    // Calculate progress metrics
+    const requiredQty = Number(order.quantity);
+    let producedQty = 0;
+    let totalEfficiency = 0;
+    let efficiencyCount = 0;
+    const productionDays = new Set();
+    const noProductionDays = new Set();
+    let topProductionDay = { date: null, production: 0 };
+
+    // Process production data
+    order.productions.forEach(production => {
+      const dateKey = production.date.toISOString().split('T')[0];
+      productionDays.add(dateKey);
+      
+      let dailyProduction = 0;
+      production.logs.forEach(log => {
+        const productionQty = Number(log.outputKg || 0);
+        dailyProduction += productionQty;
+        producedQty += productionQty;
+        
+        // Calculate efficiency (assuming 1000kg is the standard daily target)
+        const efficiency = (productionQty / 1000) * 100;
+        totalEfficiency += efficiency;
+        efficiencyCount++;
+      });
+
+      // Track top production day
+      if (dailyProduction > topProductionDay.production) {
+        topProductionDay = {
+          date: dateKey,
+          production: dailyProduction
+        };
+      }
+    });
+
+    // Calculate average efficiency
+    const averageEfficiency = efficiencyCount > 0 ? totalEfficiency / efficiencyCount : 0;
+
+    // Generate list of days with no production (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    for (let d = new Date(thirtyDaysAgo); d <= new Date(); d.setDate(d.getDate() + 1)) {
+      const dateKey = d.toISOString().split('T')[0];
+      if (!productionDays.has(dateKey)) {
+        noProductionDays.add(dateKey);
+      }
+    }
+
+    return {
+      requiredQty,
+      producedQty,
+      averageEfficiency: Math.round(averageEfficiency * 100) / 100,
+      topProductionDay,
+      noProductionDays: Array.from(noProductionDays).sort()
+    };
+  } catch (error) {
+    throw new Error('Failed to fetch progress details');
+  }
+};

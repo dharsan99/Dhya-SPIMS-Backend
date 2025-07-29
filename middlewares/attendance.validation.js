@@ -11,7 +11,7 @@ exports.updateAttendance = (req, res, next) => {
         'any.required': 'Date is required'
       }),
     shift: Joi.string().allow('', null).optional(),
-    overtime_hours: Joi.number()
+    overtimeHours: Joi.number()
       .min(0)
       .max(24)
       .default(0)
@@ -63,7 +63,7 @@ exports.bulkUpdateAttendance = (req, res, next) => {
   console.log('Basic validation passed, proceeding with Joi validation...');
   
   const recordSchema = Joi.object({
-    employee_id: Joi.string()
+    employeeId: Joi.string()
       .uuid()
       .required()
       .messages({
@@ -84,7 +84,7 @@ exports.bulkUpdateAttendance = (req, res, next) => {
       .messages({
         'any.only': 'Shift must be SHIFT_1, SHIFT_2, SHIFT_3, or N/A'
       }),
-    overtime_hours: Joi.number()
+    overtimeHours: Joi.number()
       .min(0)
       .max(24)
       .default(0)

@@ -48,21 +48,21 @@ router.get('/', controller.getAllOrders);
  *           schema:
  *             type: object
  *             required:
- *               - buyer_id
- *               - shade_id
- *               - quantity_kg
- *               - delivery_date
+ *               - buyerId
+ *               - shadeId
+ *               - quantity
+ *               - deliveryDate
  *             properties:
- *               order_number:
+ *               orderNumber:
  *                 type: string
  *                 example: SO-456789
- *               buyer_id:
+ *               buyerId:
  *                 type: string
- *               shade_id:
+ *               shadeId:
  *                 type: string
- *               quantity_kg:
+ *               quantity:
  *                 type: number
- *               delivery_date:
+ *               deliveryDate:
  *                 type: string
  *                 format: date
  *               status:
@@ -128,15 +128,15 @@ router.get('/:id', controller.getOrderById);
  *           schema:
  *             type: object
  *             properties:
- *               order_number:
+ *               orderNumber:
  *                 type: string
- *               buyer_id:
+ *               buyerId:
  *                 type: string
- *               shade_id:
+ *               shadeId:
  *                 type: string
- *               quantity_kg:
+ *               quantity:
  *                 type: number
- *               delivery_date:
+ *               deliveryDate:
  *                 type: string
  *                 format: date
  *               status:
