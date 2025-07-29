@@ -572,7 +572,7 @@ router.put('/admin/tenants/subscriptions/:id', dashboardController.adminUpdateSu
  *     tags: [Dashboard]
  *     parameters:
  *       - in: query
- *         name: tenant_id
+ *         name: tenantId
  *         schema:
  *           type: string
  *         required: false

@@ -1118,7 +1118,7 @@ async function adminGetAllUsers(query) {
   if (tenantId) {
     where.tenantId = tenantId;
   } else if (tenantname) {
-    where.tenants = { name: { contains: tenantname, mode: 'insensitive' } };
+    where.tenant = { name: { contains: tenantname, mode: 'insensitive' } };
   }
   if (status && status !== 'all') {
     where.isActive = status === 'active' ? true : false;
@@ -1135,7 +1135,7 @@ async function adminGetAllUsers(query) {
       skip,
       take: parseInt(limit),
       include: {
-        tenants: true,
+        tenant: true,
         userRoles: { include: { role: true } },
       },
     }),

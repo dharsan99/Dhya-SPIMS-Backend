@@ -2,7 +2,6 @@ const dashboardService = require('../services/dashboard.service');
 const purchaseOrdersService = require('../services/purchaseOrders.service');
 const productionService = require('../services/production.service');
 const fibreTransfersService = require('../services/fibreTransfers.service');
-const tenantService = require('../services/tenant.service');
 const { validate: isUuid } = require('uuid');
 
 /**
@@ -232,8 +231,8 @@ const adminUpdateSubscription = async (req, res) => {
 
 const adminGetAllUsers = async (req, res) => {
   try {
-    const { tenant_id, tenantname, status, page = 1, limit = 10, search = '' } = req.query;
-    const result = await dashboardService.adminGetAllUsers({ tenant_id, tenantname, status, page, limit, search });
+    const { tenantId, tenantname, status, page = 1, limit = 10, search = '' } = req.query;
+    const result = await dashboardService.adminGetAllUsers({ tenantId, tenantname, status, page, limit, search });
     res.json({ success: true, data: result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -260,11 +259,11 @@ const adminUpdateUser = async (req, res) => {
 
 const adminInviteUser = async (req, res) => {
   try {
-    const { email, tenant_id, role_id, isSuperadmin } = req.body;
-    if (!email || !tenant_id || !role_id) {
+    const { email, tenantId, roleId, isSuperadmin } = req.body;
+    if (!email || !tenantId || !roleId) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
     }
-    const result = await dashboardService.adminInviteUser({ email, tenant_id, role_id, isSuperadmin });
+    const result = await dashboardService.adminInviteUser({ email, tenantId, roleId, isSuperadmin });
     res.json({ success: true, ...result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
