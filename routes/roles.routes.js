@@ -11,26 +11,33 @@ router.use(verifyTokenAndTenant);
  *     Role:
  *       type: object
  *       required:
- *         - tenant_id
+ *         - tenantId
  *         - name
  *         - permissions
  *       properties:
  *         id:
  *           type: string
  *           format: uuid
- *         tenant_id:
+ *         tenantId:
  *           type: string
  *           format: uuid
  *         name:
  *           type: string
  *         description:
  *           type: string
+ *           nullable: true
  *         permissions:
  *           type: object
  *           additionalProperties:
  *             type: array
  *             items:
  *               type: string
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
  */
 
 /**

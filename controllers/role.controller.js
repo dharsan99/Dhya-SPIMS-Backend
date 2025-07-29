@@ -9,12 +9,15 @@ exports.getRoles = async (req, res) => {
 
   try {
     const roles = await roleService.getRolesByTenant(tenantId);
-    // Transform roles to only include id, name, permissions, tenant_id
+    // Transform roles to include all fields from schema
     const transformedRoles = roles.map(role => ({
       id: role.id,
       name: role.name,
+      description: role.description,
       permissions: role.permissions,
-      tenant_id: role.tenant_id,
+      tenantId: role.tenantId,
+      createdAt: role.createdAt,
+      updatedAt: role.updatedAt,
     }));
     res.status(200).json(transformedRoles);
   } catch (error) {
@@ -24,14 +27,14 @@ exports.getRoles = async (req, res) => {
 };
 
 exports.createRole = async (req, res) => {
-  const { tenant_id, name, description, permissions } = req.body;
+  const { tenantId, name, description, permissions } = req.body;
 
-  if (!tenant_id || !name || !permissions) {
-    return res.status(400).json({ error: 'Missing required fields: tenant_id, name, permissions' });
+  if (!tenantId || !name || !permissions) {
+    return res.status(400).json({ error: 'Missing required fields: tenantId, name, permissions' });
   }
 
   try {
-    const newRole = await roleService.createRole({ tenant_id, name, description, permissions });
+    const newRole = await roleService.createRole({ tenantId, name, description, permissions });
     res.status(201).json({ message: 'Role created successfully', data: newRole });
   } catch (error) {
     console.error('Create Role Error:', error);
