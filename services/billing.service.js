@@ -471,18 +471,37 @@ async function adminCreateInvoice(tenantId) {
 }
 
 async function getRecentPaymentActivity() {
-  const payments = await prisma.payment.findMany({
-    orderBy: { paidAt: 'desc' },
-    take: 3,
-    include: { tenant: true },
-  });
-  return payments.map(p => ({
-    name: p.tenant?.name || '',
-    method: p.method,
-    txnId: p.txnId,
-    amount: p.amount,
-    date: p.paidAt,
-  }));
+  try {
+    const payments = await prisma.payment.findMany({
+      orderBy: { paidAt: 'desc' },
+      take: 3,
+      include: { 
+        billing: true 
+      }
+    });
+    
+    // Get tenant information separately to avoid null relation issues
+    const tenantIds = [...new Set(payments.map(p => p.tenantId).filter(id => id))];
+    const tenants = await prisma.tenant.findMany({
+      where: { id: { in: tenantIds } },
+      select: { id: true, name: true }
+    });
+    
+    const tenantMap = new Map(tenants.map(t => [t.id, t.name]));
+    
+    return payments.map(p => ({
+      name: tenantMap.get(p.tenantId) || 'Unknown Tenant',
+      method: p.method || 'Unknown',
+      txnId: p.txnId || 'N/A',
+      amount: p.amount || 0,
+      date: p.paidAt,
+      invoiceNumber: p.billing?.invoiceNumber || 'N/A'
+    }));
+  } catch (error) {
+    console.error('Error in getRecentPaymentActivity:', error);
+    // Return empty array instead of throwing error
+    return [];
+  }
 }
 
 module.exports = { getBillingStats, adminGetInvoices, sendInvoiceEmail, sendInvoiceBillEmail, getPayments, getPayment, postPayment, getRevenueTrends, downloadInvoice, adminCreateInvoice, getRecentPaymentActivity }; 

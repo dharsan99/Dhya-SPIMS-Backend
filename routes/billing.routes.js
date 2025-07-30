@@ -529,6 +529,7 @@ router.post('/admin/invoices',  billingController.adminCreateInvoice);
  *                     type: string
  *       500:
  *         description: Internal server error
- */router.get('/recent-activity',  billingController.getRecentPaymentActivity);
+ */
+router.get('/recent-activity',  billingController.getRecentPaymentActivity);
 
 module.exports = router; 
