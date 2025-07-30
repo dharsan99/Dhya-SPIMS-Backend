@@ -37,8 +37,9 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         roles: '/roles',
         userRoles: '/user-roles',
         files: '/files',
-        
+        billing: '/billing',
         dashboard: '/dashboard',
+
         purchaseOrders: '/api/purchase-orders',
         mailingLists: '/api/mailing-lists',
         emailTemplates: '/email-templates',
