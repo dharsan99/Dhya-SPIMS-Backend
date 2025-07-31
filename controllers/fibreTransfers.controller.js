@@ -10,19 +10,19 @@ exports.getAllFibreTransfers = async (req, res) => {
     const where = status ? { status } : {};
     
     const [transfers, total] = await Promise.all([
-      prisma.fibre_transfers.findMany({
+      prisma.fibreTransfer.findMany({
         where,
         include: {
           fibre: true,
           supplier: true,
         },
         orderBy: {
-          sent_date: 'desc',
+          sentDate: 'desc',
         },
         skip: Number(skip),
         take: Number(limit),
       }),
-      prisma.fibre_transfers.count({ where })
+      prisma.fibreTransfer.count({ where })
     ]);
 
     res.status(200).json({
@@ -44,7 +44,7 @@ exports.getAllFibreTransfers = async (req, res) => {
 exports.getFibreTransferById = async (req, res) => {
   try {
     const { id } = req.params;
-    const transfer = await prisma.fibre_transfers.findUnique({
+    const transfer = await prisma.fibreTransfer.findUnique({
       where: { id },
       include: {
         fibre: true,
@@ -79,13 +79,13 @@ exports.createFibreTransfer = async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const created = await prisma.fibre_transfers.create({
+    const created = await prisma.fibreTransfer.create({
       data: {
-        fibre_id,
-        supplier_id,
-        sent_kg: Number(sent_kg),
-        sent_date: new Date(sent_date),
-        expected_return: expected_return ? new Date(expected_return) : null,
+        fibreId: fibre_id,
+        supplierId: supplier_id,
+        sentKg: Number(sent_kg),
+        sentDate: new Date(sent_date),
+        expectedReturn: expected_return ? new Date(expected_return) : null,
         notes,
         status: 'pending'
       },
@@ -108,12 +108,12 @@ exports.updateFibreTransfer = async (req, res) => {
     const { id } = req.params;
     const { status, returned_kg, return_date, notes } = req.body;
 
-    const updated = await prisma.fibre_transfers.update({
+    const updated = await prisma.fibreTransfer.update({
       where: { id },
       data: {
         status,
-        returned_kg: returned_kg ? Number(returned_kg) : undefined,
-        return_date: return_date ? new Date(return_date) : undefined,
+        returnedKg: returned_kg ? Number(returned_kg) : undefined,
+        returnDate: return_date ? new Date(return_date) : undefined,
         notes
       },
       include: {
@@ -133,7 +133,7 @@ exports.updateFibreTransfer = async (req, res) => {
 exports.deleteFibreTransfer = async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.fibre_transfers.delete({
+    await prisma.fibreTransfer.delete({
       where: { id }
     });
     res.status(204).send();

@@ -51,29 +51,29 @@ async function createBlendFibre({ blend_id, fibre_id, percentage }) {
 
 // ✅ Get all blend-fibre mappings
 async function getAllBlendFibres() {
-  return await prisma.blend_fibres.findMany({
+  return await prisma.blendFibre.findMany({
     include: {
-      fibres: true,
-      blends: true,
+      fibre: true,
+      blend: true,
     },
   });
 }
 
 // ✅ Get fibres for a specific blend
 async function getFibresByBlend(blendId) {
-  return await prisma.blend_fibres.findMany({
+  return await prisma.blendFibre.findMany({
     where: {
-      blend_id: blendId,
+      blendId: blendId,
     },
     include: {
-      fibres: true,
+      fibre: true,
     },
   });
 }
 
 // ✅ Update blend-fibre percentage with check
 async function updateBlendFibre(id, newPercentage) {
-  const blendFibre = await prisma.blend_fibres.findUnique({
+  const blendFibre = await prisma.blendFibre.findUnique({
     where: { id },
   });
 
@@ -81,8 +81,8 @@ async function updateBlendFibre(id, newPercentage) {
     throw new Error('BlendFibre mapping not found');
   }
 
-  const existingFibres = await prisma.blend_fibres.findMany({
-    where: { blend_id: blendFibre.blend_id },
+  const existingFibres = await prisma.blendFibre.findMany({
+    where: { blendId: blendFibre.blendId },
     select: { id: true, percentage: true },
   });
 
@@ -97,7 +97,7 @@ async function updateBlendFibre(id, newPercentage) {
     );
   }
 
-  return await prisma.blend_fibres.update({
+  return await prisma.blendFibre.update({
     where: { id },
     data: { percentage: newPercentage },
   });
@@ -105,7 +105,7 @@ async function updateBlendFibre(id, newPercentage) {
 
 // ✅ Delete blend-fibre mapping
 async function deleteBlendFibre(id) {
-  return await prisma.blend_fibres.delete({
+  return await prisma.blendFibre.delete({
     where: { id },
   });
 }

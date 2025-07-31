@@ -3,9 +3,9 @@ const prisma = new PrismaClient();
 
 // ✅ Create Blend
 async function createBlend({ blend_code, description }) {
-  return await prisma.blends.create({
+  return await prisma.blend.create({
     data: {
-      blend_code,
+      blendCode: blend_code,
       description,
     },
   });
@@ -13,16 +13,11 @@ async function createBlend({ blend_code, description }) {
 
 // ✅ Get All Blends with fibres and related shades
 async function getAllBlends() {
-  return await prisma.blends.findMany({
+  return await prisma.blend.findMany({
     include: {
-      blend_fibres: {
+      blendFibres: {
         include: {
-          fibres: true,
-        },
-      },
-      shade_blends: {
-        include: {
-          shade: true,
+          fibre: true,
         },
       },
     },
@@ -31,17 +26,12 @@ async function getAllBlends() {
 
 // ✅ Get Blend by ID with fibre and shade composition
 async function getBlendById(id) {
-  return await prisma.blends.findUnique({
+  return await prisma.blend.findUnique({
     where: { id },
     include: {
-      blend_fibres: {
+      blendFibres: {
         include: {
-          fibres: true,
-        },
-      },
-      shade_blends: {
-        include: {
-          shade: true,
+          fibre: true,
         },
       },
     },
@@ -50,38 +40,41 @@ async function getBlendById(id) {
 
 // ✅ Update Blend
 async function updateBlend(id, data) {
-  return await prisma.blends.update({
+  return await prisma.blend.update({
     where: { id },
-    data,
+    data: {
+      blendCode: data.blend_code,
+      description: data.description,
+    },
   });
 }
 
 // ✅ Delete Blend
 async function deleteBlend(id) {
-  return await prisma.blends.delete({
+  return await prisma.blend.delete({
     where: { id },
   });
 }
 
 // ✅ Blend Summary with calculated stock
 async function getBlendSummary() {
-  const blends = await prisma.blends.findMany({
+  const blends = await prisma.blend.findMany({
     include: {
-      blend_fibres: {
+      blendFibres: {
         include: {
-          fibres: true,
+          fibre: true,
         },
       },
     },
   });
 
   return blends.map((blend) => {
-    const fibres = blend.blend_fibres
+    const fibres = blend.blendFibres
       .map((bf) => ({
-        fibre_name: bf.fibres.fibre_name,
-        fibre_code: bf.fibres.fibre_code,
+        fibre_name: bf.fibre.fibreName,
+        fibre_code: bf.fibre.fibreCode,
         percentage: bf.percentage,
-        stock_kg: bf.fibres.stock_kg.toNumber(),
+        stock_kg: bf.fibre.stockKg.toNumber(),
       }))
       .sort((a, b) => b.percentage - a.percentage); // DESC by percentage
 
@@ -93,7 +86,7 @@ async function getBlendSummary() {
 
     return {
       blend_id: blend.id,
-      blend_code: blend.blend_code,
+      blend_code: blend.blendCode,
       description: blend.description,
       total_percentage,
       is_valid: isValid,
@@ -105,24 +98,24 @@ async function getBlendSummary() {
 
 // ✅ Fibre Usage Summary
 async function getFibreUsageSummary() {
-  const blendFibres = await prisma.blend_fibres.findMany({
+  const blendFibres = await prisma.blendFibre.findMany({
     include: {
-      fibres: true,
+      fibre: true,
     },
   });
 
   const usageMap = {};
 
   for (const bf of blendFibres) {
-    const fibreKey = `${bf.fibres.fibre_name} (${bf.fibres.fibre_code})`;
+    const fibreKey = `${bf.fibre.fibreName} (${bf.fibre.fibreCode})`;
 
-    const stock_kg = bf.fibres.stock_kg.toNumber();
+    const stock_kg = bf.fibre.stockKg.toNumber();
     const used_kg = Math.round((stock_kg * bf.percentage) / 100 * 100) / 100;
 
     if (!usageMap[fibreKey]) {
       usageMap[fibreKey] = {
-        fibre_name: bf.fibres.fibre_name,
-        fibre_code: bf.fibres.fibre_code,
+        fibre_name: bf.fibre.fibreName,
+        fibre_code: bf.fibre.fibreCode,
         total_stock: stock_kg,
         used_kg: 0,
       };

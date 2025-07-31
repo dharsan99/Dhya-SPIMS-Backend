@@ -88,21 +88,6 @@ async function signupUser({ name, email, password, tenantId, isSuperadmin }) {
       });
     }
 
-    const user = await tx.users.create({
-      data: {
-        name,
-        email,
-        role: defaultRole.name,
-        passwordHash,
-        tenantId: tenantId ? tenantId : tenant.id,
-        verificationToken,
-        isActive: false,
-        isVerified: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
-
     // Assign default role to user (lookup by name and tenant or global)
     let defaultRole;
     if (tenantId) {
@@ -122,6 +107,22 @@ async function signupUser({ name, email, password, tenantId, isSuperadmin }) {
       });
     }
     if (!defaultRole) throw new Error('Default role (admin) not found');
+
+    const user = await tx.users.create({
+      data: {
+        name,
+        email,
+        role: defaultRole.name,
+        passwordHash,
+        tenantId: tenantId ? tenantId : tenant.id,
+        verificationToken,
+        isActive: false,
+        isVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
     const defaultRoleId = defaultRole.id;
     await tx.userRole.create({
       data: {

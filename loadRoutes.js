@@ -29,6 +29,7 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         blends: '/blends',
         blendFibres: '/blend-fibres',
         fibres: '/fibres',
+        fibreTransfers: '/fibre-transfers',
         shades: '/api/shades',
         orders: '/orders',
         buyers: '/buyers',
