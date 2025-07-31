@@ -4,11 +4,11 @@ const prisma = new PrismaClient();
 // ✅ Create a new blend-fibre mapping with percentage check
 async function createBlendFibre({ blend_id, fibre_id, percentage }) {
   // Check for duplicates
-  const existing = await prisma.blend_fibres.findUnique({
+  const existing = await prisma.blendFibre.findUnique({
     where: {
-      blend_id_fibre_id: {
-        blend_id,
-        fibre_id,
+      blendId_fibreId: {
+        blendId: blend_id,
+        fibreId: fibre_id,
       },
     },
   });
@@ -18,8 +18,8 @@ async function createBlendFibre({ blend_id, fibre_id, percentage }) {
   }
 
   // Check total percentage
-  const existingFibres = await prisma.blend_fibres.findMany({
-    where: { blend_id },
+  const existingFibres = await prisma.blendFibre.findMany({
+    where: { blendId: blend_id },
     select: { percentage: true },
   });
 
@@ -34,15 +34,15 @@ async function createBlendFibre({ blend_id, fibre_id, percentage }) {
     );
   }
 
-  const newBlendFibre = await prisma.blend_fibres.create({
+  const newBlendFibre = await prisma.blendFibre.create({
     data: {
-      blend_id,
-      fibre_id,
+      blendId: blend_id,
+      fibreId: fibre_id,
       percentage,
     },
     include: {
-      fibres: true,
-      blends: true,
+      fibre: true,
+      blend: true,
     },
   });
 

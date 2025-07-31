@@ -70,6 +70,15 @@ const authService = {
     const existing = await prisma.users.findUnique({ where: { email } });
     if (existing) throw new Error('User already exists');
 
+    // Get the role information first
+    const role = await prisma.role.findUnique({
+      where: { id: roleId }
+    });
+    
+    if (!role) {
+      throw new Error('Role not found');
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await prisma.users.create({
@@ -78,7 +87,10 @@ const authService = {
         email,
         tenantId,
         passwordHash,
-        isActive: true
+        role: role.name, // Store the role name in users table
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
       }
     });
 

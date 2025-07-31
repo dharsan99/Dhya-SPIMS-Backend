@@ -27,6 +27,7 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         register: '/register',
         verify: '/', // Mount verify routes at root level for /signup, /verify-email, etc.
         blends: '/blends',
+        blendFibres: '/blend-fibres',
         fibres: '/fibres',
         shades: '/api/shades',
         orders: '/orders',

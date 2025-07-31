@@ -92,6 +92,7 @@ async function signupUser({ name, email, password, tenantId, isSuperadmin }) {
       data: {
         name,
         email,
+        role: defaultRole.name,
         passwordHash,
         tenantId: tenantId ? tenantId : tenant.id,
         verificationToken,

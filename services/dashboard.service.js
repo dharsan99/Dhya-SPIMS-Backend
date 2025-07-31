@@ -1275,6 +1275,16 @@ async function adminAcceptInvite({ token, name, password }) {
   // Check if user exists
   const existing = await prisma.users.findUnique({ where: { email } });
   if (existing) throw new Error('User already exists');
+  
+  // Get the role information first
+  const role = await prisma.role.findUnique({
+    where: { id: roleId }
+  });
+  
+  if (!role) {
+    throw new Error('Role not found');
+  }
+  
   // Hash password
   const bcrypt = require('bcrypt');
   const passwordHash = await bcrypt.hash(password, 10);
@@ -1285,7 +1295,10 @@ async function adminAcceptInvite({ token, name, password }) {
       email,
       tenantId,
       passwordHash: passwordHash,
-      isVerified: true
+      role: role.name, // Store the role name in users table
+      isVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
     }
   });
   // Assign role

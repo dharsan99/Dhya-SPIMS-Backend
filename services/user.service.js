@@ -8,13 +8,23 @@ const userService = {
     const hashedPassword = await bcrypt.hash(password, 10);
     
     return await prisma.$transaction(async (tx) => {
-      // Create the user
+      // Get the role information first
+      const role = await tx.role.findUnique({
+        where: { id: roleId }
+      });
+      
+      if (!role) {
+        throw new Error('Role not found');
+      }
+
+      // Create the user with role name
       const user = await tx.users.create({
         data: {
           name,
           email,
           passwordHash: hashedPassword,
           tenantId,
+          role: role.name, // Store the role name in users table
           isActive,
           isVerified: false,
           createdAt: new Date(),
@@ -118,6 +128,18 @@ const userService = {
     
     // Handle role assignment
     if (data.roleId) {
+      // Get the role information first
+      const role = await prisma.role.findUnique({
+        where: { id: data.roleId }
+      });
+      
+      if (!role) {
+        throw new Error('Role not found');
+      }
+      
+      // Update the role field in users table
+      updateData.role = role.name;
+      
       // First, remove existing role assignments
       await prisma.userRole.deleteMany({
         where: { userId: id }
@@ -172,6 +194,24 @@ const userService = {
   },
 
   async assignRole(userId, roleId) {
+    // Get the role information first
+    const role = await prisma.role.findUnique({
+      where: { id: roleId }
+    });
+    
+    if (!role) {
+      throw new Error('Role not found');
+    }
+    
+    // Update the role field in users table
+    await prisma.users.update({
+      where: { id: userId },
+      data: { 
+        role: role.name,
+        updatedAt: new Date()
+      }
+    });
+    
     // First remove any existing role assignments for this user
     await prisma.userRole.deleteMany({
       where: { userId }
