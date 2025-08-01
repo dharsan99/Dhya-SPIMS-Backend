@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 
 const verifyTokenAndTenant = async (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '');

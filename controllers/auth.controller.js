@@ -134,8 +134,47 @@ const acceptInvite = async (req, res) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const result = await authService.forgotPassword(email);
+    res.json(result);
+  } catch (error) {
+    console.error('Forgot Password Error:', error);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { token, password } = req.body;
+  
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+
+  // Validate password strength
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+  }
+
+  try {
+    const result = await authService.resetPassword(token, password);
+    res.json(result);
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(400).json({ error: error.message });
+  }
+};
+
 module.exports = {
   login,
   inviteUser,
-  acceptInvite
+  acceptInvite,
+  forgotPassword,
+  resetPassword
 };
