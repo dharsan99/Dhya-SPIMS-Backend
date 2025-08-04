@@ -33,11 +33,6 @@ const getTenantById = async (req, res) => {
     const tenant = await prisma.tenant.findUnique({ 
       where: { id: req.params.id },
       include: {
-        subscriptions: {
-          include: {
-            plan: true
-          }
-        },
         users: {
           include: {
             userRoles: {
