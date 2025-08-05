@@ -37,6 +37,7 @@ model Fibre {
   blendFibres   BlendFibre[]
   shadeFibres   ShadeFibre[]
   fibreTransfers FibreTransfer[]
+  restockRequests FibreRestockRequest[]
 
   @@map("fibres")
 }
@@ -117,6 +118,8 @@ model Tenant {
   followUpTasks FollowUpTask[]
   growthCampaigns GrowthCampaign[]
   companyPersonas CompanyPersona[]
+  settings     Setting?
+  subscriptions Subscription[]
 
   @@map("tenants")
 }
@@ -129,7 +132,10 @@ model Subscription {
   planType  String?
   startDate DateTime? @db.Date
   tenantId  String?   @db.Uuid
-  plan      Plan?     @relation(fields: [planId], references: [id])
+  
+  // Relations
+  plan   Plan?   @relation(fields: [planId], references: [id])
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("subscriptions")
 }
@@ -210,6 +216,9 @@ model Setting {
   smsAlerts           Boolean   @default(false)
   tenantId            String    @unique @db.Uuid
   updatedAt           DateTime  @updatedAt
+  
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("settings")
 }
@@ -327,6 +336,7 @@ model Buyer {
 
   // Relations
   orders Order[]
+  mailingListBuyers MailingListBuyer[]
 
   @@map("buyers")
 }
@@ -343,6 +353,7 @@ model Supplier {
   
   // Relations
   fibreTransfers FibreTransfer[]
+  fibreRequests  FibreRestockRequest[]
 
   @@map("suppliers")
 }
@@ -455,6 +466,10 @@ model FibreRestockRequest {
   requestedKg  Decimal   @db.Decimal(10, 2)
   supplierId   String    @db.Uuid
   updatedAt    DateTime  @updatedAt
+  
+  // Relations
+  fibre    Fibre    @relation(fields: [fibreId], references: [id], onDelete: Cascade)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@index([fibreId])
   @@index([supplierId])
@@ -566,6 +581,9 @@ model MailingList {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   resendAudienceId String?  @unique
+  
+  // Relations
+  mailingListBuyers MailingListBuyer[]
 
   @@map("MailingList")
 }
@@ -574,6 +592,10 @@ model MailingListBuyer {
   id            String @id @default(uuid())
   mailingListId String @db.Uuid
   buyerId       String @db.Uuid
+  
+  // Relations
+  mailingList MailingList @relation(fields: [mailingListId], references: [id], onDelete: Cascade)
+  buyer       Buyer       @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
   @@unique([mailingListId, buyerId])
   @@map("MailingListBuyer")
@@ -598,6 +620,9 @@ model Campaign {
   createdAt  DateTime @default(now())
   name       String
   recipients String[]
+  
+  // Relations
+  emailEvents EmailEvent[]
 
   @@map("Campaign")
 }
@@ -610,6 +635,9 @@ model EmailEvent {
   eventType  EmailEventType
   eventData  Json?
   createdAt  DateTime       @default(now())
+  
+  // Relations
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
 
   @@index([emailId])
   @@index([recipient])
