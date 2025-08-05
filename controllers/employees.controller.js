@@ -2,10 +2,10 @@ const employeeService = require('../services/employees.service');
 
 exports.createEmployee = async (req, res) => {
   try {
-    const { name, aadhar_no, bank_acc_1, shift_rate } = req.body;
+    const { name, aadharNo, bankAcc1, shiftRate } = req.body;
 
-    if (!name || !aadhar_no || !bank_acc_1 || shift_rate == null) {
-      return res.status(400).json({ error: 'Missing required fields (name, aadhar_no, bank_acc_1, shift_rate)' });
+    if (!name || !aadharNo || !bankAcc1 || shiftRate == null) {
+      return res.status(400).json({ error: 'Missing required fields (name, aadharNo, bankAcc1, shiftRate)' });
     }
 
     const employee = await employeeService.createEmployee(req.body);
@@ -26,7 +26,6 @@ exports.getAllEmployees = async (req, res) => {
   }
 };
 
-// ✅ Get employee by ID
 exports.getEmployeeById = async (req, res) => {
   try {
     const employee = await employeeService.getEmployeeById(req.params.id);
@@ -40,18 +39,6 @@ exports.getEmployeeById = async (req, res) => {
   }
 };
 
-// ✅ Create new employee
-exports.createEmployee = async (req, res) => {
-  try {
-    const newEmployee = await employeeService.createEmployee(req.body);
-    res.status(201).json(newEmployee);
-  } catch (err) {
-    console.error('❌ Error creating employee:', err);
-    res.status(500).json({ error: 'Failed to create employee' });
-  }
-};
-
-// ✅ Update employee
 exports.updateEmployee = async (req, res) => {
   try {
     const updatedEmployee = await employeeService.updateEmployee(req.params.id, req.body);
@@ -62,7 +49,6 @@ exports.updateEmployee = async (req, res) => {
   }
 };
 
-// ✅ Delete employee
 exports.deleteEmployee = async (req, res) => {
   try {
     await employeeService.deleteEmployee(req.params.id);

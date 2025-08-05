@@ -3,16 +3,23 @@ const roleService = require('../services/role.service');
 
 
 
+
 exports.getRoles = async (req, res) => {
   const { tenantId } = req.query;
 
-  if (!tenantId) {
-    return res.status(400).json({ error: 'tenantId is required' });
-  }
-
   try {
     const roles = await roleService.getRolesByTenant(tenantId);
-    res.status(200).json(roles);
+    // Transform roles to include all fields from schema
+    const transformedRoles = roles.map(role => ({
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      permissions: role.permissions,
+      tenantId: role.tenantId,
+      createdAt: role.createdAt,
+      updatedAt: role.updatedAt,
+    }));
+    res.status(200).json(transformedRoles);
   } catch (error) {
     console.error('Get Roles Error:', error);
     res.status(500).json({ error: 'Failed to fetch roles' });
@@ -20,14 +27,14 @@ exports.getRoles = async (req, res) => {
 };
 
 exports.createRole = async (req, res) => {
-  const { tenant_id, name, description, permissions } = req.body;
+  const { tenantId, name, description, permissions } = req.body;
 
-  if (!tenant_id || !name || !permissions) {
-    return res.status(400).json({ error: 'Missing required fields: tenant_id, name, permissions' });
+  if (!tenantId || !name || !permissions) {
+    return res.status(400).json({ error: 'Missing required fields: tenantId, name, permissions' });
   }
 
   try {
-    const newRole = await roleService.createRole({ tenant_id, name, description, permissions });
+    const newRole = await roleService.createRole({ tenantId, name, description, permissions });
     res.status(201).json({ message: 'Role created successfully', data: newRole });
   } catch (error) {
     console.error('Create Role Error:', error);
@@ -63,6 +70,9 @@ exports.deleteRole = async (req, res) => {
     await roleService.deleteRole(roleId);
     res.status(200).json({ message: 'Role deleted successfully' });
   } catch (error) {
+    if (error.code === 'ROLE_IN_USE') {
+      return res.status(400).json({ error: 'Cannot delete role: users are assigned to this role' });
+    }
     console.error('Delete Role Error:', error);
     res.status(500).json({ error: 'Failed to delete role' });
   }

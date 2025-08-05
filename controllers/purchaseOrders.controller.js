@@ -1,10 +1,43 @@
-const purchaseOrdersService = require('../services/purchaseOrders.service');
+const purchaseOrderService = require('../services/purchaseOrders.service');
 
 exports.getAllPurchaseOrders = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
-    const result = await purchaseOrdersService.getAllPurchaseOrders({ page, limit });
-    res.json(result);
+    // Extract pagination and filter parameters from query
+    const {
+      page = 1,
+      limit = 5,
+      search = '',
+      status = '',
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    // Validate pagination parameters
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit))); // Max 100 items per page
+    const validSortOrder = ['asc', 'desc'].includes(sortOrder) ? sortOrder : 'desc';
+    const validSortBy = ['createdAt', 'poNumber', 'buyerName', 'status', 'grandTotal'].includes(sortBy) ? sortBy : 'createdAt';
+
+    const options = {
+      page: pageNum,
+      limit: limitNum,
+      search: search.trim(),
+      status: status.trim(),
+      sortBy: validSortBy,
+      sortOrder: validSortOrder
+    };
+
+    const result = await purchaseOrderService.getAll(req.user, options);
+
+    if (!result.data || result.data.length === 0) {
+      return res.status(200).json({
+        message: 'No data available',
+        data: [],
+        pagination: result.pagination
+      });
+    }
+
+    res.status(200).json(result);
   } catch (error) {
     console.error('Error fetching purchase orders:', error);
     res.status(500).json({ error: 'Failed to fetch purchase orders' });
@@ -12,67 +45,51 @@ exports.getAllPurchaseOrders = async (req, res) => {
 };
 
 exports.getPurchaseOrderById = async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
-    const purchaseOrder = await purchaseOrdersService.getPurchaseOrderById(id);
-    
-    if (!purchaseOrder) {
+    const data = await purchaseOrderService.getById(id, req.user);
+    if (!data) {
       return res.status(404).json({ error: 'Purchase order not found' });
     }
-    
-    res.json(purchaseOrder);
-  } catch (error) {
-    console.error('Error fetching purchase order:', error);
-    res.status(500).json({ error: 'Failed to fetch purchase order' });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 exports.createPurchaseOrder = async (req, res) => {
   try {
-    const purchaseOrder = await purchaseOrdersService.createPurchaseOrder(req.body);
-    res.status(201).json(purchaseOrder);
-  } catch (error) {
-    console.error('Error creating purchase order:', error);
-    res.status(400).json({ error: error.message || 'Failed to create purchase order' });
+    const data = await purchaseOrderService.create(req.body, req.user);
+    res.status(201).json(data);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
 
 exports.updatePurchaseOrder = async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
-    const updated = await purchaseOrdersService.updatePurchaseOrder(id, req.body);
-    
-    if (!updated) {
-      return res.status(404).json({ error: 'Purchase order not found' });
-    }
-    
-    res.json(updated);
-  } catch (error) {
-    console.error('Error updating purchase order:', error);
-    res.status(400).json({ error: error.message || 'Failed to update purchase order' });
+    const data = await purchaseOrderService.update(id, req.body);
+    res.json(data);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
 
 exports.deletePurchaseOrder = async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
-    const deleted = await purchaseOrdersService.deletePurchaseOrder(id);
-    
-    if (!deleted) {
-      return res.status(404).json({ error: 'Purchase order not found' });
-    }
-    
-    res.json({ message: 'Purchase order deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting purchase order:', error);
-    res.status(500).json({ error: 'Failed to delete purchase order' });
+    await purchaseOrderService.remove(id);
+    res.json({ message: 'Deleted successfully' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 };
 
 exports.verify = async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await purchaseOrdersService.verify(id, req.user);
+    const result = await purchaseOrderService.verify(id, req.user);
     res.json(result);
   } catch (err) {
     console.error('PO Verification Error:', err);
@@ -87,7 +104,7 @@ exports.verify = async (req, res) => {
 exports.convert = async (req, res) => {
   const { id } = req.params;
   try {
-    const salesOrder = await purchaseOrdersService.convertToSalesOrder(id, req.user, req.body);
+    const salesOrder = await purchaseOrderService.convertToSalesOrder(id, req.user, req.body);
     res.status(201).json(salesOrder);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -95,15 +112,14 @@ exports.convert = async (req, res) => {
 };
 
 exports.parseAndCreatePurchaseOrder = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded.' });
+  }
 
-    const result = await purchaseOrdersService.parseAndCreatePurchaseOrder(req.file);
-    res.status(201).json(result);
+  try {
+    const poData = await purchaseOrderService.parseFileAndCreate(req.file, req.user);
+    res.status(201).json(poData);
   } catch (error) {
-    console.error('Error parsing and creating purchase order:', error);
-    res.status(400).json({ error: error.message || 'Failed to process purchase order' });
+    res.status(500).json({ error: 'Failed to process purchase order.' });
   }
 };

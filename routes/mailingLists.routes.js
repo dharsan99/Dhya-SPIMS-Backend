@@ -1,19 +1,18 @@
 const express = require('express');
-const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-
-
 const {
   createMailingList,
   getMailingLists,
   deleteMailingList,
-  updateMailingList, // ✅ add this
+  updateMailingList,
+  getMailingListContacts,
 } = require('../controllers/mailingLists.controller');
 
 const router = express.Router();
-router.use(verifyTokenAndTenant);
+
 router.post('/', createMailingList);
 router.get('/', getMailingLists);
-router.put('/:id', updateMailingList); // ✅ define update route
+router.get('/:id/contacts', getMailingListContacts);
+router.put('/:id', updateMailingList);
 router.delete('/:id', deleteMailingList);
 
 module.exports = router;

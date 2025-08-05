@@ -3,120 +3,8 @@ const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const FormData = require('form-data');
 const { sendPOAuthorizationEmail } = require('../utils/email');
-const fs = require('fs');
-const path = require('path');
-const readline = require('readline');
 
 const prisma = new PrismaClient();
-
-class PurchaseOrdersService {
-  constructor() {
-    this.purchaseOrders = [];
-    this.loadPurchaseOrders();
-  }
-
-  async loadPurchaseOrders() {
-    try {
-      const filePath = path.join(__dirname, '../purchase_order_dataset.jsonl');
-      const fileStream = fs.createReadStream(filePath);
-      const rl = readline.createInterface({
-        input: fileStream,
-        crlfDelay: Infinity
-      });
-
-      for await (const line of rl) {
-        const { completion } = JSON.parse(line);
-        this.purchaseOrders.push(completion);
-      }
-    } catch (error) {
-      console.error('Error loading purchase orders:', error);
-      throw new Error('Failed to load purchase orders');
-    }
-  }
-
-  async getAllPurchaseOrders({ page = 1, limit = 10 }) {
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const paginatedOrders = this.purchaseOrders.slice(startIndex, endIndex);
-
-    return {
-      data: paginatedOrders,
-      pagination: {
-        total: this.purchaseOrders.length,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(this.purchaseOrders.length / limit)
-      }
-    };
-  }
-
-  async getPurchaseOrderById(id) {
-    return this.purchaseOrders.find(po => po.poNumber === id);
-  }
-
-  async createPurchaseOrder(data) {
-    const newPurchaseOrder = {
-      ...data,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    this.purchaseOrders.push(newPurchaseOrder);
-    return newPurchaseOrder;
-  }
-
-  async updatePurchaseOrder(id, updateData) {
-    const index = this.purchaseOrders.findIndex(po => po.poNumber === id);
-    
-    if (index === -1) {
-      return null;
-    }
-
-    const updatedPurchaseOrder = {
-      ...this.purchaseOrders[index],
-      ...updateData,
-      updatedAt: new Date().toISOString()
-    };
-
-    this.purchaseOrders[index] = updatedPurchaseOrder;
-    return updatedPurchaseOrder;
-  }
-
-  async deletePurchaseOrder(id) {
-    const index = this.purchaseOrders.findIndex(po => po.poNumber === id);
-    
-    if (index === -1) {
-      return false;
-    }
-
-    this.purchaseOrders.splice(index, 1);
-    return true;
-  }
-
-  async parseAndCreatePurchaseOrder(file) {
-    try {
-      const fileContent = await fs.promises.readFile(file.path, 'utf8');
-      const purchaseOrder = JSON.parse(fileContent);
-      
-      // Validate required fields
-      const requiredFields = ['poNumber', 'poDate', 'buyerName', 'items'];
-      const missingFields = requiredFields.filter(field => !purchaseOrder[field]);
-      
-      if (missingFields.length > 0) {
-        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
-      }
-
-      return this.createPurchaseOrder(purchaseOrder);
-    } catch (error) {
-      throw new Error(`Failed to parse purchase order: ${error.message}`);
-    } finally {
-      // Clean up uploaded file
-      await fs.promises.unlink(file.path);
-    }
-  }
-}
-
-module.exports = new PurchaseOrdersService();
 
 exports.parseFileAndCreate = async (file, user) => {
   const PYTHON_AI_SERVICE_URL = process.env.PYTHON_AI_SERVICE_URL || 'https://dharsan99--dhya-po-parser-fastapi-app.modal.run/parse-pdf/';
@@ -150,51 +38,55 @@ exports.parseFileAndCreate = async (file, user) => {
     throw new Error('Could not parse document with AI service.');
   }
 
+  // Handle nested AI response structure
+  const metadata = parsedData.metadata || parsedData;
+  const lineItems = parsedData.line_items || parsedData.items || [];
+
   // Parse date from DD/MM/YYYY format
   let poDate;
-  if (parsedData.poDate) {
-    const [day, month, year] = parsedData.poDate.split('/');
+  if (metadata.po_date) {
+    const [day, month, year] = metadata.po_date.split('/');
     poDate = new Date(year, month - 1, day); // month is 0-based in JS
   } else {
     poDate = new Date(); // fallback to current date
   }
 
   const createPayload = {
-    po_number: parsedData.poNumber || 'N/A',
+    po_number: metadata.po_number || metadata.poNumber || 'N/A',
     po_date: poDate,
-    buyer_name: parsedData.buyerName || 'N/A',
-    buyer_contact_name: parsedData.buyerContactName || '',
-    buyer_contact_phone: parsedData.buyerContactPhone || '',
-    buyer_email: parsedData.buyerEmail || '',
-    buyer_address: parsedData.buyerAddress || '',
-    buyer_gst_no: parsedData.buyerGstNo || '',
-    buyer_pan_no: parsedData.buyerPanNo || '',
-    supplier_name: parsedData.supplierName || '',
-    supplier_gst_no: parsedData.supplierGstNo || '',
-    payment_terms: parsedData.paymentTerms || '',
-    style_ref_no: parsedData.styleRefNo || '',
-    delivery_address: parsedData.deliveryAddress || '',
-    tax_details: parsedData.taxDetails || {
+    buyer_name: metadata.buyer || metadata.buyerName || 'N/A',
+    buyer_contact_name: metadata.buyerContactName || '',
+    buyer_contact_phone: metadata.buyerContactPhone || '',
+    buyer_email: metadata.buyerEmail || '',
+    buyer_address: metadata.buyerAddress || '',
+    buyer_gst_no: metadata.buyerGstNo || '',
+    buyer_pan_no: metadata.buyerPanNo || '',
+    supplier_name: metadata.vendor || metadata.supplierName || '',
+    supplier_gst_no: metadata.supplierGstNo || '',
+    payment_terms: metadata.payment_terms || metadata.paymentTerms || '',
+    style_ref_no: metadata.style_ref_no || metadata.styleRefNo || '',
+    delivery_address: metadata.deliveryAddress || '',
+    tax_details: metadata.tax_details || metadata.taxDetails || {
       cgst: 0,
       igst: 0,
       sgst: 0,
       round_off: 0
     },
-    grand_total: parsedData.grandTotal || 0,
-    amount_in_words: parsedData.amountInWords || '',
-    notes: parsedData.notes || '',
-    items: (parsedData.items || []).map(item => ({
-      order_code: item.orderCode || '',
-      yarn_description: item.yarnDescription || '',
+    grand_total: metadata.total || metadata.grandTotal || 0,
+    amount_in_words: metadata.amount_in_words || metadata.amountInWords || '',
+    notes: metadata.notes || '',
+    items: lineItems.map(item => ({
+      order_code: item.order_code || item.orderCode || '',
+      yarn_description: item.description || item.yarnDescription || '',
       color: item.color || '',
       count: item.count || 0,
       uom: item.uom || 'KGS',
-      bag_count: item.bagCount || 0,
-      quantity: item.quantity || 0,
+      bag_count: item.bag_count || item.bagCount || 0,
+      quantity: item.quantity || item.qty || 0,
       rate: item.rate || 0,
-      gst_percent: item.gstPercent || 0,
-      taxable_amount: item.taxableAmount || 0,
-      shade_no: item.shadeNo || ''
+      gst_percent: item.gst_percent || item.gstPercent || 0,
+      taxable_amount: item.taxable_amount || item.taxableAmount || 0,
+      shade_no: item.shade_no || item.shadeNo || ''
     }))
   };
 
@@ -202,23 +94,76 @@ exports.parseFileAndCreate = async (file, user) => {
 };
 
 
-exports.getAll = async (user) => {
+exports.getAll = async (user, options = {}) => {
   if (!user || !user.tenantId) {
-    return [];
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        limit: 5,
+        total: 0,
+        totalPages: 0
+      }
+    };
   }
 
-  return await prisma.purchase_orders.findMany({
-    where: { tenant_id: user.tenantId },
+  const { page = 1, limit = 5, search = '', status = '', sortBy = 'createdAt', sortOrder = 'desc' } = options;
+  
+  // Calculate skip value for pagination
+  const skip = (page - 1) * limit;
+  
+  // Build where clause
+  const where = {
+    tenantId: user.tenantId,
+  };
+
+  // Add search filter if provided
+  if (search) {
+    where.OR = [
+      { poNumber: { contains: search, mode: 'insensitive' } },
+      { buyerName: { contains: search, mode: 'insensitive' } },
+      { supplierName: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  // Add status filter if provided
+  if (status) {
+    where.status = status;
+  }
+
+  // Get total count for pagination
+  const total = await prisma.purchaseOrder.count({ where });
+
+  // Get paginated data
+  const data = await prisma.purchaseOrder.findMany({
+    where,
     include: { items: true },
-    orderBy: { created_at: 'desc' },
+    orderBy: { [sortBy]: sortOrder },
+    skip,
+    take: limit,
   });
+
+  // Calculate pagination metadata
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1
+    }
+  };
 };
 
 exports.getById = async (id, user) => {
-  return await prisma.purchase_orders.findFirst({
+  return await prisma.purchaseOrder.findFirst({
     where: {
       id,
-      tenant_id: user.tenantId,
+      tenantId: user.tenantId,
     },
     include: {
       items: true,
@@ -249,42 +194,42 @@ exports.create = async (data, user) => {
     items = [],
   } = data;
 
-  return await prisma.purchase_orders.create({
+  return await prisma.purchaseOrder.create({
     data: {
-      tenant_id: user.tenantId,
-      created_by: user.id,
-      status: 'uploaded',
-      po_number,
-      buyer_name,
-      buyer_contact_name,
-      buyer_contact_phone,
-      buyer_email,
-      buyer_address,
-      buyer_gst_no,
-      buyer_pan_no,
-      supplier_name,
-      supplier_gst_no,
-      payment_terms,
-      style_ref_no,
-      delivery_address,
-      tax_details,
-      grand_total,
-      amount_in_words,
+      tenantId: user.tenantId,
+      createdBy: user.id,
+      status: 'pending',
+      poNumber: po_number,
+      buyerName: buyer_name,
+      buyerContactName: buyer_contact_name,
+      buyerContactPhone: buyer_contact_phone,
+      buyerEmail: buyer_email,
+      buyerAddress: buyer_address,
+      buyerGstNo: buyer_gst_no,
+      buyerPanNo: buyer_pan_no,
+      supplierName: supplier_name,
+      supplierGstNo: supplier_gst_no,
+      paymentTerms: payment_terms,
+      styleRefNo: style_ref_no,
+      deliveryAddress: delivery_address,
+      taxDetails: tax_details,
+      grandTotal: grand_total,
+      amountInWords: amount_in_words,
       notes,
-      po_date: new Date(po_date),
+      poDate: new Date(po_date),
       items: {
         create: items.map((item) => ({
-          order_code: item.order_code,
-          yarn_description: item.yarn_description,
+          orderCode: item.order_code,
+          yarnDescription: item.yarn_description,
           color: item.color,
           count: item.count,
           uom: item.uom,
-          bag_count: item.bag_count,
+          bagCount: item.bag_count,
           quantity: item.quantity,
           rate: item.rate,
-          gst_percent: item.gst_percent,
-          taxable_amount: item.taxable_amount,
-          shade_no: item.shade_no,
+          gstPercent: item.gst_percent,
+          taxableAmount: item.taxable_amount,
+          shadeNo: item.shade_no,
         })),
       },
     },
@@ -298,6 +243,12 @@ exports.update = async (id, data) => {
   const {
     po_number,
     buyer_name,
+    buyer_contact_name,
+    buyer_contact_phone,
+    buyer_email,
+    buyer_address,
+    buyer_gst_no,
+    buyer_pan_no,
     payment_terms,
     notes,
     amount_in_words,
@@ -306,31 +257,38 @@ exports.update = async (id, data) => {
   } = data;
 
   // Delete existing items
-  await prisma.purchase_order_items.deleteMany({
-    where: { purchase_order_id: id },
+  await prisma.purchaseOrderItem.deleteMany({
+    where: { purchaseOrderId: id },
   });
 
-  return await prisma.purchase_orders.update({
+  return await prisma.purchaseOrder.update({
     where: { id },
     data: {
-      po_number,
-      buyer_name,
-      payment_terms,
+      poNumber: po_number,
+      buyerName: buyer_name,
+      buyerContactName: buyer_contact_name,
+      buyerContactPhone: buyer_contact_phone,
+      buyerEmail: buyer_email,
+      buyerAddress: buyer_address,
+      buyerGstNo: buyer_gst_no,
+      buyerPanNo: buyer_pan_no,
+      paymentTerms: payment_terms,
       notes,
-      amount_in_words,
-      grand_total,
+      amountInWords: amount_in_words,
+      grandTotal: grand_total,
       items: {
         create: items.map((item) => ({
-          order_code: item.order_code,
-          yarn_description: item.yarn_description,
+          orderCode: item.order_code,
+          yarnDescription: item.yarn_description,
           color: item.color,
+          count: item.count,
           uom: item.uom,
-          bag_count: item.bag_count,
+          bagCount: item.bag_count,
           quantity: item.quantity,
           rate: item.rate,
-          gst_percent: item.gst_percent,
-          taxable_amount: item.taxable_amount,
-          shade_no: item.shade_no,
+          gstPercent: item.gst_percent,
+          taxableAmount: item.taxable_amount,
+          shadeNo: item.shade_no,
         })),
       },
     },
@@ -341,11 +299,11 @@ exports.update = async (id, data) => {
 };
 
 exports.remove = async (id) => {
-  await prisma.purchase_order_items.deleteMany({
-    where: { purchase_order_id: id },
+  await prisma.purchaseOrderItem.deleteMany({
+    where: { purchaseOrderId: id },
   });
 
-  return await prisma.purchase_orders.delete({
+  return await prisma.purchaseOrder.delete({
     where: { id },
   });
 };
@@ -353,8 +311,8 @@ exports.remove = async (id) => {
 // ✅ Mark PO as verified
 exports.verify = async (id, user) => {
   try {
-    const existing = await prisma.purchase_orders.findFirst({
-      where: { id, tenant_id: user.tenantId },
+    const existing = await prisma.purchaseOrder.findFirst({
+      where: { id, tenantId: user.tenantId },
       include: { items: true }
     });
 
@@ -366,68 +324,68 @@ exports.verify = async (id, user) => {
       throw new Error('Purchase Order is already verified.');
     }
 
-    if (!existing.buyer_name) {
+    if (!existing.buyerName) {
       throw new Error('Purchase Order is missing buyer information.');
     }
 
     // Create or find buyer
-    let buyer = await prisma.buyers.findFirst({
+    let buyer = await prisma.buyer.findFirst({
       where: {
-        name: existing.buyer_name,
-        email: existing.buyer_email
+        name: existing.buyerName,
+        email: existing.buyerEmail
       }
     });
 
     if (!buyer) {
-      buyer = await prisma.buyers.create({
+      buyer = await prisma.buyer.create({
         data: {
-          name: existing.buyer_name,
-          contact: existing.buyer_contact_phone,
-          email: existing.buyer_email,
-          address: existing.buyer_address
+          name: existing.buyerName,
+          contact: existing.buyerContactPhone,
+          email: existing.buyerEmail,
+          address: existing.buyerAddress
         }
       });
     }
 
     // Find or create a default shade
-    let shade = await prisma.shades.findFirst({
+    let shade = await prisma.shade.findFirst({
       where: {
-        shade_code: existing.items[0]?.shade_no || 'DEFAULT',
-        tenant_id: user.tenantId
+        shadeCode: existing.items[0]?.shadeNo || 'DEFAULT',
+        tenantId: user.tenantId
       }
     });
 
     if (!shade) {
-      shade = await prisma.shades.create({
+      shade = await prisma.shade.create({
         data: {
-          shade_code: existing.items[0]?.shade_no || 'DEFAULT',
-          shade_name: existing.items[0]?.shade_no || 'Default Shade',
-          tenant_id: user.tenantId
+          shadeCode: existing.items[0]?.shadeNo || 'DEFAULT',
+          shadeName: existing.items[0]?.shadeNo || 'Default Shade',
+          tenantId: user.tenantId
         }
       });
     }
 
     // Create a new sales order
-    const order = await prisma.orders.create({
+    const order = await prisma.order.create({
       data: {
-        order_number: `SO-${Date.now()}`,
-        buyer_id: buyer.id,
-        shade_id: shade.id,
-        delivery_date: existing.po_date || new Date(),
-        quantity_kg: existing.items.reduce((sum, item) => sum + Number(item.quantity), 0),
+        orderNumber: `SO-${Date.now()}`,
+        buyerId: buyer.id,
+        shadeId: shade.id,
+        deliveryDate: existing.poDate || new Date(),
+        quantity: existing.items.reduce((sum, item) => sum + Number(item.quantity), 0),
+        unitPrice: 0,
+        totalAmount: 0,
         status: 'pending',
-        tenant_id: user.tenantId,
-        created_by: user.id,
-        count: existing.items[0]?.count || null,
+        tenantId: user.tenantId,
       },
     });
 
     // Update PO status and link to SO
-    const updatedPO = await prisma.purchase_orders.update({
+    const updatedPO = await prisma.purchaseOrder.update({
       where: { id },
       data: {
         status: 'verified',
-        linked_sales_order_id: order.id,
+        linkedSalesOrderId: order.id,
       },
       include: {
         items: true,
@@ -435,17 +393,17 @@ exports.verify = async (id, user) => {
     });
 
     // Send email if buyer has an email address
-    if (existing.buyer_email) {
+    if (existing.buyerEmail) {
       try {
         await sendPOAuthorizationEmail({
-          to: existing.buyer_email,
-          buyerName: existing.buyer_name,
-          poNumber: existing.po_number,
-          soNumber: order.order_number,
+          to: existing.buyerEmail,
+          buyerName: existing.buyerName,
+          poNumber: existing.poNumber,
+          soNumber: order.orderNumber,
           tenant_id: user.tenantId,
           items: existing.items,
-          poDate: existing.po_date,
-          deliveryDate: order.delivery_date,
+          poDate: existing.poDate,
+          deliveryDate: order.deliveryDate,
         });
       } catch (error) {
         console.error('Failed to send PO authorization email:', error);
@@ -462,8 +420,8 @@ exports.verify = async (id, user) => {
 
 // ✅ Convert PO to Sales Order
 exports.convertToSalesOrder = async (id, user, data) => {
-  const existing = await prisma.purchase_orders.findFirst({
-    where: { id, tenant_id: user.tenantId },
+  const existing = await prisma.purchaseOrder.findFirst({
+    where: { id, tenantId: user.tenantId },
     include: { items: true }
   });
 
@@ -471,27 +429,68 @@ exports.convertToSalesOrder = async (id, user, data) => {
     throw new Error('Purchase Order not found or access denied.');
   }
 
+  // 🔄 Find / create buyer
+  let buyer = existing.buyerId
+    ? await prisma.buyer.findUnique({ where: { id: existing.buyerId } })
+    : await prisma.buyer.findFirst({
+        where: {
+          name: existing.buyerName,
+          email: existing.buyerEmail,
+        },
+      });
+
+  if (!buyer) {
+    buyer = await prisma.buyer.create({
+      data: {
+        name: existing.buyerName || 'Default Buyer',
+        contact: existing.buyerContactPhone,
+        email: existing.buyerEmail,
+        address: existing.buyerAddress,
+      },
+    });
+  }
+
+  // 🔄 Find / create shade
+  let shade = data.shade_id
+    ? await prisma.shade.findUnique({ where: { id: data.shade_id } })
+    : await prisma.shade.findFirst({
+        where: {
+          shadeCode: existing.items[0]?.shadeNo || 'DEFAULT',
+          tenantId: user.tenantId,
+        },
+      });
+
+  if (!shade) {
+    shade = await prisma.shade.create({
+      data: {
+        shadeCode: existing.items[0]?.shadeNo || 'DEFAULT',
+        shadeName: existing.items[0]?.shadeNo || 'Default Shade',
+        tenantId: user.tenantId,
+      },
+    });
+  }
+
   // Create a new sales order
-  const order = await prisma.orders.create({
+  const order = await prisma.order.create({
     data: {
-      order_number: `SO-${Date.now()}`,
-      buyer_id: existing.buyer_id || '00000000-0000-0000-0000-000000000000', // Default buyer ID if not set
-      shade_id: data.shade_id || '00000000-0000-0000-0000-000000000000', // Use provided shade ID or default
-      delivery_date: existing.po_date || new Date(),
-      quantity_kg: existing.items.reduce((sum, item) => sum + Number(item.quantity), 0),
+      orderNumber: `SO-${Date.now()}`,
+      buyerId: buyer.id,
+      shadeId: shade.id,
+      deliveryDate: existing.poDate || new Date(),
+      quantity: existing.items.reduce((sum, item) => sum + Number(item.quantity), 0),
+      unitPrice: 0,
+      totalAmount: 0,
       status: 'pending',
-      tenant_id: user.tenantId,
-      created_by: user.id,
-      count: existing.items[0]?.count || null,
+      tenantId: user.tenantId,
     },
   });
 
   // Update PO status and link to SO
-  const updatedPO = await prisma.purchase_orders.update({
+  const updatedPO = await prisma.purchaseOrder.update({
     where: { id },
     data: {
       status: 'verified',
-      linked_sales_order_id: order.id,
+      linkedSalesOrderId: order.id,
     },
     include: {
       items: true,
@@ -499,17 +498,17 @@ exports.convertToSalesOrder = async (id, user, data) => {
   });
 
   // Send email if buyer has an email address
-  if (existing.buyer_email) {
+  if (existing.buyerEmail) {
     try {
       await sendPOAuthorizationEmail({
-        to: existing.buyer_email,
-        buyerName: existing.buyer_name,
-        poNumber: existing.po_number,
-        soNumber: order.order_number,
+        to: existing.buyerEmail,
+        buyerName: existing.buyerName,
+        poNumber: existing.poNumber,
+        soNumber: order.orderNumber,
         tenant_id: user.tenantId,
         items: existing.items,
-        poDate: existing.po_date,
-        deliveryDate: order.delivery_date,
+        poDate: existing.poDate,
+        deliveryDate: order.deliveryDate,
       });
     } catch (error) {
       console.error('Failed to send PO authorization email:', error);

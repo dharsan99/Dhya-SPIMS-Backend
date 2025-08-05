@@ -13,6 +13,7 @@ const options = {
       {
         url: process.env.BASE_URL || 'http://localhost:5001',
       },
+      {url: 'http://localhost:5001'}
     ],
     components: {
       securitySchemes: {
@@ -65,12 +66,10 @@ const options = {
         },
       },
     },
-    security: [
-      {
-        bearerAuth: [],
-        tenantId: [],
-      },
-    ],
+    security: [{
+      bearerAuth: [],
+      tenantId: [],
+     }],
   },
   apis: ['./routes/*.js'],
 };

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/buyers.controller');
+const buyersController = require('../controllers/buyers.controller');
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 
 router.use(verifyTokenAndTenant);
@@ -18,8 +18,6 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get all buyers
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of buyers
@@ -28,7 +26,7 @@ router.use(verifyTokenAndTenant);
  *       500:
  *         description: Server error
  */
-router.get('/', controller.getAllBuyers);
+router.get('/', buyersController.getAllBuyers);
 
 /**
  * @swagger
@@ -36,8 +34,6 @@ router.get('/', controller.getAllBuyers);
  *   get:
  *     summary: Get a single buyer by ID
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -53,7 +49,7 @@ router.get('/', controller.getAllBuyers);
  *       401:
  *         description: Unauthorized
  */
-router.get('/:id', controller.getBuyerById);
+router.get('/:id', buyersController.getBuyerById);
 
 /**
  * @swagger
@@ -61,8 +57,6 @@ router.get('/:id', controller.getBuyerById);
  *   post:
  *     summary: Create a new buyer
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -88,7 +82,7 @@ router.get('/:id', controller.getBuyerById);
  *       500:
  *         description: Failed to create buyer
  */
-router.post('/', controller.createBuyer);
+router.post('/', buyersController.createBuyer);
 
 /**
  * @swagger
@@ -96,8 +90,6 @@ router.post('/', controller.createBuyer);
  *   put:
  *     summary: Update a buyer
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -129,7 +121,7 @@ router.post('/', controller.createBuyer);
  *       500:
  *         description: Server error
  */
-router.put('/:id', controller.updateBuyer);
+router.put('/:id', buyersController.updateBuyer);
 
 /**
  * @swagger
@@ -137,8 +129,6 @@ router.put('/:id', controller.updateBuyer);
  *   delete:
  *     summary: Delete a buyer
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -156,6 +146,6 @@ router.put('/:id', controller.updateBuyer);
  *       500:
  *         description: Server error
  */
-router.delete('/:id', controller.deleteBuyer);
+router.delete('/:id', buyersController.deleteBuyer);
 
 module.exports = router;

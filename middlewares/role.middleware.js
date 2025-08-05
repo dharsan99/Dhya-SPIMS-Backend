@@ -4,7 +4,8 @@
  */
 const requireRole = (...roles) => {
     return (req, res, next) => {
-      if (!req.user || !roles.includes(req.user.role)) {
+      console.log('User role:', req.user?.role, 'Allowed roles:', roles);
+      if (!req.user || !roles.map(r => r.toLowerCase()).includes((req.user.role || '').toLowerCase())) {
         return res.status(403).json({ error: 'Access denied: insufficient permissions' });
       }
       next();

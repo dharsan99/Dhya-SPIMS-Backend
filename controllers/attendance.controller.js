@@ -1,157 +1,198 @@
-//pullable request
 const attendanceService = require('../services/attendance.service');
 
-
-
-exports.markAttendance = async (req, res) => {
-  try {
-    const result = await attendanceService.markAttendance(req.body); // pass full payload
-    res.json(result);
-  } catch (error) {
-    console.error('Attendance marking error:', error);
-    res.status(500).json({ error: 'Failed to mark attendance' });
-  }
-};
-
-
-exports.getAttendanceByDate = async (req, res) => {
-  try {
-    const data = await attendanceService.getAttendanceByDate(req.query);
-    res.json(data);
-  } catch (error) {
-    console.error('Error fetching attendance by date:', error);
-    res.status(400).json({ error: error.message || 'Failed to fetch attendance' });
-  }
-};
-
-
-exports.getAttendanceRange = async (req, res) => {
-  try {
-    const result = await attendanceService.getAttendanceRange(req.query);
-    res.json(result);
-  } catch (error) {
-    console.error('Error fetching attendance range:', error);
-    res.status(400).json({ error: error.message || 'Failed to fetch attendance range' });
-  }
-};
-
+// 1. Get all attendance (paginated, empid optional)
 exports.getAllAttendance = async (req, res) => {
   try {
-    const result = await attendanceService.getAllAttendance(req.query);
+    const { page = 1, limit = 10, empid, date } = req.query;
+    const result = await attendanceService.getAllAttendance({ page, limit, empid, date });
     res.json(result);
   } catch (error) {
-    console.error('Error fetching all attendance:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    console.error('Error in getAllAttendance:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
-exports.createAttendance = async (req, res) => {
-  try {
-    const attendance = await attendanceService.createAttendance(req.body);
-    res.status(201).json(attendance);
-  } catch (error) {
-    console.error('Create Attendance Error:', error);
-    res.status(500).json({ error: error.message || 'Failed to create attendance' });
-  }
-};
-
+// 2. Update attendance by employee ID and date
 exports.updateAttendance = async (req, res) => {
   try {
-    const employeeId = req.params.employee_id;
-    const updated = await attendanceService.updateAttendance(employeeId, req.body);
-    
-    // Handle both update and create responses
-    if (updated.count !== undefined) {
-      res.json({ message: 'Attendance updated', count: updated.count });
-    } else {
-      res.json({ message: 'Attendance created/updated successfully', data: updated });
-    }
+    const { empid } = req.params;
+    const result = await attendanceService.updateAttendance(empid, req.body);
+    res.json(result);
   } catch (error) {
-    console.error('Update Attendance Error:', error);
-    res.status(500).json({ error: error.message || 'Failed to update attendance' });
+    console.error('Error in updateAttendance:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
+// 3. Delete all attendance for an employee
 exports.deleteAttendance = async (req, res) => {
   try {
-    const employeeId = req.params.employee_id;
-    const deleted = await attendanceService.deleteAttendance(employeeId);
-    res.json({ message: 'Attendance deleted', count: deleted.count });
+    const { empid } = req.params;
+    const result = await attendanceService.deleteAttendance(empid);
+    res.json(result);
   } catch (error) {
-    console.error('Delete Attendance Error:', error);
-    res.status(500).json({ error: 'Failed to delete attendance' });
+    console.error('Error in deleteAttendance:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
+// 4. Get attendance by specific date
+exports.getByDate = async (req, res) => {
+  try {
+    const { date, page = 1, limit = 10 } = req.query;
+    if (!date) {
+      return res.status(400).json({ error: 'Date parameter is required' });
+    }
+    const result = await attendanceService.getByDate(date, { page, limit });
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getByDate:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 5. Get attendance by date range
+exports.getByRange = async (req, res) => {
+  try {
+    const { start, end, page = 1, limit = 10 } = req.query;
+    const result = await attendanceService.getByRange({ start, end, page, limit });
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getByRange:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 6. Bulk update attendance by date
+exports.bulkUpdateAttendance = async (req, res) => {
+  const { date, records } = req.body;
+
+  try {
+    console.log('bulkUpdateAttendance req.body:', JSON.stringify(req.body, null, 2));
+    const result = await attendanceService.bulkUpdateAttendance(date, records);
+    return res.status(200).json(result);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+// 7. Get attendance summary
 exports.getAttendanceSummary = async (req, res) => {
   try {
-    const summary = await attendanceService.getAttendanceSummary(req.query);
-    res.json(summary);
+    const result = await attendanceService.getAttendanceSummary(req.query);
+    res.json(result);
   } catch (error) {
-    console.error('Error fetching attendance summary:', error);
-    res.status(400).json({ error: error.message || 'Failed to fetch attendance summary' });
+    console.error('Error in getAttendanceSummary:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 
-exports.getFilteredAttendance = async (req, res) => {
-  const { employee_id, department, shift } = req.query;
-
-  try {
-    const data = await attendanceService.getFilteredAttendance({ employee_id, department, shift });
-    res.json(data);
-  } catch (err) {
-    console.error('Error fetching filtered attendance:', err); // ✅ Make sure this line exists
-    res.status(500).json({ error: 'Failed to fetch attendance' });
-  }
-};
-
-
-exports.exportMonthlyAttendance = async (req, res) => {
-  try {
-    const { data, filename } = await attendanceService.exportMonthlyAttendance(req.query);
-    
-    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
-    res.setHeader('Content-Type', 'application/json');
-    res.send(JSON.stringify(data, null, 2));
-  } catch (error) {
-    console.error('Error exporting attendance:', error);
-    res.status(400).json({ error: error.message || 'Failed to export attendance' });
-  }
-};
-
-exports.updateAttendanceWithAudit = async (req, res) => {
-  try {
-    const employeeId = req.params.employee_id;
-    const auditData = {
-      ...req.body,
-      last_updated_by: req.user?.id || 'system',
-      updatedAt: new Date(),
-    };
-    
-    const updated = await attendanceService.updateAttendanceWithAudit(employeeId, auditData);
-    res.json({ message: 'Attendance updated with audit fields', count: updated.count });
-  } catch (error) {
-    console.error('Update Attendance with Audit Error:', error);
-    res.status(500).json({ error: 'Failed to update attendance with audit' });
-  }
-};
-
+// 8. Get attendance range summary
 exports.getAttendanceRangeSummary = async (req, res) => {
   try {
-    const { date, startDate, endDate, month, year } = req.query;
+    // Map startDate/endDate to start/end for compatibility
+    const query = { ...req.query };
+    if (query.startDate && !query.start) query.start = query.startDate;
+    if (query.endDate && !query.end) query.end = query.endDate;
+    const result = await attendanceService.getAttendanceRangeSummary(query);
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getAttendanceRangeSummary:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
-    const summary = await attendanceService.getAttendanceRangeSummary({
-      date,
-      startDate,
-      endDate,
-      month,
-      year,
+// 9. Get filtered attendance
+exports.getFilteredAttendance = async (req, res) => {
+  try {
+    const result = await attendanceService.getFilteredAttendance(req.query);
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getFilteredAttendance:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 10. Update attendance with audit trail
+exports.updateAttendanceWithAudit = async (req, res) => {
+  try {
+    const { empid } = req.params;
+    const updaterId = req.user?.id; // Get from auth middleware
+    const result = await attendanceService.updateAttendanceWithAudit(empid, req.body, updaterId);
+    res.json(result);
+  } catch (error) {
+    console.error('Error in updateAttendanceWithAudit:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// 11. Bulk mark attendance (new API)
+exports.markBulkAttendance = async (req, res) => {
+  try {
+    const { date, records } = req.body;
+    
+    // Validate required fields
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
+    }
+    
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ error: 'Records array is required and must not be empty' });
+    }
+
+    // Validate each record has required fields
+    for (let i = 0; i < records.length; i++) {
+      const record = records[i];
+      if (!record.employeeId) {
+        return res.status(400).json({ 
+          error: `Record ${i + 1}: employeeId is required`,
+          recordIndex: i 
+        });
+      }
+      if (!record.status || !['PRESENT', 'ABSENT', 'HALF_DAY'].includes(record.status)) {
+        return res.status(400).json({ 
+          error: `Record ${i + 1}: status must be PRESENT, ABSENT, or HALF_DAY`,
+          recordIndex: i 
+        });
+      }
+    }
+
+    // Call the service to upsert all records
+    const processedRecords = await attendanceService.markBulkAttendance(date, records);
+
+    // Check for any errors in processed records
+    const errorRecords = processedRecords.filter(rec => rec.status === 'ERROR');
+    if (errorRecords.length > 0) {
+      return res.status(400).json({ 
+        error: 'Some records failed to process',
+        failedRecords: errorRecords,
+        successfulRecords: processedRecords.filter(rec => rec.status !== 'ERROR')
+      });
+    }
+
+    // Prepare bulk attendance report response with your rules
+    const allowedShifts = ['SHIFT_1', 'SHIFT_2', 'SHIFT_3'];
+    const report = processedRecords.map(rec => {
+      // If status is ABSENT, omit shift in response
+      if (rec.status === 'ABSENT') {
+        const { shift, ...rest } = rec;
+        return rest;
+      }
+      // If shift is not one of the three, set shift to null
+      if (!allowedShifts.includes(rec.shift)) {
+        return { ...rec, shift: null };
+      }
+      return rec;
     });
 
-    res.json(summary);
+    res.json({ 
+      date, 
+      records: report,
+      message: `Successfully processed ${processedRecords.length} attendance records`
+    });
   } catch (error) {
-    console.error('Error in getAttendanceRangeSummary controller:', error);
-    res.status(500).json({ error: error.message || 'Failed to get attendance summary' });
+    console.error('Error in markBulkAttendance:', error);
+    res.status(500).json({ error: error.message });
   }
 };
 

@@ -1,16 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const userRolesAssignmentsController = require('../controllers/userRolesAssignments.controller');
+const { assignRoleToUser, getUserRole } = require('../controllers/userRoleAssignments.controller');
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-
-router.use(verifyTokenAndTenant);
 
 /**
  * @swagger
- * /user-roles/assign:
+ * tags:
+ *   name: User Role Assignments
+ *   description: Manage role assignments for users
+ */
+
+/**
+ * @swagger
+ * /user-role-assignments/assign:
  *   post:
- *     summary: Assign a role to a user
- *     tags: [User Roles Assignment]
+ *     summary: Assign or update a role for a user
+ *     tags: [User Role Assignments]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -23,62 +30,42 @@ router.use(verifyTokenAndTenant);
  *             properties:
  *               user_id:
  *                 type: string
+ *                 format: uuid
  *               role_id:
  *                 type: string
- *     responses:
- *       201:
- *         description: Role assigned successfully
- *       400:
- *         description: Bad request
- *       404:
- *         description: User or role not found
- *       500:
- *         description: Internal server error
- */
-router.post('/assign', userRolesAssignmentsController.assignRoleToUser);
-
-/**
- * @swagger
- * /user-roles/remove/{id}:
- *   delete:
- *     summary: Remove a role from a user
- *     tags: [User Roles Assignment]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
+ *                 format: uuid
  *     responses:
  *       200:
- *         description: Role removed successfully
- *       404:
- *         description: Assignment not found
+ *         description: Role assigned or updated
  *       500:
- *         description: Internal server error
+ *         description: Server error
  */
-router.delete('/remove/:id', userRolesAssignmentsController.removeRoleFromUser);
 
 /**
  * @swagger
- * /user-roles/{id}:
+ * /user-role-assignments/{userId}:
  *   get:
- *     summary: Get all roles assigned to a user
- *     tags: [User Roles Assignment]
+ *     summary: Get the role assigned to a user
+ *     tags: [User Role Assignments]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: userId
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
  *     responses:
  *       200:
- *         description: List of user roles
+ *         description: User role fetched
  *       404:
- *         description: User not found
+ *         description: Role not found for user
  *       500:
- *         description: Internal server error
+ *         description: Server error
  */
-router.get('/:id', userRolesAssignmentsController.getUserRoles);
+
+router.post('/assign', verifyTokenAndTenant, assignRoleToUser);
+router.get('/:userId', verifyTokenAndTenant, getUserRole);
 
 module.exports = router;

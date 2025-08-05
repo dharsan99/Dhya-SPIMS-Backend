@@ -1,34 +1,49 @@
-const userRolesAssignmentsService = require('../services/userRolesAssignments.service');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
-exports.assignRoleToUser = async (req, res) => {
+// Assign or update a user's role
+const assignRoleToUser = async (req, res) => {
+  const { userId, roleId } = req.body;
+
   try {
-    const result = await userRolesAssignmentsService.assignRoleToUser(req.body);
-    res.status(201).json(result);
+    const result = await prisma.userRole.upsert({
+      where: { 
+        userId_roleId: {
+          userId: userId,
+          roleId: roleId
+        }
+      },
+      update: {},
+      create: { userId: userId, roleId: roleId },
+    });
+
+    res.status(200).json(result);
   } catch (error) {
-    console.error('Assign role error:', error);
+    console.error('Error assigning role:', error);
     res.status(500).json({ error: 'Failed to assign role' });
   }
 };
 
-exports.removeRoleFromUser = async (req, res) => {
+// Get a user’s assigned role
+const getUserRole = async (req, res) => {
+  const { userId } = req.params;
+
   try {
-    const result = await userRolesAssignmentsService.removeRoleFromUser(req.params.id);
-    if (!result) {
-      return res.status(404).json({ error: 'Assignment not found' });
-    }
-    res.json({ message: 'Role removed from user successfully' });
+    const role = await prisma.userRole.findFirst({
+      where: { userId: userId },
+      include: { role: true },
+    });
+
+    if (!role) return res.status(404).json({ error: 'Role not found for user' });
+
+    res.json(role);
   } catch (error) {
-    console.error('Remove role error:', error);
-    res.status(500).json({ error: 'Failed to remove role' });
+    console.error('Error fetching user role:', error);
+    res.status(500).json({ error: 'Failed to fetch user role' });
   }
 };
 
-exports.getUserRoles = async (req, res) => {
-  try {
-    const result = await userRolesAssignmentsService.getUserRoles(req.params.id);
-    res.json(result);
-  } catch (error) {
-    console.error('Get user roles error:', error);
-    res.status(500).json({ error: 'Failed to get user roles' });
-  }
+module.exports = {
+  assignRoleToUser,
+  getUserRole,
 };

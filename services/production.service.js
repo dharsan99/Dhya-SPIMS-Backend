@@ -42,7 +42,8 @@ const calculateTotal = (sections) => {
 const validateSectionData = (section, sectionName) => {
   if (!section) return false;
   if (sectionName === 'blow_room') {
-    return typeof section === 'object' && !Array.isArray(section);
+    // Accept either single object with total/remarks OR array of entries like other sections
+    return typeof section === 'object';
   }
   return Array.isArray(section);
 };
@@ -63,21 +64,23 @@ exports.getProductionByDate = async (date, tenant_id) => {
 };
 
 // Create or update production
-exports.createOrUpdateProduction = async (data, tenant_id) => {
+exports.createOrUpdateProduction = async (data, tenant_id, user_id) => {
   try {
     const { date, ...productionData } = data;
+    // Remove keys that are not part of Prisma model
+    const { selected_orders, ...cleanData } = productionData;
     const utcDate = toUTCDate(date);
 
     // Validate section data
     const sections = ['blow_room', 'carding', 'drawing', 'framing', 'simplex', 'spinning', 'autoconer'];
     sections.forEach(section => {
-      if (!validateSectionData(productionData[section], section)) {
+      if (!validateSectionData(cleanData[section], section)) {
         throw new Error(`Invalid data format for ${section}`);
       }
     });
 
     // Calculate total production
-    const total = calculateTotal(productionData);
+    const total = calculateTotal(cleanData);
 
     // Check if production exists for this date
     const existing = await prisma.productions.findFirst({
@@ -90,25 +93,28 @@ exports.createOrUpdateProduction = async (data, tenant_id) => {
     if (existing) {
       // Update existing production
       const updateData = {
-        ...productionData,
+        ...cleanData,
+        section: cleanData.section || 'master',
         total,
         updated_at: new Date()
       };
 
-      return await prisma.productions.update({
+      return await prisma.production.update({
         where: { id: existing.id },
         data: updateData
       });
     } else {
       // Create new production
       const createData = {
-        ...productionData,
+        ...cleanData,
+        section: cleanData.section || 'master',
         date: utcDate,
         total,
-        tenant_id
+        tenant_id,
+        created_by: user_id,
       };
 
-      return await prisma.productions.create({
+      return await prisma.production.create({
         data: createData
       });
     }
@@ -133,7 +139,7 @@ exports.updateProduction = async (id, data) => {
     // Calculate total production
     const total = calculateTotal(updateData);
 
-    return await prisma.productions.update({
+    return await prisma.production.update({
       where: { id },
       data: {
         ...updateData,
@@ -147,15 +153,15 @@ exports.updateProduction = async (id, data) => {
 };
 
 // Get all productions for a tenant
-exports.getAllProductions = async (tenant_id, order_id) => {
+exports.getAllProductions = async (tenantId, orderId) => {
   try {
-    const where = { tenant_id };
+    const where = { tenantId };
     
-    if (order_id) {
-      where.order_id = order_id;
+    if (orderId) {
+      where.orderId = orderId;
     }
 
-    const results = await prisma.productions.findMany({
+    const results = await prisma.production.findMany({
       where,
       orderBy: { date: 'desc' },
       include: {
@@ -179,7 +185,7 @@ exports.getAllProductions = async (tenant_id, order_id) => {
 //
 
 exports.getProductionById = async (id) => {
-  return await prisma.productions.findUnique({
+  return await prisma.production.findUnique({
     where: { id },
     include: {
       order: true,
@@ -195,18 +201,18 @@ exports.getProductionById = async (id) => {
 //
 
 exports.createProductionLog = async (data) => {
-  return await prisma.production_logs.create({ data });
+  return await prisma.productionLog.create({ data });
 };
 
 exports.getLogsByProductionId = async (production_id) => {
-  return await prisma.production_logs.findMany({
+  return await prisma.productionLog.findMany({
     where: { production_id },
     orderBy: { log_date: 'asc' },
   });
 };
 
 exports.getDailySummary = async (tenant_id, date) => {
-  return await prisma.production_logs.aggregate({
+  return await prisma.productionLog.aggregate({
     where: {
       production: { tenant_id },
       log_date: new Date(date),
@@ -216,7 +222,7 @@ exports.getDailySummary = async (tenant_id, date) => {
 };
 
 exports.getMachineSummary = async (tenant_id) => {
-  return await prisma.production_logs.groupBy({
+  return await prisma.productionLog.groupBy({
     by: ['machine'],
     where: {
       production: { tenant_id },
@@ -236,7 +242,7 @@ exports.getMachineSummary = async (tenant_id) => {
 //
 
 exports.getDailyEfficiency = async (tenant_id) => {
-  const productions = await prisma.productions.findMany({
+  const productions = await prisma.production.findMany({
     where: { tenant_id },
     orderBy: { date: 'asc' }
   });
@@ -252,7 +258,7 @@ exports.getDailyEfficiency = async (tenant_id) => {
 };
 
 exports.getMachineEfficiency = async (tenant_id) => {
-  const productions = await prisma.productions.findMany({
+  const productions = await prisma.production.findMany({
     where: { tenant_id }
   });
 
@@ -287,7 +293,7 @@ exports.getMachineEfficiency = async (tenant_id) => {
 };
 
 exports.getProductionAnalytics = async (tenant_id) => {
-  const productions = await prisma.productions.findMany({
+  const productions = await prisma.production.findMany({
     where: { tenant_id }
   });
 
@@ -303,7 +309,7 @@ exports.getProductionAnalytics = async (tenant_id) => {
 };
 
 exports.getProductionLogs = async (tenant_id) => {
-    return await prisma.production_logs.findMany({
+    return await prisma.productionLog.findMany({
       where: {
         production: {
           tenant_id,
@@ -325,13 +331,13 @@ exports.getProductionLogs = async (tenant_id) => {
   };
 
 exports.getCumulativeProgressByOrder = async (order_id) => {
-    const order = await prisma.orders.findUnique({
+    const order = await prisma.order.findUnique({
     where: { id: order_id }
     });
   
     if (!order) throw new Error('Order not found');
   
-  const productions = await prisma.productions.findMany({
+  const productions = await prisma.production.findMany({
     where: { order_id },
     orderBy: { date: 'asc' }
   });
@@ -390,3 +396,12 @@ exports.getCumulativeProgressByOrder = async (order_id) => {
     }))
     };
   };
+
+// PUBLIC: Create production (wrapper for REST controller)
+exports.createProduction = async (data, user) => {
+  const tenant_id = user?.tenantId;
+  if (!tenant_id) {
+    throw new Error('Unauthorized: Missing tenant ID');
+  }
+  return exports.createOrUpdateProduction(data, tenant_id, user.id);
+};

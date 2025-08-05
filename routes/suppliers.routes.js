@@ -3,7 +3,6 @@ const router = express.Router();
 const supplierController = require('../controllers/suppliers.controller');
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 
-// Apply JWT + tenant validation to all routes in this file
 router.use(verifyTokenAndTenant);
 
 /**
@@ -19,8 +18,6 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get all suppliers
  *     tags: [Suppliers]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of suppliers
@@ -37,8 +34,6 @@ router.get('/', supplierController.getAllSuppliers);
  *   get:
  *     summary: Get a supplier by ID
  *     tags: [Suppliers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -62,8 +57,6 @@ router.get('/:id', supplierController.getSupplierById);
  *   post:
  *     summary: Create a new supplier
  *     tags: [Suppliers]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -97,8 +90,6 @@ router.post('/', supplierController.createSupplier);
  *   put:
  *     summary: Update a supplier
  *     tags: [Suppliers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -138,8 +129,6 @@ router.put('/:id', supplierController.updateSupplier);
  *   delete:
  *     summary: Delete a supplier
  *     tags: [Suppliers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id

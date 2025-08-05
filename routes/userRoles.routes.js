@@ -1,44 +1,124 @@
 const express = require('express');
 const router = express.Router();
-const userRolesController = require('../controllers/userRoles.controller');
+const { 
+  createRole, 
+  getRoleById,
+  getAllRoles,
+  updateRole,
+  deleteRole,
+  assignRoleToUser,
+  getUsersWithRolesByTenant,
+  getRolesByTenant
+} = require('../controllers/userRoles.controller');
 const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
 
 router.use(verifyTokenAndTenant);
 
 /**
  * @swagger
- * /roles:
+ * tags:
+ *   name: User Roles
+ *   description: Manage role definitions and assignments for a tenant
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     RoleInput:
+ *       type: object
+ *       required:
+ *         - name
+ *         - tenantId
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: Admin
+ *           description: Role name
+ *         description:
+ *           type: string
+ *           example: Administrator role with full access
+ *           description: Role description
+ *         permissions:
+ *           type: object
+ *           example:
+ *             Orders: ["Add Order", "Update Order", "Delete Order", "View Order"]
+ *             Users: ["Add User", "Update User", "Delete User", "View User"]
+ *           description: Role permissions as JSON object
+ *         tenantId:
+ *           type: string
+ *           format: uuid
+ *           example: 123e4567-e89b-12d3-a456-426614174000
+ *           description: Tenant ID for the role
+ *     RoleOutput:
+ *       allOf:
+ *         - $ref: '#/components/schemas/RoleInput'
+ *         - type: object
+ *           properties:
+ *             id:
+ *               type: string
+ *               format: uuid
+ *               example: 123e4567-e89b-12d3-a456-426614174000
+ *             createdAt:
+ *               type: string
+ *               format: date-time
+ *               description: Role creation date
+ *             updatedAt:
+ *               type: string
+ *               format: date-time
+ *               description: Role last update date
+ *             userRoles:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   user:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       isActive:
+ *                         type: boolean
+ */
+
+/**
+ * @swagger
+ * /user-roles:
  *   post:
  *     summary: Create a new role
- *     tags: [ User Roles]
+ *     tags: [User Roles]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - name
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               is_active:
- *                 type: boolean
+ *             $ref: '#/components/schemas/RoleInput'
  *     responses:
  *       201:
  *         description: Role created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 role:
+ *                   $ref: '#/components/schemas/RoleOutput'
  *       400:
- *         description: Bad request
+ *         description: Missing required fields
  *       500:
  *         description: Internal server error
  */
-router.post('/', userRolesController.createRole);
+router.post('/', createRole);
 
 /**
  * @swagger
- * /roles/{id}:
+ * /user-roles/{id}:
  *   get:
  *     summary: Get role by ID
  *     tags: [User Roles]
@@ -48,57 +128,98 @@ router.post('/', userRolesController.createRole);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
+ *         description: Role ID
  *     responses:
  *       200:
- *         description: Role found
+ *         description: Role retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 role:
+ *                   $ref: '#/components/schemas/RoleOutput'
  *       404:
  *         description: Role not found
  *       500:
  *         description: Internal server error
  */
-router.get('/:id', userRolesController.getRoleById);
+router.get('/:id', getRoleById);
 
 /**
  * @swagger
- * /roles:
+ * /user-roles:
  *   get:
- *     summary: Get all roles
+ *     summary: Get all roles for a tenant with pagination
  *     tags: [User Roles]
  *     parameters:
  *       - in: query
  *         name: tenantId
+ *         required: true
  *         schema:
  *           type: string
- *         required: true
- *         description: The ID of the tenant
+ *           format: uuid
+ *         description: Tenant ID to filter roles
  *       - in: query
  *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 10
+ *         description: Number of items per page
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
+ *         description: Search term for role name or description
  *     responses:
  *       200:
- *         description: List of roles
+ *         description: Roles retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/RoleOutput'
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
  *       400:
  *         description: Missing tenantId
  *       500:
  *         description: Internal server error
  */
-
-router.get('/', userRolesController.getAllRoles);
+router.get('/', getAllRoles);
 
 /**
  * @swagger
- * /roles/{id}:
+ * /user-roles/{id}:
  *   put:
- *     summary: Update a role
+ *     summary: Update role by ID
  *     tags: [User Roles]
  *     parameters:
  *       - in: path
@@ -106,8 +227,9 @@ router.get('/', userRolesController.getAllRoles);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
+ *         description: Role ID
  *     requestBody:
- *       required: true
  *       content:
  *         application/json:
  *           schema:
@@ -115,25 +237,39 @@ router.get('/', userRolesController.getAllRoles);
  *             properties:
  *               name:
  *                 type: string
+ *                 description: Role name
  *               description:
  *                 type: string
- *               is_active:
- *                 type: boolean
+ *                 description: Role description
+ *               permissions:
+ *                 type: object
+ *                 description: Role permissions as JSON object
  *     responses:
  *       200:
  *         description: Role updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 role:
+ *                   $ref: '#/components/schemas/RoleOutput'
+ *       400:
+ *         description: Missing required fields
  *       404:
  *         description: Role not found
  *       500:
  *         description: Internal server error
  */
-router.put('/:id', userRolesController.updateRole);
+router.put('/:id', updateRole);
 
 /**
  * @swagger
- * /roles/{id}:
+ * /user-roles/{id}:
  *   delete:
- *     summary: Delete a role
+ *     summary: Delete role by ID
  *     tags: [User Roles]
  *     parameters:
  *       - in: path
@@ -141,39 +277,188 @@ router.put('/:id', userRolesController.updateRole);
  *         required: true
  *         schema:
  *           type: string
+ *           format: uuid
+ *         description: Role ID
  *     responses:
  *       200:
  *         description: Role deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 role:
+ *                   $ref: '#/components/schemas/RoleOutput'
+ *       400:
+ *         description: Cannot delete role with assigned users
  *       404:
  *         description: Role not found
  *       500:
  *         description: Internal server error
  */
-router.delete('/:id', userRolesController.deleteRole);
+router.delete('/:id', deleteRole);
 
 /**
  * @swagger
- * /users/with-roles:
- *   get:
- *     summary: Get all users with their roles and permissions by tenant ID
+ * /user-roles/assign:
+ *   post:
+ *     summary: Assign role to user
  *     tags: [User Roles]
- *     parameters:
- *       - in: query
- *         name: tenant_id
- *         schema:
- *           type: string
- *         required: true
- *         description: The ID of the tenant
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - roleId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 123e4567-e89b-12d3-a456-426614174000
+ *                 description: User ID
+ *               roleId:
+ *                 type: string
+ *                 format: uuid
+ *                 example: 123e4567-e89b-12d3-a456-426614174000
+ *                 description: Role ID
  *     responses:
  *       200:
- *         description: List of users with roles and permissions
+ *         description: Role assigned to user successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 userRole:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       format: uuid
+ *                     userId:
+ *                       type: string
+ *                       format: uuid
+ *                     roleId:
+ *                       type: string
+ *                       format: uuid
+ *                     role:
+ *                       $ref: '#/components/schemas/RoleOutput'
+ *                     user:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         isActive:
+ *                           type: boolean
  *       400:
- *         description: Missing tenant_id
+ *         description: Missing required fields
  *       500:
  *         description: Internal server error
  */
+router.post('/assign', assignRoleToUser);
 
-router.get('/with-roles', userRolesController.getUsersWithRolesByTenant);
+/**
+ * @swagger
+ * /user-roles/users-by-tenant:
+ *   get:
+ *     summary: Get users with their roles by tenant
+ *     tags: [User Roles]
+ *     parameters:
+ *       - in: query
+ *         name: tenantId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Tenant ID to get users for
+ *     responses:
+ *       200:
+ *         description: Users with roles retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         format: uuid
+ *                       name:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       isActive:
+ *                         type: boolean
+ *                       role:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                             format: uuid
+ *                           name:
+ *                             type: string
+ *                           permissions:
+ *                             type: object
+ *                           tenantId:
+ *                             type: string
+ *                             format: uuid
+ *       400:
+ *         description: Missing tenantId or invalid format
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/users-by-tenant', getUsersWithRolesByTenant);
 
+/**
+ * @swagger
+ * /user-roles/roles-by-tenant:
+ *   get:
+ *     summary: Get all roles for a specific tenant
+ *     tags: [User Roles]
+ *     parameters:
+ *       - in: query
+ *         name: tenantId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: Tenant ID to get roles for
+ *     responses:
+ *       200:
+ *         description: Roles retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 roles:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/RoleOutput'
+ *       400:
+ *         description: Missing tenantId
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/roles-by-tenant', getRolesByTenant);
 
 module.exports = router;

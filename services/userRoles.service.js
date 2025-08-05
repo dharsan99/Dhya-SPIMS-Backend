@@ -1,33 +1,78 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { validate: isUuid } = require('uuid');
+
 class UserRolesService {
   async createRole(roleData) {
-    return prisma.roles.create({
+    const { name, description, permissions, tenantId } = roleData;
+    
+    if (!name || !tenantId) {
+      throw new Error('Name and tenantId are required');
+    }
+
+    return prisma.role.create({
       data: {
-        name: roleData.name,
-        description: roleData.description,
-        is_active: roleData.is_active !== undefined ? roleData.is_active : true,
+        name,
+        description,
+        permissions,
+        tenantId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
+      include: {
+        userRoles: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                isActive: true
+              }
+            }
+          }
+        }
+      }
     });
   }
 
   async getRoleById(roleId) {
-    return prisma.roles.findUnique({
+    if (!isUuid(roleId)) {
+      throw new Error('Invalid roleId format');
+    }
+
+    return prisma.role.findUnique({
       where: { id: roleId },
       include: {
-        permissions: true,
-        user_roles: true,
-      },
+        userRoles: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                isActive: true
+              }
+            }
+          }
+        },
+        tenant: true
+      }
     });
   }
+
   async getAllRoles(query) {
     const { page = 1, limit = 10, search = '', tenantId } = query;
   
-    const skip = (page - 1) * limit;
+    if (!tenantId) {
+      throw new Error('tenantId is required');
+    }
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
   
     const where = {
-      tenantId, // Ensure this is part of your roles schema
+      tenantId,
       ...(search && {
         OR: [
           { name: { contains: search, mode: 'insensitive' } },
@@ -37,66 +82,146 @@ class UserRolesService {
     };
   
     const [roles, count] = await prisma.$transaction([
-      prisma.roles.findMany({
+      prisma.role.findMany({
         where,
         skip,
-        take: parseInt(limit),
+        take,
         include: {
-          permissions: true,
+          userRoles: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  isActive: true
+                }
+              }
+            }
+          },
+          tenant: true
         },
+        orderBy: {
+          createdAt: 'desc'
+        }
       }),
-      prisma.roles.count({ where }),
+      prisma.role.count({ where }),
     ]);
   
     return {
       data: roles,
       meta: {
         total: count,
-        page,
-        limit,
-        totalPages: Math.ceil(count / limit),
+        page: parseInt(page),
+        limit: take,
+        totalPages: Math.ceil(count / take),
       },
     };
   }
-  
 
   async updateRole(roleId, updateData) {
-    return prisma.roles.update({
+    if (!isUuid(roleId)) {
+      throw new Error('Invalid roleId format');
+    }
+
+    const { name, description, permissions } = updateData;
+    
+    return prisma.role.update({
       where: { id: roleId },
       data: {
-        ...updateData,
-        is_active: updateData.is_active !== undefined ? updateData.is_active : undefined,
+        name,
+        description,
+        permissions,
+        updatedAt: new Date(),
       },
+      include: {
+        userRoles: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                isActive: true
+              }
+            }
+          }
+        },
+        tenant: true
+      }
     });
   }
 
   async deleteRole(roleId) {
-    return prisma.roles.delete({
+    if (!isUuid(roleId)) {
+      throw new Error('Invalid roleId format');
+    }
+
+    // Check if role has assigned users
+    const roleWithUsers = await prisma.role.findUnique({
+      where: { id: roleId },
+      include: {
+        userRoles: true
+      }
+    });
+
+    if (roleWithUsers && roleWithUsers.userRoles.length > 0) {
+      throw new Error('Cannot delete role with assigned users');
+    }
+
+    return prisma.role.delete({
       where: { id: roleId },
     });
   }
 
-  
+  async assignRoleToUser(userId, roleId) {
+    if (!isUuid(userId) || !isUuid(roleId)) {
+      throw new Error('Invalid userId or roleId format');
+    }
 
-  async getUsersWithRolesByTenant({ tenant_id }) {
-    // ✅ UUID validation to prevent Prisma error
-    if (!isUuid(tenant_id)) {
-      throw new Error('Invalid tenant_id format');
+    // First remove any existing role assignments for this user
+    await prisma.userRole.deleteMany({
+      where: { userId }
+    });
+
+    // Then assign the new role
+    return prisma.userRole.create({
+      data: {
+        userId,
+        roleId
+      },
+      include: {
+        role: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            isActive: true
+          }
+        }
+      }
+    });
+  }
+
+  async getUsersWithRolesByTenant({ tenantId }) {
+    if (!isUuid(tenantId)) {
+      throw new Error('Invalid tenantId format');
     }
   
-    // ✅ Fetch users with their roles for the given tenant
     const users = await prisma.users.findMany({
       where: {
-        user_roles: {
+        tenantId,
+        userRoles: {
           some: {
             role: {
-              tenant_id: tenant_id,
+              tenantId: tenantId,
             },
           },
         },
       },
       include: {
-        user_roles: {
+        userRoles: {
           include: {
             role: true,
           },
@@ -104,31 +229,52 @@ class UserRolesService {
       },
     });
   
-    // ✅ Format the response
     return users.map((user) => {
-      const primaryRole = user.user_roles[0]?.role;
+      const primaryRole = user.userRoles[0]?.role;
   
       return {
         id: user.id,
         name: user.name,
         email: user.email,
+        isActive: user.isActive,
         role: primaryRole
           ? {
               id: primaryRole.id,
               name: primaryRole.name,
-              permissions:
-                typeof primaryRole.permissions === 'string'
-                  ? JSON.parse(primaryRole.permissions)
-                  : primaryRole.permissions,
-              tenant_id: primaryRole.tenant_id,
+              permissions: primaryRole.permissions,
+              tenantId: primaryRole.tenantId,
             }
           : null,
       };
     });
   }
-  
+
+  async getRolesByTenant(tenantId) {
+    if (!isUuid(tenantId)) {
+      throw new Error('Invalid tenantId format');
+    }
+
+    return prisma.role.findMany({
+      where: { tenantId },
+      include: {
+        userRoles: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                isActive: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+  }
 }
-
-
 
 module.exports = new UserRolesService();
