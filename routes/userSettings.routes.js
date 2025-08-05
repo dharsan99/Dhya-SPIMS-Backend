@@ -16,8 +16,6 @@ const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
  *   get:
  *     summary: Get settings for the logged-in user
  *     tags: [UserSettings]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: User settings retrieved
@@ -38,8 +36,6 @@ router.get('/', verifyTokenAndTenant, controller.getUserSettings);
  *   put:
  *     summary: Update settings for the logged-in user
  *     tags: [UserSettings]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:

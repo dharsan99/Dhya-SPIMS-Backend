@@ -20,24 +20,20 @@ model FibreCategory {
 
 model Fibre {
   id            String         @id @default(uuid()) @db.Uuid
-  fibreName     String
-  fibreCode     String
-  stockKg       Decimal        @db.Decimal(10, 2)
   description   String?
-  createdAt     DateTime?      @default(now()) @db.Timestamp(6)
-  updatedAt     DateTime?      @updatedAt @db.Timestamp(6)
   categoryId    String?        @db.Uuid
   closingStock  Decimal?       @db.Decimal(10, 2)
   consumedStock Decimal?       @db.Decimal(10, 2)
+  createdAt     DateTime       @default(now()) @db.Timestamp(6)
+  fibreCode     String
+  fibreName     String
   inwardStock   Decimal?       @db.Decimal(10, 2)
   outwardStock  Decimal?       @db.Decimal(10, 2)
-  
-  // Relations
-  category      FibreCategory? @relation(fields: [categoryId], references: [id])
+  stockKg       Decimal        @db.Decimal(10, 2)
+  updatedAt     DateTime       @updatedAt @db.Timestamp(6)
   blendFibres   BlendFibre[]
+  category      FibreCategory? @relation(fields: [categoryId], references: [id])
   shadeFibres   ShadeFibre[]
-  fibreTransfers FibreTransfer[]
-  restockRequests FibreRestockRequest[]
 
   @@map("fibres")
 }
@@ -76,8 +72,6 @@ model Shade {
   updatedAt   DateTime?    @updatedAt @db.Timestamp(6)
   shadeFibres ShadeFibre[]
   tenant      Tenant?      @relation(fields: [tenantId], references: [id])
-  orders      Order[]
-  rawCottonCompositions RawCottonComposition[]
 
   @@index([tenantId])
   @@map("shades")
@@ -109,19 +103,7 @@ model Tenant {
   phone        String?
   storage_path String?
   updatedAt    DateTime? @updatedAt @db.Timestamp(6)
-  
-  // Relations
   shades       Shade[]
-  orders       Order[]
-  productions  Production[]
-  users        Users[]
-  followUpTasks FollowUpTask[]
-  growthCampaigns GrowthCampaign[]
-  companyPersonas CompanyPersona[]
-  settings     Setting?
-  subscriptions Subscription[]
-  billing      Billing[]
-  payments     Payment[]
 
   @@map("tenants")
 }
@@ -134,10 +116,7 @@ model Subscription {
   planType  String?
   startDate DateTime? @db.Date
   tenantId  String?   @db.Uuid
-  
-  // Relations
-  plan   Plan?   @relation(fields: [planId], references: [id])
-  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  plan      Plan?     @relation(fields: [planId], references: [id])
 
   @@map("subscriptions")
 }
@@ -176,12 +155,6 @@ model Users {
   resetPasswordToken   String?
   resetPasswordExpires DateTime? @db.Timestamp(6)
 
-  // Relations
-  userRoles    UserRole[]
-  userSettings UserSetting?
-  tenant       Tenant? @relation(fields: [tenantId], references: [id])
-  productions  Production[]
-
   @@map("users")
 }
 
@@ -195,9 +168,6 @@ model UserSetting {
   smsAlerts          Boolean  @default(false)
   updatedAt          DateTime @updatedAt
   userId             String   @unique @db.Uuid
-
-  // Relations
-  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
 }
@@ -218,9 +188,6 @@ model Setting {
   smsAlerts           Boolean   @default(false)
   tenantId            String    @unique @db.Uuid
   updatedAt           DateTime  @updatedAt
-  
-  // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("settings")
 }
@@ -234,10 +201,6 @@ model Role {
   tenantId    String   @db.Uuid
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  userRoles       UserRole[]
-  rolePermissions RolePermission[]
-
   @@unique([tenantId, name])
   @@map("roles")
 }
@@ -246,10 +209,6 @@ model UserRole {
   id     String @id @default(uuid()) @db.Uuid
   roleId String @db.Uuid
   userId String @db.Uuid
-
-  // Relations
-  role Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId])
   @@map("user_roles")
@@ -260,9 +219,6 @@ model Permission {
   code        String @unique
   description String
 
-  // Relations
-  rolePermissions RolePermission[]
-
   @@map("permissions")
 }
 
@@ -270,10 +226,6 @@ model RolePermission {
   id           String @id @default(uuid()) @db.Uuid
   permissionId String @db.Uuid
   roleId       String @db.Uuid
-
-  // Relations
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, permissionId])
   @@map("role_permissions")
@@ -290,12 +242,6 @@ model Production {
   tenantId  String   @db.Uuid
   total     Decimal  @default(0)
   updatedAt DateTime @updatedAt
-
-  // Relations
-  order      Order?   @relation(fields: [orderId], references: [id])
-  tenant     Tenant   @relation(fields: [tenantId], references: [id])
-  logs       ProductionLog[]
-  user       Users    @relation(fields: [createdBy], references: [id])
 
   @@unique([date, tenantId])
   @@index([date])
@@ -318,9 +264,6 @@ model ProductionLog {
   productionId String   @db.Uuid
   updatedAt    DateTime @updatedAt
 
-  // Relations
-  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
-
   @@index([productionId])
   @@index([section])
   @@index([logDate])
@@ -336,10 +279,6 @@ model Buyer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  orders Order[]
-  mailingListBuyers MailingListBuyer[]
-
   @@map("buyers")
 }
 
@@ -352,10 +291,6 @@ model Supplier {
   createdAt DateTime @default(now())
   isActive  Boolean  @default(true)
   updatedAt DateTime @updatedAt
-  
-  // Relations
-  fibreTransfers FibreTransfer[]
-  fibreRequests  FibreRestockRequest[]
 
   @@map("suppliers")
 }
@@ -372,9 +307,6 @@ model Employee {
   joinDate   DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
-  
-  // Relations
-  attendance Attendance[]
 
   @@map("employees")
 }
@@ -394,12 +326,6 @@ model Order {
   totalAmount  Decimal   @db.Decimal(12, 2)
   unitPrice    Decimal   @db.Decimal(10, 2)
   updatedAt    DateTime  @updatedAt
-
-  // Relations
-  buyer    Buyer @relation(fields: [buyerId], references: [id])
-  shade    Shade @relation(fields: [shadeId], references: [id])
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-  productions Production[]
 
   @@map("orders")
 }
@@ -430,9 +356,6 @@ model PurchaseOrder {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   createdBy          String?
-  
-  // Relations
-  items PurchaseOrderItem[]
 
   @@map("purchase_orders")
 }
@@ -451,9 +374,6 @@ model PurchaseOrderItem {
   gstPercent      Decimal? @db.Decimal(4, 2)
   taxableAmount   Decimal  @db.Decimal(12, 2)
   shadeNo         String?
-  
-  // Relations
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 
   @@map("purchase_order_items")
 }
@@ -468,10 +388,6 @@ model FibreRestockRequest {
   requestedKg  Decimal   @db.Decimal(10, 2)
   supplierId   String    @db.Uuid
   updatedAt    DateTime  @updatedAt
-  
-  // Relations
-  fibre    Fibre    @relation(fields: [fibreId], references: [id], onDelete: Cascade)
-  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@index([fibreId])
   @@index([supplierId])
@@ -491,10 +407,6 @@ model FibreTransfer {
   supplierId     String    @db.Uuid
   updatedAt      DateTime  @updatedAt
   status         String?   @default("pending") @db.VarChar(255)
-  
-  // Relations
-  fibre    Fibre    @relation(fields: [fibreId], references: [id], onDelete: Cascade)
-  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   @@index([fibreId])
   @@index([supplierId])
@@ -529,10 +441,6 @@ model RawCottonComposition {
   percentage Decimal  @db.Decimal(5, 2)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  
-  // Relations
-  shade  Shade  @relation(fields: [shadeId], references: [id])
-  cotton Cotton @relation(fields: [cottonId], references: [id])
 
   @@unique([shadeId, cottonId])
   @@index([shadeId])
@@ -549,9 +457,6 @@ model Cotton {
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relations
-  compositions RawCottonComposition[]
 
   @@map("cottons")
 }
@@ -569,9 +474,6 @@ model Attendance {
   inTime        DateTime
   lastUpdatedBy String?          @db.Uuid
   outTime       DateTime
-  
-  // Relations
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([date, employeeId])
   @@map("Attendance")
@@ -583,9 +485,6 @@ model MailingList {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   resendAudienceId String?  @unique
-  
-  // Relations
-  mailingListBuyers MailingListBuyer[]
 
   @@map("MailingList")
 }
@@ -594,10 +493,6 @@ model MailingListBuyer {
   id            String @id @default(uuid())
   mailingListId String @db.Uuid
   buyerId       String @db.Uuid
-  
-  // Relations
-  mailingList MailingList @relation(fields: [mailingListId], references: [id], onDelete: Cascade)
-  buyer       Buyer       @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
   @@unique([mailingListId, buyerId])
   @@map("MailingListBuyer")
@@ -622,9 +517,6 @@ model Campaign {
   createdAt  DateTime @default(now())
   name       String
   recipients String[]
-  
-  // Relations
-  emailEvents EmailEvent[]
 
   @@map("Campaign")
 }
@@ -637,9 +529,6 @@ model EmailEvent {
   eventType  EmailEventType
   eventData  Json?
   createdAt  DateTime       @default(now())
-  
-  // Relations
-  campaign Campaign? @relation(fields: [campaignId], references: [id])
 
   @@index([emailId])
   @@index([recipient])
@@ -683,9 +572,6 @@ model CompanyPersona {
   isActive              Boolean  @default(true)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
-  
-  // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("CompanyPersona")
 }
@@ -699,10 +585,6 @@ model GrowthCampaign {
   status    CampaignStatus @default(DRAFT)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
-  
-  // Relations
-  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  discoveredBrands  DiscoveredBrand[]
 
   @@map("GrowthCampaign")
 }
@@ -717,10 +599,6 @@ model DiscoveredBrand {
   status             BrandStatus @default(DISCOVERED)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
-  
-  // Relations
-  campaign           GrowthCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  discoveredSuppliers DiscoveredSupplier[]
 
   @@map("DiscoveredBrand")
 }
@@ -735,10 +613,6 @@ model DiscoveredSupplier {
   discoveredBrandId String   @db.Uuid
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  
-  // Relations
-  discoveredBrand DiscoveredBrand @relation(fields: [discoveredBrandId], references: [id], onDelete: Cascade)
-  targetContacts  TargetContact[]
 
   @@index([discoveredBrandId])
   @@map("DiscoveredSupplier")
@@ -755,11 +629,6 @@ model TargetContact {
   discoveredSupplierId String        @db.Uuid
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
-  
-  // Relations
-  discoveredSupplier DiscoveredSupplier @relation(fields: [discoveredSupplierId], references: [id], onDelete: Cascade)
-  outreachEmails     OutreachEmail[]
-  followUpTasks      FollowUpTask[]
 
   @@index([discoveredSupplierId])
   @@index([email])
@@ -776,11 +645,6 @@ model OutreachEmail {
   targetContactId  String         @db.Uuid
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
-  
-  // Relations
-  targetContact TargetContact @relation(fields: [targetContactId], references: [id], onDelete: Cascade)
-  followUpTask  FollowUpTask?
-  events        OutreachEmailEvent[]
 
   @@index([targetContactId])
   @@index([status])
@@ -794,9 +658,6 @@ model OutreachEmailEvent {
   userAgent       String?
   outreachEmailId String         @db.Uuid
   createdAt       DateTime       @default(now())
-  
-  // Relations
-  outreachEmail OutreachEmail @relation(fields: [outreachEmailId], references: [id], onDelete: Cascade)
 
   @@index([outreachEmailId])
   @@index([type])
@@ -815,11 +676,6 @@ model FollowUpTask {
   relatedEmailId   String?      @unique @db.Uuid
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  
-  // Relations
-  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  relatedContact TargetContact? @relation(fields: [relatedContactId], references: [id], onDelete: SetNull)
-  relatedEmail   OutreachEmail? @relation(fields: [relatedEmailId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([status])
@@ -836,10 +692,6 @@ model Billing {
   status        String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now())
-  
-  // Relations
-  tenant   Tenant?   @relation(fields: [tenantId], references: [id])
-  payments Payment[]
 }
 
 model Payment {
@@ -851,10 +703,6 @@ model Payment {
   method    String
   status    String
   txnId     String?
-  
-  // Relations
-  billing Billing @relation(fields: [billingId], references: [id])
-  tenant  Tenant  @relation(fields: [tenantId], references: [id])
 }
 
 enum EmailEventType {

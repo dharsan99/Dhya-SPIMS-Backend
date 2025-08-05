@@ -21,8 +21,6 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get all orders for the logged-in tenant
  *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of orders
@@ -39,8 +37,6 @@ router.get('/', controller.getAllOrders);
  *   post:
  *     summary: Create a new order for the logged-in tenant
  *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -90,8 +86,6 @@ router.post('/', controller.createOrder);
  *   get:
  *     summary: Get a specific order by ID
  *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -113,8 +107,6 @@ router.get('/:id', controller.getOrderById);
  *   put:
  *     summary: Update an existing order
  *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -158,8 +150,6 @@ router.put('/:id', controller.updateOrder);
  *   put:
  *     summary: Update only the status of an order
  *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -195,8 +185,6 @@ router.put('/:id/status', controller.updateOrderStatus);
  *   delete:
  *     summary: Delete an order
  *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -218,8 +206,6 @@ router.delete('/:id', controller.deleteOrder);
  *   post:
  *     summary: Bulk import orders from Excel
  *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
  *     consumes:
  *       - multipart/form-data
  *     requestBody:
@@ -248,8 +234,6 @@ router.post('/bulk-upload', upload.single('file'), controller.bulkImportOrders);
  *   get:
  *     summary: Get full progress details for an order
  *     tags: [Orders]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id

@@ -18,8 +18,6 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get all buyers
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of buyers
@@ -36,8 +34,6 @@ router.get('/', buyersController.getAllBuyers);
  *   get:
  *     summary: Get a single buyer by ID
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -61,8 +57,6 @@ router.get('/:id', buyersController.getBuyerById);
  *   post:
  *     summary: Create a new buyer
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -96,8 +90,6 @@ router.post('/', buyersController.createBuyer);
  *   put:
  *     summary: Update a buyer
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -137,8 +129,6 @@ router.put('/:id', buyersController.updateBuyer);
  *   delete:
  *     summary: Delete a buyer
  *     tags: [Buyers]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
