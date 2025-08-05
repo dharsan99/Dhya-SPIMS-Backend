@@ -104,6 +104,7 @@ model Tenant {
   storage_path String?
   updatedAt    DateTime? @updatedAt @db.Timestamp(6)
   shades       Shade[]
+  users        Users[]
 
   @@map("tenants")
 }
@@ -150,12 +151,29 @@ model Users {
   isVerified           Boolean   @default(false)
   passwordHash         String
   tenantId             String?   @db.Uuid
+  tenant              Tenant?   @relation(fields: [tenantId], references: [id])
   updatedAt            DateTime? @updatedAt @db.Timestamp(6)
   verificationToken    String?
   resetPasswordToken   String?
   resetPasswordExpires DateTime? @db.Timestamp(6)
 
+  // Add this relation:
+  userRoles UserRole[]
+
   @@map("users")
+}
+
+model UserRole {
+  id     String @id @default(uuid()) @db.Uuid
+  roleId String @db.Uuid
+  userId String @db.Uuid
+
+  // Relations
+  role Role  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
 }
 
 model UserSetting {
@@ -201,17 +219,10 @@ model Role {
   tenantId    String   @db.Uuid
   updatedAt   DateTime @updatedAt
 
+  userRoles   UserRole[]  // Added for relation with UserRole
+
   @@unique([tenantId, name])
   @@map("roles")
-}
-
-model UserRole {
-  id     String @id @default(uuid()) @db.Uuid
-  roleId String @db.Uuid
-  userId String @db.Uuid
-
-  @@unique([userId, roleId])
-  @@map("user_roles")
 }
 
 model Permission {
@@ -676,7 +687,7 @@ model FollowUpTask {
   relatedEmailId   String?      @unique @db.Uuid
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-
+  
   @@index([tenantId])
   @@index([status])
   @@map("FollowUpTask")
