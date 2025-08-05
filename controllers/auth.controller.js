@@ -26,27 +26,25 @@ const login = async (req, res) => {
     if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
     if (!user.isActive) return res.status(403).json({ error: 'Account is deactivated.' });
 
-    if (!user.userRoles || user.userRoles.length === 0) {
-      await prisma.userRole.create({
-        data: { userId: user.id, roleId: ADMIN_ROLE_ID }
-      });
+    // Handle both old string-based role and new userRoles relation
+    let roleObj = null;
+    let roleName = null;
 
-      user = await prisma.users.findUnique({
-        where: { email },
-        include: {
-          userRoles: { include: { role: true } },
-          tenant: true
-        }
-      });
+    if (user.userRoles && user.userRoles.length > 0) {
+      // New relation-based role
+      roleObj = user.userRoles[0]?.role;
+      roleName = roleObj?.name;
+    } else if (user.role) {
+      // Old string-based role (for backward compatibility)
+      roleName = user.role;
+      roleObj = { name: user.role, description: `${user.role} role` };
     }
-
-    const roleObj = user.userRoles[0]?.role;
 
     const token = generateToken({
       id: user.id,
       email: user.email,
       tenantId: user.tenantId,
-      role: roleObj?.name
+      role: roleName
     });
 
     const { passwordHash, userRoles, tenant, ...userData } = user;

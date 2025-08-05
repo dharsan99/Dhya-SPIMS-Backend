@@ -120,6 +120,8 @@ model Tenant {
   companyPersonas CompanyPersona[]
   settings     Setting?
   subscriptions Subscription[]
+  billing      Billing[]
+  payments     Payment[]
 
   @@map("tenants")
 }
@@ -834,6 +836,10 @@ model Billing {
   status        String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now())
+  
+  // Relations
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id])
+  payments Payment[]
 }
 
 model Payment {
@@ -845,6 +851,10 @@ model Payment {
   method    String
   status    String
   txnId     String?
+  
+  // Relations
+  billing Billing @relation(fields: [billingId], references: [id])
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
 }
 
 enum EmailEventType {

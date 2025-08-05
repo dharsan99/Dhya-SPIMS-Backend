@@ -313,7 +313,10 @@ async function getRevenueTrends(tenantId) {
   }
   let where = { status: { in: ['PAID', 'paid'] } };
   if (tenantId) where.tenantId = tenantId;
-  const invoices = await prisma.billing.findMany({ where });
+  const invoices = await prisma.billing.findMany({ 
+    where,
+    include: { tenant: true }
+  });
   const trends = months.map(({ key, label, start, end }) => {
     const monthInvoices = invoices.filter(inv => inv.createdAt >= start && inv.createdAt <= end);
     const revenue = monthInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
