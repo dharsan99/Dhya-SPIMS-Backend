@@ -2,15 +2,32 @@ const { PrismaClient, Prisma } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 exports.getTenantSettings = async (tenantId) => {
-  return prisma.settings.findUnique({
-    where: { tenant_id: tenantId },
+  const settings = await prisma.setting.findFirst({
+    where: { tenantId: tenantId },
   });
+  
+  // If no settings exist, return default settings
+  if (!settings) {
+    return {
+      theme: "auto",
+      locale: "en",
+      emailNotifications: true,
+      featureToggles: {},
+      integrationAi: false,
+      integrationTally: false,
+      productionReminders: true,
+      smsAlerts: false,
+      tenantId: tenantId
+    };
+  }
+  
+  return settings;
 };
 
 exports.updateTenantSettings = async (tenantId, data) => {
-  return prisma.settings.upsert({
-    where: { tenant_id: tenantId },
+  return prisma.setting.upsert({
+    where: { tenantId: tenantId },
     update: data,
-    create: { tenant_id: tenantId, ...data },
+    create: { tenantId: tenantId, ...data },
   });
 };

@@ -6,17 +6,34 @@ const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 
 const verifyTokenAndTenant = async (req, res, next) => {
+  console.log('🔐 [AUTH] === VERIFY TOKEN AND TENANT ===');
+  console.log('🔐 [AUTH] Request URL:', req.method, req.originalUrl);
+  
   const token = req.headers.authorization?.replace('Bearer ', '');
   const tenantIdHeader = req.headers['x-tenant-id'];
 
+  console.log('🔐 [AUTH] Token exists:', !!token);
+  console.log('🔐 [AUTH] Tenant ID header:', tenantIdHeader);
+
   if (!token) {
+    console.log('❌ [AUTH] No token provided');
     return res.status(401).json({ error: 'Access token required' });
   }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log('✅ [AUTH] Token verified, decoded:', {
+      id: decoded.id,
+      email: decoded.email,
+      tenantId: decoded.tenantId,
+      role: decoded.role
+    });
 
     if (!tenantIdHeader || tenantIdHeader !== decoded.tenantId) {
+      console.log('❌ [AUTH] Tenant ID mismatch:', {
+        header: tenantIdHeader,
+        token: decoded.tenantId
+      });
       return res.status(403).json({ error: 'Invalid or missing tenant ID' });
     }
 
@@ -26,6 +43,8 @@ const verifyTokenAndTenant = async (req, res, next) => {
       role: decoded.role,
       tenantId: decoded.tenantId,
     };
+
+    console.log('✅ [AUTH] req.user set:', req.user);
 
     const user = await prisma.users.findUnique({
       where: { id: decoded.id },
@@ -49,9 +68,10 @@ const verifyTokenAndTenant = async (req, res, next) => {
     }
 
     req.user.permissions = mergedPermissions;
+    console.log('✅ [AUTH] Middleware completed successfully');
     next();
   } catch (error) {
-    console.error('Token verification error:', error);
+    console.error('❌ [AUTH] Token verification error:', error);
     return res.status(401).json({ error: 'Invalid token' });
   }
 };

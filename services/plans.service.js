@@ -3,46 +3,54 @@ const prisma = new PrismaClient();
 
 class PlansService {
   async createPlan(data) {
-    const { name, price, billingCycle, description, features, maxUsers, maxOrders, maxStorage, popular, isActive = true } = data;
-    
-    const createdAt = new Date();
-    let expiryDate, renewalDate;
-    
-    if (billingCycle === 'trial') {
-      expiryDate = new Date(createdAt.getTime() + 14 * 24 * 60 * 60 * 1000);
-    } else if (billingCycle === 'month') {
-      expiryDate = new Date(createdAt);
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
-    } else if (billingCycle === 'year') {
-      expiryDate = new Date(createdAt);
-      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+    try {
+      const { name, price, billingCycle, description, features, maxUsers, maxOrders, maxStorage, popular, isActive = true } = data;
+      
+      const createdAt = new Date();
+      let expiryDate, renewalDate;
+      
+      if (billingCycle === 'trial') {
+        expiryDate = new Date(createdAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+      } else if (billingCycle === 'month') {
+        expiryDate = new Date(createdAt);
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+      } else if (billingCycle === 'year') {
+        expiryDate = new Date(createdAt);
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+      }
+      
+      if (expiryDate) {
+        renewalDate = new Date(expiryDate);
+        renewalDate.setDate(renewalDate.getDate() + 1);
+      } else {
+        renewalDate = createdAt;
+      }
+      
+      return await prisma.plan.create({ 
+        data: { 
+          name,
+          price,
+          billingCycle,
+          description,
+          features: features || [],
+          maxUsers: maxUsers || null,
+          maxOrders: maxOrders || null,
+          maxStorage,
+          popular,
+          isActive,
+          expiryDate,
+          renewalDate,
+          createdAt,
+          updatedAt: createdAt
+        } 
+      });
+    } catch (error) {
+      console.error('Create plan error:', error);
+      if (error.code === 'P2002') {
+        throw new Error('Plan name already exists');
+      }
+      throw new Error(error.message || 'Failed to create plan');
     }
-    
-    if (expiryDate) {
-      renewalDate = new Date(expiryDate);
-      renewalDate.setDate(renewalDate.getDate() + 1);
-    } else {
-      renewalDate = createdAt;
-    }
-    
-    return prisma.plan.create({ 
-      data: { 
-        name,
-        price,
-        billingCycle,
-        description,
-        features,
-        maxUsers,
-        maxOrders,
-        maxStorage,
-        popular,
-        isActive,
-        expiryDate,
-        renewalDate,
-        createdAt,
-        updatedAt: createdAt
-      } 
-    });
   }
 
   async getAllPlans() {
@@ -73,59 +81,76 @@ class PlansService {
   }
 
   async getPlanById(id) {
-    return prisma.plan.findUnique({ 
-      where: { id },
-      include: {
-        subscriptions: {
-          include: {
-            tenant: true
-          }
+    try {
+      const plan = await prisma.plan.findUnique({ 
+        where: { id },
+        include: {
+          subscriptions: true
         }
+      });
+      
+      if (!plan) {
+        throw new Error('Plan not found');
       }
-    });
+      
+      return plan;
+    } catch (error) {
+      console.error('Get plan by ID error:', error);
+      if (error.code === 'P2025') {
+        throw new Error('Plan not found');
+      }
+      throw new Error(error.message || 'Failed to get plan');
+    }
   }
 
   async updatePlan(id, data) {
-    const { name, price, billingCycle, description, features, maxUsers, maxOrders, maxStorage, popular, isActive } = data;
-    
-    const updatedAt = new Date();
-    let expiryDate, renewalDate;
-    
-    if (billingCycle === 'trial') {
-      expiryDate = new Date(updatedAt.getTime() + 14 * 24 * 60 * 60 * 1000);
-    } else if (billingCycle === 'month') {
-      expiryDate = new Date(updatedAt);
-      expiryDate.setMonth(expiryDate.getMonth() + 1);
-    } else if (billingCycle === 'year') {
-      expiryDate = new Date(updatedAt);
-      expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-    }
-    
-    if (expiryDate) {
-      renewalDate = new Date(expiryDate);
-      renewalDate.setDate(renewalDate.getDate() + 1);
-    } else {
-      renewalDate = updatedAt;
-    }
-    
-    const updateData = {
-      ...data,
-      expiryDate,
-      renewalDate,
-      updatedAt
-    };
-    
-    return prisma.plan.update({ 
-      where: { id }, 
-      data: updateData,
-      include: {
-        subscriptions: {
-          include: {
-            tenant: true
-          }
-        }
+    try {
+      const { name, price, billingCycle, description, features, maxUsers, maxOrders, maxStorage, popular, isActive } = data;
+      
+      const updatedAt = new Date();
+      let expiryDate, renewalDate;
+      
+      if (billingCycle === 'trial') {
+        expiryDate = new Date(updatedAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+      } else if (billingCycle === 'month') {
+        expiryDate = new Date(updatedAt);
+        expiryDate.setMonth(expiryDate.getMonth() + 1);
+      } else if (billingCycle === 'year') {
+        expiryDate = new Date(updatedAt);
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
       }
-    });
+      
+      if (expiryDate) {
+        renewalDate = new Date(expiryDate);
+        renewalDate.setDate(renewalDate.getDate() + 1);
+      } else {
+        renewalDate = updatedAt;
+      }
+      
+      const updateData = {
+        ...data,
+        expiryDate,
+        renewalDate,
+        updatedAt
+      };
+      
+      return await prisma.plan.update({ 
+        where: { id }, 
+        data: updateData,
+        include: {
+          subscriptions: true
+        }
+      });
+    } catch (error) {
+      console.error('Update plan error:', error);
+      if (error.code === 'P2025') {
+        throw new Error('Plan not found');
+      }
+      if (error.code === 'P2002') {
+        throw new Error('Plan name already exists');
+      }
+      throw new Error(error.message || 'Failed to update plan');
+    }
   }
 
   async deletePlan(id) {

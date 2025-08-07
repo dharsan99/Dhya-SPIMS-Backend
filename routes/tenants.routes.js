@@ -7,8 +7,8 @@ const {
   updateTenant,
   deactivateTenant
 } = require('../controllers/tenants.controller');
-//const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
-//router.use(verifyTokenAndTenant);
+const { verifyTokenAndTenant } = require('../middlewares/auth.middleware');
+router.use(verifyTokenAndTenant);
 //const { requireRole } = require('../middlewares/role.middleware');
 
 

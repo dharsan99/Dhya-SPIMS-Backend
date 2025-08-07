@@ -108,6 +108,7 @@ model Tenant {
   updatedAt    DateTime? @updatedAt @db.Timestamp(6)
   shades       Shade[]
   users        Users[]
+  subscriptions Subscription[]
   settings     Setting?
 
   @@map("tenants")
@@ -122,6 +123,7 @@ model Subscription {
   startDate DateTime? @db.Date
   tenantId  String?   @db.Uuid
   plan      Plan?     @relation(fields: [planId], references: [id])
+  tenant    Tenant?   @relation(fields: [tenantId], references: [id])
 
   @@map("subscriptions")
 }
@@ -311,6 +313,7 @@ model Supplier {
   isActive  Boolean  @default(true)
   updatedAt DateTime @updatedAt
   fibreTransfers FibreTransfer[]
+  fibreRestockRequests FibreRestockRequest
 
   @@map("suppliers")
 }
@@ -414,6 +417,8 @@ model FibreRestockRequest {
   requestedKg  Decimal   @db.Decimal(10, 2)
   supplierId   String    @db.Uuid
   updatedAt    DateTime  @updatedAt
+ 
+
 
   @@index([fibreId])
   @@index([supplierId])

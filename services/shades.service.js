@@ -4,12 +4,25 @@ const prisma = new PrismaClient();
 // ✅ Create a new shade with fibres and raw cotton composition
 const createShade = async (data) => {
   try {
-    const { fibres = [], rawCottonCompositions = [], ...shadeData } = data;
+    // Map input to expected fields
+    const {
+      shadeCode,
+      shadeName,
+      description,
+      percentage,
+      tenantId,
+      fibres = [],
+      rawCottonCompositions = []
+    } = data;
 
     // Create the shade with fibres and cotton compositions
     const shade = await prisma.shade.create({
       data: {
-        ...shadeData,
+        shadeCode,
+        shadeName,
+        description,
+        percentage,
+        tenantId,
         shadeFibres: fibres.length > 0 ? {
           create: fibres.map(fibre => ({
             fibreId: fibre.fibreId,
@@ -18,7 +31,6 @@ const createShade = async (data) => {
         } : undefined,
         rawCottonCompositions: rawCottonCompositions.length > 0 ? {
           create: await Promise.all(rawCottonCompositions.map(async (composition) => {
-            // Create cotton record if it doesn't exist
             const cotton = await prisma.cotton.upsert({
               where: { id: composition.cottonId || 'temp' },
               update: {},
@@ -29,7 +41,6 @@ const createShade = async (data) => {
                 notes: composition.notes || 'Default cotton record'
               }
             });
-            
             return {
               percentage: composition.percentage,
               cotton: {

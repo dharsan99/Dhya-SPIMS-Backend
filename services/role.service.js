@@ -8,7 +8,6 @@ exports.getRolesByTenant = async (tenantId) => {
     where,
     include: {
       userRoles: true,
-      rolePermissions: true,
     },
     orderBy: { createdAt: 'desc' },
   });

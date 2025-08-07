@@ -4,7 +4,12 @@ const subscriptionService = require('../services/subscription.service');
 
 exports.getSubscriptions = async (req, res) => {
   try {
-    const { tenantId } = req.query;
+    const tenantId = req.user?.tenantId || req.query.tenantId;
+    
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Missing tenant ID' });
+    }
+
     const subscriptions = await subscriptionService.getAll(tenantId);
 
     const result = subscriptions.map(sub => ({
@@ -213,10 +218,16 @@ exports.getUsageStats = async (req, res) => {
 
 exports.getBillingHistory = async (req, res) => {
   try {
+    console.log('🔍 [BILLING] Debug - req.user:', req.user);
+    console.log('🔍 [BILLING] Debug - req.user?.tenantId:', req.user?.tenantId);
+    
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
+      console.log('❌ [BILLING] Missing tenant ID in request');
       return res.status(400).json({ error: 'Missing tenant ID' });
     }
+
+    console.log('✅ [BILLING] Using tenantId:', tenantId);
 
     // Get all subscriptions for this tenant, most recent first
     const subscriptions = await prisma.subscription.findMany({
@@ -224,6 +235,8 @@ exports.getBillingHistory = async (req, res) => {
       include: { plan: true },
       orderBy: { startDate: 'desc' }
     });
+
+    console.log('📊 [BILLING] Found subscriptions:', subscriptions.length);
 
     // Map to billing history format
     const billingHistory = subscriptions.map((sub, idx) => ({

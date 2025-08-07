@@ -19,8 +19,7 @@ router.use(verifyTokenAndTenant);
  *   get:
  *     summary: Get all production entries for the logged-in tenant
  *     tags: [Productions]
- *     security:
- *       - bearerAuth: []
+    
  *     responses:
  *       200:
  *         description: List of all production records
@@ -35,8 +34,7 @@ router.get('/', controller.getAllProductions);
  *   get:
  *     summary: Get daily production logs (grouped by date)
  *     tags: [Productions]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: List of daily logs with production summaries
@@ -51,8 +49,6 @@ router.get('/logs', controller.getProductionLogs);
  *   get:
  *     summary: Get production analytics (cumulative, machine-wise, etc.)
  *     tags: [Productions]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Analytics metrics for progress charts
@@ -66,8 +62,6 @@ router.get('/analytics', controller.getProductionAnalytics);
  *   get:
  *     summary: Get cumulative production progress for a specific order
  *     tags: [Productions]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - name: orderId
  *         in: path
@@ -101,8 +95,6 @@ router.get('/progress/:orderId', controller.getOrderProgress);
  *   get:
  *     summary: Get daily production efficiency
  *     tags: [Productions]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of efficiency records grouped by date
@@ -138,8 +130,6 @@ router.get('/efficiency/daily', controller.getDailyEfficiency);
  *   get:
  *     summary: Get machine-wise production efficiency
  *     tags: [Productions]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of average efficiencies grouped by machine
@@ -173,8 +163,6 @@ router.get('/efficiency/machine', controller.getMachineEfficiency);
  *   get:
  *     summary: Get a production entry by ID
  *     tags: [Productions]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -226,8 +214,6 @@ router.get('/date/:date', controller.getProductionByDate);
  *   post:
  *     summary: Create a new production entry
  *     tags: [Productions]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:

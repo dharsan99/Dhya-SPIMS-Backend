@@ -2,9 +2,14 @@ const prisma = require('../prisma/client');
 const { Decimal } = require('@prisma/client/runtime/library');
 
 // 1. Get all orders
-exports.getAllOrders = async () => {
+exports.getAllOrders = async (tenantId) => {
   try {
+    if (!tenantId) {
+      throw new Error('Tenant ID is required');
+    }
+
     return await prisma.order.findMany({
+      where: { tenantId: tenantId },
       include: {
         buyer: true,
         shade: {
@@ -25,6 +30,7 @@ exports.getAllOrders = async () => {
       orderBy: { createdAt: 'desc' }
     });
   } catch (error) {
+    console.error('Get all orders error:', error);
     throw new Error('Failed to fetch orders');
   }
 };
@@ -60,23 +66,65 @@ exports.getOrderById = async (id) => {
 // 3. Create a new order
 exports.createOrder = async (data) => {
   try {
-    const { buyerId, shadeId, ...orderData } = data;
+    const { buyerId, shadeId, tenantId, ...orderData } = data;
+    
+    // Validate required fields
+    if (!buyerId || !shadeId || !tenantId) {
+      throw new Error('Missing required fields: buyerId, shadeId, tenantId');
+    }
+
+    // Check if buyer and shade exist
+    const [buyer, shade] = await Promise.all([
+      prisma.buyer.findUnique({
+        where: { id: buyerId }
+      }),
+      prisma.shade.findUnique({
+        where: { id: shadeId }
+      })
+    ]);
+
+    // Optionally: Check if buyer and shade belong to the tenant
+    if (!buyer) {
+      throw new Error('Buyer not found');
+    }
+    if (!shade) {
+      throw new Error('Shade not found');
+    }
+    if (buyer.tenantId && buyer.tenantId !== tenantId) {
+      throw new Error('Buyer does not belong to this tenant');
+    }
+    if (shade.tenantId && shade.tenantId !== tenantId) {
+      throw new Error('Shade does not belong to this tenant');
+    }
+
     return await prisma.order.create({
       data: {
         ...orderData,
+        tenantId: tenantId,
         buyer: { connect: { id: buyerId } },
-        shade: { connect: { id: shadeId } }
+        shade: { connect: { id: shadeId } },
+        totalAmount: orderData.totalAmount !== undefined ? orderData.totalAmount : 0,
+        unitPrice: orderData.unitPrice !== undefined ? orderData.unitPrice : 0,
+        deliveryDate: orderData.deliveryDate ? new Date(orderData.deliveryDate) : undefined,
       },
       include: {
+        
         buyer: true,
         shade: true
       }
     });
   } catch (error) {
-    throw new Error('Failed to create order');
+    console.error('Create order error:', error);
+    if (error.code === 'P2002') {
+      throw new Error('Order number already exists');
+    }
+    if (error.code === 'P2003') {
+      throw new Error('Invalid reference: buyer or shade not found');
+    }
+    throw new Error(error.message || 'Failed to create order');
   }
 };
-
+// ...existing code...
 // 4. Update full order by ID
 exports.updateOrder = async (id, data) => {
   try {
@@ -292,11 +340,8 @@ exports.getProgressDetails = async (orderId) => {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
       include: {
-        productions: {
-          include: {
-            logs: true
-          }
-        }
+        productions:true
+         
       }
     });
 
@@ -361,6 +406,7 @@ exports.getProgressDetails = async (orderId) => {
       noProductionDays: Array.from(noProductionDays).sort()
     };
   } catch (error) {
+    console.error('Order progress details error:', error); // Add this line
     throw new Error('Failed to fetch progress details');
   }
 };

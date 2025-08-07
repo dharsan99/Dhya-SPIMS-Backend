@@ -5,9 +5,12 @@ const roleService = require('../services/role.service');
 
 
 exports.getRoles = async (req, res) => {
-  const { tenantId } = req.query;
-
   try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Missing tenant ID in token' });
+    }
+
     const roles = await roleService.getRolesByTenant(tenantId);
     // Transform roles to include all fields from schema
     const transformedRoles = roles.map(role => ({
@@ -27,13 +30,18 @@ exports.getRoles = async (req, res) => {
 };
 
 exports.createRole = async (req, res) => {
-  const { tenantId, name, description, permissions } = req.body;
-
-  if (!tenantId || !name || !permissions) {
-    return res.status(400).json({ error: 'Missing required fields: tenantId, name, permissions' });
-  }
-
   try {
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Missing tenant ID in token' });
+    }
+
+    const { name, description, permissions } = req.body;
+
+    if (!name || !permissions) {
+      return res.status(400).json({ error: 'Missing required fields: name, permissions' });
+    }
+
     const newRole = await roleService.createRole({ tenantId, name, description, permissions });
     res.status(201).json({ message: 'Role created successfully', data: newRole });
   } catch (error) {

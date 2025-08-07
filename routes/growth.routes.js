@@ -39,8 +39,6 @@ router.use((req, res, next) => {
  *   get:
  *     summary: Get company persona for current tenant
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Company persona retrieved successfully
@@ -59,9 +57,6 @@ router.get('/persona', verifyTokenAndTenant, growthController.getCompanyPersona)
  *   post:
  *     summary: Create or update company persona (supports both JWT and n8n API key auth)
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
- *       - apiKeyAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -98,8 +93,6 @@ router.post('/persona', flexibleAuthMiddleware, growthController.upsertCompanyPe
  *   post:
  *     summary: Trigger AI-powered persona generation (frontend proxy endpoint)
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -134,8 +127,6 @@ router.post('/persona/generate', verifyTokenAndTenant, growthController.triggerP
  *   get:
  *     summary: Get all growth campaigns for current tenant
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Growth campaigns retrieved successfully
@@ -193,8 +184,6 @@ router.post('/campaigns', verifyTokenAndTenant, growthController.createGrowthCam
  *   get:
  *     summary: Get growth campaign details
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: campaignId
@@ -220,8 +209,6 @@ router.get('/campaigns/:campaignId', verifyTokenAndTenant, growthController.getC
  *   put:
  *     summary: Update growth campaign status
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: campaignId
@@ -288,8 +275,6 @@ router.get('/campaigns/:campaignId/brands', verifyTokenAndTenant, growthControll
  *   put:
  *     summary: Update brand status
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: brandId
@@ -360,8 +345,6 @@ router.post('/brands/:brandId/find-suppliers', verifyTokenAndTenant, growthContr
  *   get:
  *     summary: Get discovered suppliers for a brand
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: brandId
@@ -442,8 +425,6 @@ router.post('/brands/:brandId/suppliers', n8nAuthMiddleware, growthController.sa
  *   get:
  *     summary: Get target contacts for a supplier
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: supplierId
@@ -465,8 +446,6 @@ router.post('/brands/:brandId/suppliers', n8nAuthMiddleware, growthController.sa
  *   post:
  *     summary: Save target contacts from n8n workflow (n8n only)
  *     tags: [Growth Engine]
- *     security:
- *       - apiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: supplierId
@@ -554,9 +533,7 @@ router.post('/contacts/:contactId/generate-draft', verifyTokenAndTenant, growthC
  * /growth/contacts/{contactId}/outreach-emails:
  *   get:
  *     summary: Get saved outreach email drafts for a contact
- *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
+ *     tags: [Growth Engine]    
  *     parameters:
  *       - in: path
  *         name: contactId
@@ -616,8 +593,7 @@ router.get('/contacts/:contactId/outreach-emails', verifyTokenAndTenant, growthC
  *   post:
  *     summary: Save generated outreach email draft from n8n workflow (n8n only)
  *     tags: [Growth Engine]
- *     security:
- *       - apiKeyAuth: []
+
  *     requestBody:
  *       required: true
  *       content:
@@ -664,8 +640,7 @@ router.post('/outreach-emails', n8nAuthMiddleware, growthController.saveOutreach
  *   get:
  *     summary: Get a single outreach email draft for n8n sending workflow (n8n only)
  *     tags: [Growth Engine]
- *     security:
- *       - apiKeyAuth: []
+ 
  *     parameters:
  *       - in: path
  *         name: emailId
@@ -720,8 +695,7 @@ router.get('/outreach-emails/:emailId', n8nAuthMiddleware, getOutreachEmail);
  *   patch:
  *     summary: Update an email's status to SENT after n8n sends it (n8n only)
  *     tags: [Growth Engine]
- *     security:
- *       - apiKeyAuth: []
+ 
  *     parameters:
  *       - in: path
  *         name: emailId
@@ -781,8 +755,7 @@ router.patch('/outreach-emails/:emailId/sent', n8nAuthMiddleware, updateEmailAsS
  *   post:
  *     summary: Process incoming email events from Resend via n8n webhook (n8n only)
  *     tags: [Growth Engine]
- *     security:
- *       - apiKeyAuth: []
+ 
  *     requestBody:
  *       required: true
  *       content:
@@ -843,8 +816,7 @@ router.post('/email-events', n8nAuthMiddleware, growthController.processEmailEve
  *   post:
  *     summary: Trigger n8n EmailSender workflow to send an approved email draft
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
+ 
  *     parameters:
  *       - in: path
  *         name: emailId
@@ -898,8 +870,7 @@ router.post('/outreach-emails/:emailId/send', verifyTokenAndTenant, growthContro
  *   get:
  *     summary: Find a contact by email address and automatically determine tenant context
  *     tags: [Growth Engine]
- *     security:
- *       - apiKeyAuth: []
+
  *     parameters:
  *       - in: query
  *         name: email
@@ -1010,8 +981,7 @@ router.get('/contacts/find-by-email', n8nAuthMiddleware, growthController.findCo
  *   post:
  *     summary: Create a follow-up task when a reply is detected by n8n
  *     tags: [Growth Engine]
- *     security:
- *       - apiKeyAuth: []
+
  *     requestBody:
  *       required: true
  *       content:
@@ -1109,8 +1079,6 @@ router.post('/tasks/create-from-reply', n8nAuthMiddleware, growthController.crea
  *   get:
  *     summary: Get all growth tasks with optional filtering
  *     tags: [Growth Engine - Tasks]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: status
@@ -1167,8 +1135,7 @@ router.post('/tasks/create-from-reply', n8nAuthMiddleware, growthController.crea
  *   post:
  *     summary: Create a new growth task
  *     tags: [Growth Engine - Tasks]
- *     security:
- *       - bearerAuth: []
+
  *     requestBody:
  *       required: true
  *       content:
@@ -1219,8 +1186,6 @@ router.post('/tasks', verifyTokenAndTenant, growthController.createGrowthTask);
  *   get:
  *     summary: Get a specific growth task by ID
  *     tags: [Growth Engine - Tasks]
- *     security:
- *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: taskId
@@ -1240,9 +1205,7 @@ router.post('/tasks', verifyTokenAndTenant, growthController.createGrowthTask);
  *         description: Server error
  *   put:
  *     summary: Update an existing growth task
- *     tags: [Growth Engine - Tasks]
- *     security:
- *       - bearerAuth: []
+ 
  *     parameters:
  *       - in: path
  *         name: taskId
@@ -1318,8 +1281,7 @@ router.delete('/tasks/:taskId', verifyTokenAndTenant, growthController.deleteGro
  *   post:
  *     summary: Generate an AI-powered reply draft for a specific task
  *     tags: [Growth Engine - Tasks]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: taskId
@@ -1434,8 +1396,7 @@ router.get('/tasks/:taskId/ai-draft', verifyTokenAndTenant, growthController.get
  *   post:
  *     summary: Send AI-generated reply through existing EmailSender workflow
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: taskId
@@ -1621,8 +1582,7 @@ router.post('/outreach-emails/:emailId/resend', verifyTokenAndTenant, growthCont
  *   get:
  *     summary: Get engagement statistics for a specific outreach email
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: emailId
@@ -1719,8 +1679,7 @@ router.get('/outreach-emails/:emailId/engagement-stats', verifyTokenAndTenant, g
  *   get:
  *     summary: Check if a contact is suppressed (DO_NOT_CONTACT)
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: contactId
@@ -1776,8 +1735,7 @@ router.get('/contacts/:contactId/suppression-status', verifyTokenAndTenant, grow
  *   get:
  *     summary: Get comprehensive analytics dashboard data
  *     tags: [Growth Engine - Analytics]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: query
  *         name: timeframe
@@ -1858,8 +1816,7 @@ router.get('/analytics/dashboard', verifyTokenAndTenant, growthController.getAna
  *   get:
  *     summary: Get detailed campaign performance analytics
  *     tags: [Growth Engine - Analytics]
- *     security:
- *       - bearerAuth: []
+
  *     responses:
  *       200:
  *         description: Campaign analytics retrieved successfully
@@ -1908,8 +1865,7 @@ router.get('/analytics/campaigns', verifyTokenAndTenant, growthController.getCam
  *   get:
  *     summary: Get growth metrics and time-series data
  *     tags: [Growth Engine - Analytics]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: query
  *         name: timeframe
@@ -1969,8 +1925,7 @@ router.get('/analytics/growth-metrics', verifyTokenAndTenant, growthController.g
  *   post:
  *     summary: Save discovered brands from n8n workflow (n8n only)
  *     tags: [Growth Engine]
- *     security:
- *       - apiKeyAuth: []
+
  *     parameters:
  *       - in: path
  *         name: campaignId
@@ -2022,8 +1977,7 @@ router.post('/campaigns/:campaignId/brands', n8nAuthMiddleware, growthController
  *     summary: Get company persona for a specific tenant (Internal Service)
  *     description: Fetches company persona for a specific tenant. Used by internal services like n8n workflows.
  *     tags: [Growth Engine - Internal]
- *     security:
- *       - apiKeyAuth: []
+
  *     parameters:
  *       - in: path
  *         name: tenantId
@@ -2070,8 +2024,7 @@ router.get('/internal/persona/:tenantId', n8nAuthMiddleware, growthController.ge
  *   post:
  *     summary: Send AI-generated reply through existing EmailSender workflow
  *     tags: [Growth Engine]
- *     security:
- *       - bearerAuth: []
+
  *     parameters:
  *       - in: path
  *         name: taskId

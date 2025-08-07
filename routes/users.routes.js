@@ -7,7 +7,6 @@ const { body } = require('express-validator');
 router.use(verifyTokenAndTenant);
 
 const createUserValidation = [
-  body('tenantId').isString().notEmpty().withMessage('Tenant ID is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isString().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('roleId').isString().notEmpty().withMessage('Role ID is required'),

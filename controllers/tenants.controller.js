@@ -3,6 +3,17 @@ const prisma = new PrismaClient();
 
 const getAllTenants = async (req, res) => {
   try {
+    console.log('🔍 [TENANTS] Fetching all tenants...');
+    
+    // Test database connection
+    try {
+      await prisma.$connect();
+      console.log('✅ [TENANTS] Database connection successful');
+    } catch (dbError) {
+      console.error('❌ [TENANTS] Database connection failed:', dbError);
+      return res.status(500).json({ error: 'Database connection failed' });
+    }
+    
     const tenants = await prisma.tenant.findMany({
       include: {
         subscriptions: {
@@ -21,9 +32,12 @@ const getAllTenants = async (req, res) => {
         }
       }
     });
+    
+    console.log(`✅ [TENANTS] Successfully fetched ${tenants.length} tenants`);
     res.json(tenants);
   } catch (error) {
-    console.error('Error fetching tenants:', error);
+    console.error('❌ [TENANTS] Error fetching tenants:', error);
+    console.error('❌ [TENANTS] Error stack:', error.stack);
     res.status(500).json({ error: 'Failed to fetch tenants' });
   }
 };

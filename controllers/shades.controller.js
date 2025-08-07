@@ -3,22 +3,17 @@ const shadesService = require('../services/shades.service');
 // ✅ Create
 exports.createShade = async (req, res) => {
   try {
-    console.log('Creating shade with data:', req.body);
-    
-    // Validate required fields
-    if (!req.body.shade_code || !req.body.shade_name) {
-      return res.status(400).json({ error: 'shade_code and shade_name are required' });
-    }
-
-    // Create the shade with the user's tenant ID
-    const shade = await shadesService.createShade({
-      ...req.body,
+    const { shade_code, shade_name, fibre_composition, ...rest } = req.body;
+    const shadeData = {
+      shadeCode: shade_code,
+      shadeName: shade_name,
+      fibreComposition: fibre_composition,
+      ...rest,
       tenantId: req.user.tenantId
-    });
-    
+    };
+    const shade = await shadesService.createShade(shadeData);
     res.status(201).json(shade);
   } catch (error) {
-    console.error('Error in createShade controller:', error);
     res.status(500).json({ error: error.message || 'Failed to create shade' });
   }
 };

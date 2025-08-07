@@ -10,17 +10,24 @@ exports.createPlan = async (req, res) => {
       });
     }
 
+    // Ensure features is an array
+    const planFeatures = Array.isArray(features) ? features : (features ? [features] : []);
+
+    // Handle maxUsers and maxOrders as JSON fields (store as numbers)
+    const planMaxUsers = maxUsers ? parseInt(maxUsers) : null;
+    const planMaxOrders = maxOrders ? parseInt(maxOrders) : null;
+
     const plan = await plansService.createPlan({
       name,
       price: parseFloat(price),
       billingCycle,
       description,
-      features,
-      maxUsers,
-      maxOrders,
+      features: planFeatures,
+      maxUsers: planMaxUsers,
+      maxOrders: planMaxOrders,
       maxStorage,
       popular: Boolean(popular),
-      isActive
+      isActive: Boolean(isActive)
     });
     
     res.status(201).json({
@@ -29,7 +36,7 @@ exports.createPlan = async (req, res) => {
     });
   } catch (error) {
     console.error('Create plan error:', error);
-    res.status(500).json({ error: 'Failed to create plan' });
+    res.status(500).json({ error: error.message || 'Failed to create plan' });
   }
 };
 
@@ -69,7 +76,7 @@ exports.getPlanById = async (req, res) => {
 exports.updatePlan = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
     
     // Remove fields that shouldn't be updated directly
     delete updateData.id;
@@ -85,6 +92,25 @@ exports.updatePlan = async (req, res) => {
     if (updateData.popular !== undefined) {
       updateData.popular = Boolean(updateData.popular);
     }
+
+    // Convert isActive to boolean if provided
+    if (updateData.isActive !== undefined) {
+      updateData.isActive = Boolean(updateData.isActive);
+    }
+
+    // Ensure features is an array
+    if (updateData.features && !Array.isArray(updateData.features)) {
+      updateData.features = [updateData.features];
+    }
+
+    // Handle maxUsers and maxOrders as JSON fields (store as numbers)
+    if (updateData.maxUsers !== undefined) {
+      updateData.maxUsers = parseInt(updateData.maxUsers) || null;
+    }
+
+    if (updateData.maxOrders !== undefined) {
+      updateData.maxOrders = parseInt(updateData.maxOrders) || null;
+    }
     
     const plan = await plansService.updatePlan(id, updateData);
     
@@ -94,7 +120,7 @@ exports.updatePlan = async (req, res) => {
     });
   } catch (error) {
     console.error('Update plan error:', error);
-    res.status(500).json({ error: 'Failed to update plan' });
+    res.status(500).json({ error: error.message || 'Failed to update plan' });
   }
 };
 

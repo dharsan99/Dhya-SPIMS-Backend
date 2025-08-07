@@ -130,18 +130,18 @@ router.post('/', controller.createShade);
  *           schema:
  *             type: object
  *             properties:
- *               shade_code:
+ *               shadeCode:
  *                 type: string
- *               shade_name:
+ *               shadeName:
  *                 type: string
  *               percentage:
  *                 type: string
- *               fibre_composition:
+ *               fibreComposition:
  *                 type: array
  *                 items:
  *                   type: object
  *                   properties:
- *                     fibre_id:
+ *                     fibreId:
  *                       type: string
  *                     percentage:
  *                       type: integer

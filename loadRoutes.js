@@ -30,10 +30,10 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         blendFibres: '/blend-fibres',
         fibres: '/fibres',
         fibreTransfers: '/fibre-transfers',
-        shades: '/api/shades',
+        shades: '/shades',
         orders: '/orders',
         buyers: '/buyers',
-        production: '/api/productions',
+        productions: '/productions', // <-- change this line
         settings: '/settings',
         userSettings: '/user-settings',
         roles: '/roles',
@@ -42,13 +42,14 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         billing: '/billing',
         dashboard: '/dashboard',
 
-        purchaseOrders: '/api/purchase-orders',
+        purchaseOrders: '/purchase-orders',
+        subscriptions: '/subscriptions',
         mailingLists: '/api/mailing-lists',
         emailTemplates: '/email-templates',
         potentialBuyers: '/potential-buyers',
         attendance: '/attendance',
         webhooks: '/api/webhooks',
-        growth: '/api/growth',
+        growth: '/growth',
         ai: '/api/ai',
       }[routeName] || `/${routeName}`;
 

@@ -2,11 +2,16 @@ const userService = require('../services/user.service');
 
 exports.createUser = async (req, res) => {
   try {
-    const { name, email, password, tenantId, roleId, isActive = true } = req.body;
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Missing tenant ID in token' });
+    }
+
+    const { name, email, password, roleId, isActive = true } = req.body;
     
-    if (!name || !email || !password || !tenantId || !roleId) {
+    if (!name || !email || !password || !roleId) {
       return res.status(400).json({ 
-        error: 'Missing required fields: name, email, password, tenantId, roleId' 
+        error: 'Missing required fields: name, email, password, roleId' 
       });
     }
 
@@ -50,10 +55,11 @@ exports.getUserById = async (req, res) => {
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const { tenantId, page, limit, search } = req.query;
+    const tenantId = req.user?.tenantId || req.query.tenantId;
+    const { page, limit, search } = req.query;
     
     if (!tenantId) {
-      return res.status(400).json({ error: 'tenantId is required' });
+      return res.status(400).json({ error: 'Missing tenant ID' });
     }
 
     const result = await userService.getAllUsers({
@@ -116,10 +122,10 @@ exports.deleteUser = async (req, res) => {
 
 exports.getAllUsersRoles = async (req, res) => {
   try {
-    const { tenantId } = req.query;
+    const tenantId = req.user?.tenantId || req.query.tenantId;
 
     if (!tenantId) {
-      return res.status(400).json({ error: 'Missing tenantId' });
+      return res.status(400).json({ error: 'Missing tenant ID' });
     }
 
     const result = await userService.getAllUsersRoles({ tenantId });

@@ -117,7 +117,12 @@ const bulkImportOrders = async (req, res) => {
 
 const getAllOrders = async (req, res) => {
   try {
-    const orders = await orderService.getAllOrders();
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Missing tenant ID in token' });
+    }
+
+    const orders = await orderService.getAllOrders(tenantId);
     res.json(orders);
   } catch (error) {
     console.error('Error fetching orders:', error);
@@ -140,11 +145,46 @@ const getOrderById = async (req, res) => {
 
 const createOrder = async (req, res) => {
   try {
-    const order = await orderService.createOrder(req.body);
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Missing tenant ID in token' });
+    }
+
+    // Validate required fields
+    const { orderNumber, buyerId, shadeId, quantity, deliveryDate } = req.body;
+    
+    if (
+      !orderNumber ||
+      !buyerId ||
+      !shadeId ||
+      quantity === undefined ||
+      quantity === null ||
+      !deliveryDate
+    ) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: orderNumber, buyerId, shadeId, quantity, deliveryDate' 
+      });
+    }
+    // Validate quantity
+    if (quantity <= 0) {
+      return res.status(400).json({ error: 'Quantity must be greater than 0' });
+    }
+
+    // Validate delivery date
+    if (isNaN(Date.parse(deliveryDate))) {
+      return res.status(400).json({ error: 'Invalid delivery date format' });
+    }
+
+    const orderData = {
+      ...req.body,
+      tenantId: tenantId
+    };
+
+    const order = await orderService.createOrder(orderData);
     res.status(201).json(order);
   } catch (error) {
     console.error('Error creating order:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || 'Failed to create order' });
   }
 };
 

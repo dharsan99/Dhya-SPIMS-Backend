@@ -83,9 +83,32 @@ router.get('/:id', fibreTransfersController.getFibreTransferById);
  *           schema:
  *             type: object
  *             required:
- *               - fromLocation
- *               - toLocation
- *               - quantity
+ *               - fibreId
+ *               - supplierId
+ *               - sentKg
+ *               - sentDate
+ *             properties:
+ *               fibreId:
+ *                 type: string
+ *                 description: Fibre ID (UUID)
+ *               supplierId:
+ *                 type: string
+ *                 description: Supplier ID (UUID)
+ *               sentKg:
+ *                 type: number
+ *                 format: decimal
+ *                 description: Quantity sent (kg)
+ *               sentDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Date sent (ISO8601)
+ *               expectedReturn:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Expected return date (optional)
+ *               notes:
+ *                 type: string
+ *                 description: Notes (optional)
  *     responses:
  *       201:
  *         description: Fibre transfer created
