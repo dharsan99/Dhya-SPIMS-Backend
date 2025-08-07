@@ -4,51 +4,34 @@ const prisma = new PrismaClient();
 // ✅ Create a new shade with fibres and raw cotton composition
 const createShade = async (data) => {
   try {
-    // Map input to expected fields
-    const {
-      shadeCode,
-      shadeName,
-      description,
-      percentage,
-      tenantId,
-      fibres = [],
-      rawCottonCompositions = []
-    } = data;
+    const { fibres = [], rawCottonCompositions = [], ...shadeData } = data;
 
     // Create the shade with fibres and cotton compositions
     const shade = await prisma.shade.create({
       data: {
-        shadeCode,
-        shadeName,
-        description,
-        percentage,
-        tenantId,
+        ...shadeData,
         shadeFibres: fibres.length > 0 ? {
           create: fibres.map(fibre => ({
             fibreId: fibre.fibreId,
             percentage: fibre.percentage
           }))
         } : undefined,
-        rawCottonCompositions: rawCottonCompositions.length > 0 ? {
-          create: await Promise.all(rawCottonCompositions.map(async (composition) => {
-            const cotton = await prisma.cotton.upsert({
-              where: { id: composition.cottonId || 'temp' },
-              update: {},
-              create: {
-                lotNumber: composition.lotNumber || 'DEFAULT',
-                grade: composition.grade || 'DEFAULT',
-                source: composition.source || 'DEFAULT',
-                notes: composition.notes || 'Default cotton record'
-              }
-            });
-            return {
+        rawCottonCompositions: (() => {
+          const validCompositions = rawCottonCompositions.filter(composition => 
+            composition.percentage > 0 && 
+            composition.cottonId && 
+            composition.cottonId.trim() !== ''
+          );
+          
+          return validCompositions.length > 0 ? {
+            create: validCompositions.map(composition => ({
               percentage: composition.percentage,
               cotton: {
-                connect: { id: cotton.id }
+                connect: { id: composition.cottonId }
               }
-            };
-          }))
-        } : undefined
+            }))
+          } : undefined;
+        })()
       },
       include: {
         shadeFibres: {

@@ -115,20 +115,42 @@ router.delete('/categories/:id', fibreController.deleteFibreCategory);
  *           schema:
  *             type: object
  *             required:
- *               - fibre_name
- *               - fibre_code
- *               - stock_kg
+ *               - fibreName
+ *               - fibreCode
+ *               - stockKg
  *             properties:
- *               fibre_name:
+ *               fibreName:
  *                 type: string
- *               fibre_code:
+ *                 description: Name of the fibre
+ *               fibreCode:
  *                 type: string
- *               stock_kg:
+ *                 description: Unique code for the fibre
+ *               stockKg:
  *                 type: number
  *                 format: float
- *               category_id:
+ *                 description: Stock quantity in kilograms
+ *               categoryId:
  *                 type: string
  *                 description: Optional category ID
+ *               description:
+ *                 type: string
+ *                 description: Optional description
+ *               closingStock:
+ *                 type: number
+ *                 format: float
+ *                 description: Closing stock quantity
+ *               consumedStock:
+ *                 type: number
+ *                 format: float
+ *                 description: Consumed stock quantity
+ *               inwardStock:
+ *                 type: number
+ *                 format: float
+ *                 description: Inward stock quantity
+ *               outwardStock:
+ *                 type: number
+ *                 format: float
+ *                 description: Outward stock quantity
  *     responses:
  *       201:
  *         description: Fibre created successfully
@@ -233,15 +255,38 @@ router.get('/:id', fibreController.getFibreById);
  *           schema:
  *             type: object
  *             properties:
- *               fibre_name:
+ *               fibreName:
  *                 type: string
- *               fibre_code:
+ *                 description: Name of the fibre
+ *               fibreCode:
  *                 type: string
- *               stock_kg:
+ *                 description: Unique code for the fibre
+ *               stockKg:
  *                 type: number
  *                 format: float
- *               category_id:
+ *                 description: Stock quantity in kilograms
+ *               categoryId:
  *                 type: string
+ *                 description: Optional category ID
+ *               description:
+ *                 type: string
+ *                 description: Optional description
+ *               closingStock:
+ *                 type: number
+ *                 format: float
+ *                 description: Closing stock quantity
+ *               consumedStock:
+ *                 type: number
+ *                 format: float
+ *                 description: Consumed stock quantity
+ *               inwardStock:
+ *                 type: number
+ *                 format: float
+ *                 description: Inward stock quantity
+ *               outwardStock:
+ *                 type: number
+ *                 format: float
+ *                 description: Outward stock quantity
  *     responses:
  *       200:
  *         description: Fibre updated

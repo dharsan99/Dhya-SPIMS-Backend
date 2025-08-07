@@ -51,6 +51,7 @@ const loadRoutes = (app, dir = path.join(__dirname, 'routes')) => {
         webhooks: '/api/webhooks',
         growth: '/growth',
         ai: '/api/ai',
+        stocks: '/stocks', // <-- add this line
       }[routeName] || `/${routeName}`;
 
       console.log(`🔧 [LOAD_ROUTES] Route ${routeName} will be mounted at: ${mountPath}`);

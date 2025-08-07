@@ -14,6 +14,7 @@ model FibreCategory {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   fibres      Fibre[]
+  stocks      Stock[]
 
   @@map("fibre_categories")
 }
@@ -35,6 +36,7 @@ model Fibre {
   category      FibreCategory? @relation(fields: [categoryId], references: [id])
   shadeFibres   ShadeFibre[]
   fibreTransfers FibreTransfer[]
+  stocks        Stock[]
 
   @@map("fibres")
 }
@@ -313,7 +315,7 @@ model Supplier {
   isActive  Boolean  @default(true)
   updatedAt DateTime @updatedAt
   fibreTransfers FibreTransfer[]
-  fibreRestockRequests FibreRestockRequest
+  fibreRestockRequests FibreRestockRequest[]
 
   @@map("suppliers")
 }
@@ -417,7 +419,7 @@ model FibreRestockRequest {
   requestedKg  Decimal   @db.Decimal(10, 2)
   supplierId   String    @db.Uuid
   updatedAt    DateTime  @updatedAt
- 
+  upplier     Supplier  @relation(fields: [supplierId], references: [id]) 
 
 
   @@index([fibreId])
@@ -506,7 +508,7 @@ model Attendance {
   status        AttendanceStatus
   employeeId    String           @db.Uuid
   createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  updatedAt     DateTime         @default(now())
   inTime        DateTime
   lastUpdatedBy String?          @db.Uuid
   outTime       DateTime
@@ -586,7 +588,7 @@ model BouncedEmail {
   bounceMessage String?
   lastBounced   DateTime   @default(now())
   createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  updatedAt     DateTime   @default(now())
 
   @@index([email])
   @@map("BouncedEmail")
@@ -727,7 +729,7 @@ model FollowUpTask {
   relatedContactId String?      @db.Uuid
   relatedEmailId   String?      @unique @db.Uuid
   createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  updatedAt        DateTime     @default(now())
   relatedContact   TargetContact? @relation(fields: [relatedContactId], references: [id])
   relatedEmail     OutreachEmail? @relation(fields: [relatedEmailId], references: [id])
   
@@ -757,6 +759,21 @@ model Payment {
   method    String
   status    String
   txnId     String?
+}
+
+model Stock {
+  id          String   @id @default(uuid()) @db.Uuid
+  fibreId     String   @db.Uuid
+  categoryId  String  @db.Uuid 
+  stockKg     Decimal  @db.Decimal(10, 2)
+  thresholdKg Decimal  @db.Decimal(10, 2)
+  lastUpdated DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  fibre       Fibre @relation(fields: [fibreId], references: [id])
+  category    FibreCategory @relation(fields: [categoryId], references: [id]) 
+  @@map("stocks")
 }
 
 enum EmailEventType {
