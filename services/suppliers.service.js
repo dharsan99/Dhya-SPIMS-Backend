@@ -6,7 +6,7 @@ const getAllSuppliers = async () => {
   try {
     const suppliers = await prisma.supplier.findMany({
       include: {
-        fibreRequests: {
+        fibreRestockRequests: {
           include: {
             fibre: true,
           },
@@ -28,7 +28,7 @@ const getSupplierById = async (id) => {
     const supplier = await prisma.supplier.findUnique({
       where: { id },
       include: {
-        fibreRequests: {
+        fibreRestockRequests: {
           include: {
             fibre: true,
           },
@@ -115,7 +115,7 @@ const deleteSupplier = async (id) => {
     const existingSupplier = await prisma.supplier.findUnique({
       where: { id },
       include: {
-        fibreRequests: true,
+        fibreRestockRequests: true, // <-- FIXED
         fibreTransfers: true,
       },
     });
@@ -125,7 +125,10 @@ const deleteSupplier = async (id) => {
     }
 
     // Check if supplier has any associated records
-    if (existingSupplier.fibreRequests.length > 0 || existingSupplier.fibreTransfers.length > 0) {
+    if (
+      existingSupplier.fibreRestockRequests.length > 0 || // <-- FIXED
+      existingSupplier.fibreTransfers.length > 0
+    ) {
       throw new Error('Cannot delete supplier with associated records');
     }
 
@@ -146,4 +149,4 @@ module.exports = {
   createSupplier,
   updateSupplier,
   deleteSupplier,
-}; 
+};

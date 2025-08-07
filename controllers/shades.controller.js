@@ -96,7 +96,7 @@ exports.updateShade = async (req, res) => {
       shadeName: shade_name,
       percentage: percentage,
       tenantId: tenantId,
-      fibres: blendFibres,
+      //fibres: blendFibres,
       rawCottonCompositions: rawCottonCompositions
     };
     

@@ -164,9 +164,11 @@ model Users {
   verificationToken    String?
   resetPasswordToken   String?
   resetPasswordExpires DateTime? @db.Timestamp(6)
+  
 
   // Add this relation:
   userRoles UserRole[]
+  userSettings UserSetting[]
 
   @@map("users")
 }
@@ -194,6 +196,7 @@ model UserSetting {
   smsAlerts          Boolean  @default(false)
   updatedAt          DateTime @updatedAt
   userId             String   @unique @db.Uuid
+  user               Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
 }

@@ -57,40 +57,80 @@ const createShade = async (data) => {
 // ✅ Update a shade and replace its fibre composition
 async function updateShade(id, data) {
   try {
-    const { fibres, ...updateData } = data;
+    // Accept blendFibres and filter valid ones
+    const fibres = (data.blendFibres || []).filter(
+      f => f.percentage > 0 && f.fibreId && f.fibreId.trim() !== ''
+    );
 
-    // Update the shade
-    const shade = await prisma.shade.update({
-      where: { id },
-      data: updateData
-    });
+    // Filter valid raw cotton compositions
+    const validCottons = (data.rawCottonCompositions || []).filter(
+      c => c.percentage > 0 && c.cottonId && c.cottonId.trim() !== ''
+    );
 
-    // Update fibres if provided
-    if (fibres) {
-      // Delete existing fibres
-      await prisma.shadeFibre.deleteMany({
-        where: { shadeId: id }
-      });
+    // Remove blendFibres and rawCottonCompositions from updateData
+    const { blendFibres, rawCottonCompositions, tenantId, ...updateData } = data;
 
-      // Create new fibres
-      if (fibres.length > 0) {
-        await Promise.all(
-          fibres.map(fibre =>
-            prisma.shadeFibre.create({
-              data: {
-                shadeId: id,
-                fibreId: fibre.fibreId,
-                percentage: fibre.percentage
-              }
-            })
-          )
-        );
-      }
+    // Build update object for Prisma
+    const prismaUpdate = { ...updateData };
+    if (tenantId) {
+      prismaUpdate.tenant = { connect: { id: tenantId } };
     }
 
-    return shade;
+    // Update the shade main fields (do NOT include fibres/blendFibres/rawCottonCompositions here)
+    await prisma.shade.update({
+      where: { id },
+      data: prismaUpdate
+    });
+
+    // Update fibres: delete all, then add new
+    await prisma.shadeFibre.deleteMany({ where: { shadeId: id } });
+    if (fibres.length > 0) {
+      await Promise.all(
+        fibres.map(fibre =>
+          prisma.shadeFibre.create({
+            data: {
+              shadeId: id,
+              fibreId: fibre.fibreId,
+              percentage: fibre.percentage
+            }
+          })
+        )
+      );
+    }
+
+    // Update raw cotton compositions: delete all, then add new
+    await prisma.rawCottonComposition.deleteMany({ where: { shadeId: id } });
+    if (validCottons.length > 0) {
+      await Promise.all(
+        validCottons.map(composition =>
+          prisma.rawCottonComposition.create({
+            data: {
+              shadeId: id,
+              percentage: composition.percentage,
+              cotton: {
+                connect: { id: composition.cottonId }
+              },
+              lotNumber: composition.lotNumber,
+              grade: composition.grade,
+              source: composition.source,
+              notes: composition.notes
+            }
+          })
+        )
+      );
+    }
+
+    // Return the updated shade with relations (like POST)
+    return await prisma.shade.findUnique({
+      where: { id },
+      include: {
+        shadeFibres: { include: { fibre: true } },
+        rawCottonCompositions: { include: { cotton: true } }
+      }
+    });
   } catch (error) {
-    throw new Error('Failed to update shade');
+    console.error('Error updating shade:', error);
+    throw new Error(error.message || 'Failed to update shade');
   }
 }
 
