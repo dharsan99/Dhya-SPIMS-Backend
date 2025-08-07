@@ -8,7 +8,41 @@ const prisma = new PrismaClient();
  * ✅ Create a new fibre (with optional category_id)
  */
 exports.createFibre = async (data) => {
-  const { fibre_name, fibre_code, stock_kg, category_id } = data;
+  console.log('📦 Received data for fibre creation:', data);
+  
+  // Handle both camelCase and snake_case field names
+  const fibre_name = data.fibre_name || data.fibreName;
+  const fibre_code = data.fibre_code || data.fibreCode;
+  const stock_kg = data.stock_kg || data.stockKg;
+  const category_id = data.category_id || data.categoryId;
+  const description = data.description;
+  const closing_stock = data.closing_stock || data.closingStock;
+  const consumed_stock = data.consumed_stock || data.consumedStock;
+  const inward_stock = data.inward_stock || data.inwardStock;
+  const outward_stock = data.outward_stock || data.outwardStock;
+  
+  console.log('🔍 Processed values:', {
+    fibre_name,
+    fibre_code,
+    stock_kg,
+    category_id,
+    description,
+    closing_stock,
+    consumed_stock,
+    inward_stock,
+    outward_stock
+  });
+
+  // Validate required fields
+  if (!fibre_code) {
+    throw new Error('fibre_code is required');
+  }
+  if (!fibre_name) {
+    throw new Error('fibre_name is required');
+  }
+  if (stock_kg === undefined || stock_kg === null) {
+    throw new Error('stock_kg is required');
+  }
 
   return await prisma.fibre.create({
     data: {
@@ -16,6 +50,11 @@ exports.createFibre = async (data) => {
       fibreCode: fibre_code,
       stockKg: stock_kg,
       categoryId: category_id,
+      description: description,
+      closingStock: closing_stock,
+      consumedStock: consumed_stock,
+      inwardStock: inward_stock,
+      outwardStock: outward_stock,
     },
   });
 };
@@ -52,16 +91,32 @@ exports.getFibreById = async (id) => {
 exports.updateFibre = async (id, data) => {
   if (!isUUID(id)) throw new Error(`Invalid UUID for fibre ID: ${id}`);
 
-  const { fibre_name, fibre_code, stock_kg, category_id } = data;
+  // Handle both camelCase and snake_case field names
+  const fibre_name = data.fibre_name || data.fibreName;
+  const fibre_code = data.fibre_code || data.fibreCode;
+  const stock_kg = data.stock_kg || data.stockKg;
+  const category_id = data.category_id || data.categoryId;
+  const description = data.description;
+  const closing_stock = data.closing_stock || data.closingStock;
+  const consumed_stock = data.consumed_stock || data.consumedStock;
+  const inward_stock = data.inward_stock || data.inwardStock;
+  const outward_stock = data.outward_stock || data.outwardStock;
+
+  const updateData = {};
+  
+  if (fibre_name !== undefined) updateData.fibreName = fibre_name;
+  if (fibre_code !== undefined) updateData.fibreCode = fibre_code;
+  if (stock_kg !== undefined) updateData.stockKg = stock_kg;
+  if (category_id !== undefined) updateData.categoryId = category_id;
+  if (description !== undefined) updateData.description = description;
+  if (closing_stock !== undefined) updateData.closingStock = closing_stock;
+  if (consumed_stock !== undefined) updateData.consumedStock = consumed_stock;
+  if (inward_stock !== undefined) updateData.inwardStock = inward_stock;
+  if (outward_stock !== undefined) updateData.outwardStock = outward_stock;
 
   return await prisma.fibre.update({
     where: { id },
-    data: {
-      fibreName: fibre_name,
-      fibreCode: fibre_code,
-      stockKg: stock_kg,
-      categoryId: category_id,
-    },
+    data: updateData,
   });
 };
 

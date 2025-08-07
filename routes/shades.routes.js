@@ -77,33 +77,62 @@ router.get('/:id', controller.getShadeById);
  *           schema:
  *             type: object
  *             required:
- *               - shade_code
- *               - shade_name
- *               - fibre_composition
+ *               - shadeCode
+ *               - shadeName
  *             properties:
- *               shade_code:
+ *               shadeCode:
  *                 type: string
  *                 example: SHD12345
- *               shade_name:
+ *                 description: Unique shade code
+ *               shadeName:
  *                 type: string
  *                 example: Light Grey
+ *                 description: Name of the shade
  *               percentage:
  *                 type: string
  *                 example: 100%
- *               fibre_composition:
+ *                 description: Percentage value
+ *               tenantId:
+ *                 type: string
+ *                 description: Tenant ID (optional, will use user's tenant if not provided)
+ *               blendFibres:
  *                 type: array
+ *                 description: Array of fibre compositions
  *                 items:
  *                   type: object
- *                   required:
- *                     - fibre_id
- *                     - percentage
  *                   properties:
- *                     fibre_id:
+ *                     fibreId:
  *                       type: string
  *                       example: 3cd43b5c-1aa7-4a05-809f-28c4c428528d
+ *                       description: Fibre ID
  *                     percentage:
- *                       type: integer
+ *                       type: number
  *                       example: 70
+ *                       description: Percentage of this fibre in the blend
+ *               rawCottonCompositions:
+ *                 type: array
+ *                 description: Array of raw cotton compositions
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     percentage:
+ *                       type: number
+ *                       description: Percentage of this cotton
+ *                     cottonId:
+ *                       type: string
+ *                       description: Cotton ID (optional)
+ *                     lotNumber:
+ *                       type: string
+ *                       description: Lot number
+ *                     grade:
+ *                       type: string
+ *                       description: Cotton grade
+ *                     source:
+ *                       type: string
+ *                       description: Cotton source
+ *                     notes:
+ *                       type: string
+ *                       description: Additional notes
  *     responses:
  *       201:
  *         description: Shade created successfully
@@ -130,21 +159,54 @@ router.post('/', controller.createShade);
  *           schema:
  *             type: object
  *             properties:
- *               shade_code:
+ *               shadeCode:
  *                 type: string
- *               shade_name:
+ *                 description: Unique shade code
+ *               shadeName:
  *                 type: string
+ *                 description: Name of the shade
  *               percentage:
  *                 type: string
- *               fibre_composition:
+ *                 description: Percentage value
+ *               tenantId:
+ *                 type: string
+ *                 description: Tenant ID
+ *               blendFibres:
  *                 type: array
+ *                 description: Array of fibre compositions
  *                 items:
  *                   type: object
  *                   properties:
- *                     fibre_id:
+ *                     fibreId:
  *                       type: string
+ *                       description: Fibre ID
  *                     percentage:
- *                       type: integer
+ *                       type: number
+ *                       description: Percentage of this fibre in the blend
+ *               rawCottonCompositions:
+ *                 type: array
+ *                 description: Array of raw cotton compositions
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     percentage:
+ *                       type: number
+ *                       description: Percentage of this cotton
+ *                     cottonId:
+ *                       type: string
+ *                       description: Cotton ID
+ *                     lotNumber:
+ *                       type: string
+ *                       description: Lot number
+ *                     grade:
+ *                       type: string
+ *                       description: Cotton grade
+ *                     source:
+ *                       type: string
+ *                       description: Cotton source
+ *                     notes:
+ *                       type: string
+ *                       description: Additional notes
  *     responses:
  *       200:
  *         description: Shade updated successfully

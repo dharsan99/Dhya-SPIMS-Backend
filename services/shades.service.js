@@ -16,28 +16,22 @@ const createShade = async (data) => {
             percentage: fibre.percentage
           }))
         } : undefined,
-        rawCottonCompositions: rawCottonCompositions.length > 0 ? {
-          create: await Promise.all(rawCottonCompositions.map(async (composition) => {
-            // Create cotton record if it doesn't exist
-            const cotton = await prisma.cotton.upsert({
-              where: { id: composition.cottonId || 'temp' },
-              update: {},
-              create: {
-                lotNumber: composition.lotNumber || 'DEFAULT',
-                grade: composition.grade || 'DEFAULT',
-                source: composition.source || 'DEFAULT',
-                notes: composition.notes || 'Default cotton record'
-              }
-            });
-            
-            return {
+        rawCottonCompositions: (() => {
+          const validCompositions = rawCottonCompositions.filter(composition => 
+            composition.percentage > 0 && 
+            composition.cottonId && 
+            composition.cottonId.trim() !== ''
+          );
+          
+          return validCompositions.length > 0 ? {
+            create: validCompositions.map(composition => ({
               percentage: composition.percentage,
               cotton: {
-                connect: { id: cotton.id }
+                connect: { id: composition.cottonId }
               }
-            };
-          }))
-        } : undefined
+            }))
+          } : undefined;
+        })()
       },
       include: {
         shadeFibres: {

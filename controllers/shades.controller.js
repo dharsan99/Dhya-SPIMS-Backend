@@ -5,15 +5,42 @@ exports.createShade = async (req, res) => {
   try {
     console.log('Creating shade with data:', req.body);
     
+    // Handle both camelCase and snake_case field names
+    const shade_code = req.body.shade_code || req.body.shadeCode;
+    const shade_name = req.body.shade_name || req.body.shadeName;
+    const percentage = req.body.percentage;
+    const tenantId = req.body.tenantId || req.user?.tenantId;
+    const blendFibres = req.body.blendFibres || req.body.fibres || [];
+    
+    // Filter out invalid cotton compositions (empty cottonId or percentage 0)
+    const rawCottonCompositions = (req.body.rawCottonCompositions || []).filter(composition => 
+      composition.percentage > 0 && 
+      composition.cottonId && 
+      composition.cottonId.trim() !== ''
+    );
+    
+    console.log('🔍 Processed values:', {
+      shade_code,
+      shade_name,
+      percentage,
+      tenantId,
+      blendFibres,
+      rawCottonCompositions
+    });
+    
     // Validate required fields
-    if (!req.body.shade_code || !req.body.shade_name) {
+    if (!shade_code || !shade_name) {
       return res.status(400).json({ error: 'shade_code and shade_name are required' });
     }
 
     // Create the shade with the user's tenant ID
     const shade = await shadesService.createShade({
-      ...req.body,
-      tenantId: req.user.tenantId
+      shadeCode: shade_code,
+      shadeName: shade_name,
+      percentage: percentage,
+      tenantId: tenantId,
+      fibres: blendFibres,
+      rawCottonCompositions: rawCottonCompositions
     });
     
     res.status(201).json(shade);
@@ -49,9 +76,34 @@ exports.getShadeById = async (req, res) => {
 exports.updateShade = async (req, res) => {
   try {
     const { id } = req.params;
-    const shade = await shadesService.updateShade(id, req.body, req.user.tenantId);
+    
+    // Handle both camelCase and snake_case field names
+    const shade_code = req.body.shade_code || req.body.shadeCode;
+    const shade_name = req.body.shade_name || req.body.shadeName;
+    const percentage = req.body.percentage;
+    const tenantId = req.body.tenantId || req.user?.tenantId;
+    const blendFibres = req.body.blendFibres || req.body.fibres || [];
+    
+    // Filter out invalid cotton compositions (empty cottonId or percentage 0)
+    const rawCottonCompositions = (req.body.rawCottonCompositions || []).filter(composition => 
+      composition.percentage > 0 && 
+      composition.cottonId && 
+      composition.cottonId.trim() !== ''
+    );
+    
+    const updateData = {
+      shadeCode: shade_code,
+      shadeName: shade_name,
+      percentage: percentage,
+      tenantId: tenantId,
+      fibres: blendFibres,
+      rawCottonCompositions: rawCottonCompositions
+    };
+    
+    const shade = await shadesService.updateShade(id, updateData, tenantId);
     res.json(shade);
   } catch (error) {
+    console.error('Error in updateShade controller:', error);
     res.status(500).json({ error: 'Failed to update shade' });
   }
 };
