@@ -10,7 +10,9 @@ class FibreTransfersService {
     let filteredTransfers = this.transfers;
     
     if (status) {
-      filteredTransfers = this.transfers.filter(transfer => transfer.status === status.toUpperCase());
+      filteredTransfers = this.transfers.filter(
+        transfer => transfer.status === status.toUpperCase()
+      );
     }
 
     const startIndex = (page - 1) * limit;
@@ -34,9 +36,9 @@ class FibreTransfersService {
 
   async createFibreTransfer(data) {
     const newTransfer = {
-      id: Date.now().toString(), // Simple ID generation
+      id: Date.now().toString(), // Temporary ID generation
       ...data,
-      status: 'PENDING',
+      status: 'pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -74,8 +76,8 @@ class FibreTransfersService {
   }
 
   async getPendingTransfers() {
-    return this.transfers.filter(transfer => transfer.status === 'PENDING');
+    return this.transfers.filter(transfer => transfer.status === 'pending');
   }
 }
 
-module.exports = new FibreTransfersService(); 
+module.exports = new FibreTransfersService();

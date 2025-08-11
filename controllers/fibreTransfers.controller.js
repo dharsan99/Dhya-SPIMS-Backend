@@ -67,25 +67,25 @@ exports.getFibreTransferById = async (req, res) => {
 exports.createFibreTransfer = async (req, res) => {
   try {
     const {
-      fibre_id,
-      supplier_id,
-      sent_kg,
-      sent_date = new Date().toISOString(),
-      expected_return = null,
+      fibreId,
+      supplierId,
+      sentKg,
+      sentDate = new Date().toISOString(),
+      expectedReturn = null,
       notes = '',
     } = req.body;
 
-    if (!fibre_id || !supplier_id || !sent_kg) {
+    if (!fibreId || !supplierId || !sentKg) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const created = await prisma.fibreTransfer.create({
       data: {
-        fibreId: fibre_id,
-        supplierId: supplier_id,
-        sentKg: Number(sent_kg),
-        sentDate: new Date(sent_date),
-        expectedReturn: expected_return ? new Date(expected_return) : null,
+        fibreId,
+        supplierId,
+        sentKg: Number(sentKg),
+        sentDate: new Date(sentDate),
+        expectedReturn: expectedReturn ? new Date(expectedReturn) : null,
         notes,
         status: 'pending'
       },
@@ -106,14 +106,14 @@ exports.createFibreTransfer = async (req, res) => {
 exports.updateFibreTransfer = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, returned_kg, return_date, notes } = req.body;
+    const { status, returnedKg, returnDate, notes } = req.body;
 
     const updated = await prisma.fibreTransfer.update({
       where: { id },
       data: {
         status,
-        returnedKg: returned_kg ? Number(returned_kg) : undefined,
-        returnDate: return_date ? new Date(return_date) : undefined,
+        returnedKg: returnedKg ? Number(returnedKg) : undefined,
+        returnDate: returnDate ? new Date(returnDate) : undefined,
         notes
       },
       include: {

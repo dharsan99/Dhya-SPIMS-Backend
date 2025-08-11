@@ -34,6 +34,7 @@ model Fibre {
   updatedAt     DateTime       @updatedAt @db.Timestamp(6)
   blendFibres   BlendFibre[]
   category      FibreCategory? @relation(fields: [categoryId], references: [id])
+  fibreRestockRequests FibreRestockRequest[] 
   shadeFibres   ShadeFibre[]
   fibreTransfers FibreTransfer[]
   stocks        Stock[]
@@ -422,7 +423,8 @@ model FibreRestockRequest {
   requestedKg  Decimal   @db.Decimal(10, 2)
   supplierId   String    @db.Uuid
   updatedAt    DateTime  @updatedAt
-  upplier     Supplier  @relation(fields: [supplierId], references: [id]) 
+  supplier     Supplier  @relation(fields: [supplierId], references: [id]) 
+  fibre        Fibre     @relation(fields: [fibreId], references: [id])
 
 
   @@index([fibreId])
