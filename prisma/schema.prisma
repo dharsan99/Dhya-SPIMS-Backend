@@ -78,6 +78,7 @@ model Shade {
   tenant      Tenant?      @relation(fields: [tenantId], references: [id])
   rawCottonCompositions RawCottonComposition[]
   orders      Order[]
+  
 
   @@index([tenantId])
   @@map("shades")
@@ -102,16 +103,21 @@ model Tenant {
   plan         String?   @default("free")
   address      String?
   createdAt    DateTime? @default(now()) @db.Timestamp(6)
-  expires_at   DateTime?
+  expiresAt   DateTime?
   industry     String?
   isActive     Boolean?  @default(true)
   logo         String?
   phone        String?
-  storage_path String?
+  storagePath String?
   updatedAt    DateTime? @updatedAt @db.Timestamp(6)
   shades       Shade[]
   users        Users[]
+  orders       Order[]
+  roles        Role[]
+  productions  Production[]
   subscriptions Subscription[]
+  billing      Billing[]
+  payments     Payment[]
   settings     Setting?
 
   @@map("tenants")
@@ -231,6 +237,7 @@ model Role {
   createdAt   DateTime @default(now())
   tenantId    String   @db.Uuid
   updatedAt   DateTime @updatedAt
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
 
   userRoles   UserRole[]  // Added for relation with UserRole
 
@@ -267,6 +274,7 @@ model Production {
   total     Decimal  @default(0)
   updatedAt DateTime @updatedAt
   order     Order?   @relation(fields: [orderId], references: [id])
+  tenant    Tenant?      @relation(fields: [tenantId], references: [id])
 
   @@unique([date, tenantId])
   @@index([date])
@@ -359,6 +367,7 @@ model Order {
   buyer        Buyer     @relation(fields: [buyerId], references: [id])
   shade        Shade     @relation(fields: [shadeId], references: [id])
   productions  Production[]
+  tenant       Tenant?      @relation(fields: [tenantId], references: [id])
 
   @@map("orders")
 }
@@ -753,6 +762,9 @@ model Billing {
   status        String
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now())
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id])
+  
+  payments    Payment[]
 }
 
 model Payment {
@@ -764,6 +776,8 @@ model Payment {
   method    String
   status    String
   txnId     String?
+  tenant    Tenant      @relation(fields: [tenantId], references: [id])
+  billing   Billing  @relation(fields: [billingId], references: [id])
 }
 
 model Stock {
